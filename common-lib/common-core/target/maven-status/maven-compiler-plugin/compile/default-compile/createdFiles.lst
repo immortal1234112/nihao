@@ -1,0 +1,9 @@
+com\platform\core\base\BaseEntity.class
+com\platform\core\util\SnowflakeIdGenerator.class
+com\platform\core\exception\GlobalExceptionHandler.class
+com\platform\core\base\PageResult$PageInfo.class
+com\platform\core\base\PageResult.class
+com\platform\core\base\Result.class
+com\platform\core\util\JsonUtils.class
+com\platform\core\exception\BizException.class
+com\platform\core\exception\ErrorCode.class

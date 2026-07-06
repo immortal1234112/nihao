@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/agent-core/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/agent-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-core/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-core/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-feign/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-feign/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-mq/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-mq/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-security/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-security/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-storage/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-storage/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-web/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/common-lib/common-web/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gateway/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/image-engine/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/image-engine/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/security-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/security-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/storage-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/storage-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/user-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/user-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/video-engine/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/video-engine/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

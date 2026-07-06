@@ -1,0 +1,4 @@
+com\platform\storage\StorageAdapter.class
+com\platform\storage\UploadResult.class
+com\platform\storage\FileMetadata.class
+com\platform\storage\PartResult.class

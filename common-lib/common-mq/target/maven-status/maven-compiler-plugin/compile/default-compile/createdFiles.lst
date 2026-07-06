@@ -1,0 +1,7 @@
+com\platform\mq\message\TaskResultMessage$FileInfo.class
+com\platform\mq\message\TaskMessage.class
+com\platform\mq\exchange\ExchangeConstants.class
+com\platform\mq\exchange\QueueConstants.class
+com\platform\mq\message\TaskResultMessage.class
+com\platform\mq\config\RabbitMqConfig.class
+com\platform\mq\message\AuditLogMessage.class

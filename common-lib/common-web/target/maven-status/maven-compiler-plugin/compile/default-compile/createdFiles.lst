@@ -1,0 +1,15 @@
+com\platform\web\aspect\AuditLogAspect$AuditInfo.class
+com\platform\web\config\FeignConfig.class
+com\platform\web\aspect\AuditLogAspect.class
+com\platform\web\config\WebMvcConfig.class
+com\platform\web\annotation\RequireRole.class
+com\platform\web\context\UserContext.class
+com\platform\web\annotation\AuditLog.class
+com\platform\web\interceptor\UserContextInterceptor.class
+com\platform\web\config\JacksonConfig.class
+com\platform\web\context\RequestContext.class
+com\platform\web\context\TenantContext.class
+com\platform\web\context\UserContext$UserInfo.class
+com\platform\web\interceptor\TenantContextInterceptor.class
+com\platform\web\interceptor\RequestIdInterceptor.class
+com\platform\web\aspect\RequireRoleAspect.class

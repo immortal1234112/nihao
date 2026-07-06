@@ -1,0 +1,33 @@
+# ===================================================
+# Nacos 配置示例 — 大模型 API Key 配置
+# 在 Nacos 控制台创建以下配置:
+#   Data ID: agent-core.yaml
+#   Group: DEFAULT_GROUP
+# ===================================================
+
+# ---------- DeepSeek 大模型 ----------
+# 获取 API Key: https://platform.deepseek.com/api_keys
+# 文档: https://platform.deepseek.com/api-docs
+deepseek:
+  api-key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # 替换为你的 DeepSeek API Key
+  base-url: https://api.deepseek.com
+  model: deepseek-chat                         # deepseek-chat / deepseek-reasoner
+  max-tokens: 4096
+  temperature: 0.7
+
+# ---------- 通义千问 大模型 ----------
+# 获取 API Key: https://dashscope.console.aliyun.com/apiKey
+# 文档: https://help.aliyun.com/zh/dashscope/
+qwen:
+  api-key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # 替换为你的千问 API Key
+  base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  model: qwen-turbo                            # qwen-turbo / qwen-plus / qwen-max
+  max-tokens: 4096
+  temperature: 0.7
+
+# ---------- 通义万相 图片生成 ----------
+# 文档: https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-wanxiang
+qwen-image:
+  api-key: ${qwen.api-key}                     # 复用千问的 API Key
+  model: wanx-v1
+  size: 1024*1024                              # 可选: 720*1280, 1280*720, 1024*1024

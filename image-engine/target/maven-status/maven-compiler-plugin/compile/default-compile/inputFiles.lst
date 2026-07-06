@@ -1,0 +1,14 @@
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\adapter\ImageGenerationAdapter.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\adapter\qwen\QwenImageAdapter.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\client\ApiClient.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\client\CircuitBreaker.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\client\RetryPolicy.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\consumer\TaskConsumer.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\ImageEngineApplication.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\model\GenerateRequest.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\model\GenerationResult.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\model\ModelCapability.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\model\TaskStatus.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\service\ImageGenerationFacade.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\service\ModelRegistry.java
+C:\Users\immortal\Desktop\新建文件夹\woshijavagaoshou\image-engine\src\main\java\com\platform\image\service\PostProcessor.java

@@ -1,0 +1,5 @@
+com\platform\gateway\filter\AuditLogGatewayFilter.class
+com\platform\gateway\filter\JwtAuthFilter.class
+com\platform\gateway\filter\TenantContextFilter.class
+com\platform\gateway\GatewayApplication.class
+com\platform\gateway\filter\RateLimitFilter.class

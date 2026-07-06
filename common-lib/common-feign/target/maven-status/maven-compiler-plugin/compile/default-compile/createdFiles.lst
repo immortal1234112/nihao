@@ -1,0 +1,10 @@
+com\platform\feign\dto\FileDTO.class
+com\platform\feign\fallback\SecurityFeignFallback.class
+com\platform\feign\SecurityFeignClient.class
+com\platform\feign\fallback\UserFeignFallback.class
+com\platform\feign\StorageFeignClient.class
+com\platform\feign\dto\UserDTO.class
+com\platform\feign\fallback\StorageFeignFallback.class
+com\platform\feign\dto\AuditResult.class
+com\platform\feign\dto\QuotaDTO.class
+com\platform\feign\UserFeignClient.class

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="common-security" />
+        <module name="common-feign" />
+        <module name="common-storage" />
+        <module name="video-engine" />
+        <module name="common-mq" />
+        <module name="storage-service" />
+        <module name="user-service" />
+        <module name="image-engine" />
+        <module name="security-service" />
+        <module name="common-web" />
+        <module name="agent-core" />
+        <module name="gateway" />
+        <module name="common-core" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="agent-core" options="-parameters" />
+      <module name="common-core" options="-parameters" />
+      <module name="common-feign" options="-parameters" />
+      <module name="common-mq" options="-parameters" />
+      <module name="common-security" options="-parameters" />
+      <module name="common-storage" options="-parameters" />
+      <module name="common-web" options="-parameters" />
+      <module name="gateway" options="-parameters" />
+      <module name="image-engine" options="-parameters" />
+      <module name="security-service" options="-parameters" />
+      <module name="storage-service" options="-parameters" />
+      <module name="user-service" options="-parameters" />
+      <module name="video-engine" options="-parameters" />
+    </option>
+  </component>
+</project>
