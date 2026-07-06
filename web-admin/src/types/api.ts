@@ -132,6 +132,7 @@ export interface WorkflowStep {
   status: string;
   input: string | null;
   output: string | null;
+  errorMsg: string | null;
   startedAt: string | null;
   finishedAt: string | null;
 }
