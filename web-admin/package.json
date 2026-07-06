@@ -10,15 +10,16 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@ant-design/charts": "^2.1.1",
+    "@ant-design/icons": "^5.3.7",
+    "antd": "^5.17.0",
+    "axios": "^1.7.2",
+    "dayjs": "^1.11.11",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.23.1",
-    "antd": "^5.17.0",
-    "@ant-design/icons": "^5.3.7",
-    "@ant-design/charts": "^2.1.1",
-    "zustand": "^4.5.2",
-    "axios": "^1.7.2",
-    "dayjs": "^1.11.11"
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
