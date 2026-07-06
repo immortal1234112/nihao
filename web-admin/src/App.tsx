@@ -1,5 +1,8 @@
+import { RouterProvider } from 'react-router-dom';
+import { router } from '@/router';
+
 const App = () => {
-  return <div>AI Agent Platform Admin</div>;
+  return <RouterProvider router={router} />;
 };
 
 export default App;
