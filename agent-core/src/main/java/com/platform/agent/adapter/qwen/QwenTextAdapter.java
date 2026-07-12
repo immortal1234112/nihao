@@ -2,6 +2,7 @@ package com.platform.agent.adapter.qwen;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.platform.agent.adapter.LLMAdapter;
+import com.platform.core.config.ModelConfigService;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +33,7 @@ public class QwenTextAdapter implements LLMAdapter {
 
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final ModelConfigService configService;
 
     @Value("${qwen.api-key:}")
     private String apiKey;
@@ -48,7 +50,11 @@ public class QwenTextAdapter implements LLMAdapter {
     @Value("${qwen.temperature:0.7}")
     private double temperature;
 
-    public QwenTextAdapter() {
+    @Value("${platform.require-api-key:true}")
+    private boolean requireApiKey;
+
+    public QwenTextAdapter(ModelConfigService configService) {
+        this.configService = configService;
         this.objectMapper = new ObjectMapper();
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
@@ -69,6 +75,9 @@ public class QwenTextAdapter implements LLMAdapter {
     @Override
     public String chat(String systemPrompt, String userMessage, Map<String, Object> options) {
         try {
+            String effectiveApiKey = configService.getApiKey(provider(), apiKey);
+            String effectiveBaseUrl = configService.getBaseUrl(provider(), baseUrl);
+            String effectiveModel = configService.getModel(provider(), model);
             List<Map<String, String>> messages = new java.util.ArrayList<>();
             if (systemPrompt != null && !systemPrompt.isEmpty()) {
                 messages.add(Map.of("role", "system", "content", systemPrompt));
@@ -83,7 +92,7 @@ public class QwenTextAdapter implements LLMAdapter {
                     : maxTokens;
 
             Map<String, Object> body = Map.of(
-                    "model", model,
+                    "model", effectiveModel,
                     "messages", messages,
                     "temperature", temp,
                     "max_tokens", maxTok
@@ -93,13 +102,13 @@ public class QwenTextAdapter implements LLMAdapter {
 
             // 千问 DashScope 使用 OpenAI 兼容模式
             Request request = new Request.Builder()
-                    .url(baseUrl + "/chat/completions")
+                    .url(effectiveBaseUrl + "/chat/completions")
                     .post(RequestBody.create(json, MediaType.parse("application/json")))
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + effectiveApiKey)
                     .header("Content-Type", "application/json")
                     .build();
 
-            log.debug("Qwen call: model={}, prompt={}...", model,
+            log.debug("Qwen call: model={}, prompt={}...", effectiveModel,
                     userMessage.substring(0, Math.min(30, userMessage.length())));
 
             try (Response response = httpClient.newCall(request).execute()) {
@@ -119,6 +128,8 @@ public class QwenTextAdapter implements LLMAdapter {
 
     @Override
     public boolean healthCheck() {
+        if (!requireApiKey) return true;  // dev mode: always available
+        if (configService.isEnabled(provider())) return true;
         return apiKey != null && !apiKey.isEmpty() && !"your-qwen-api-key".equals(apiKey);
     }
 

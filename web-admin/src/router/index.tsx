@@ -30,6 +30,7 @@ const TenantInfoPage = lazy(() => import('@/pages/tenant/TenantInfoPage'));
 const MemberPage = lazy(() => import('@/pages/tenant/MemberPage'));
 const StatsPage = lazy(() => import('@/pages/admin/StatsPage'));
 const ReviewPage = lazy(() => import('@/pages/admin/ReviewPage'));
+const ModelConfigPage = lazy(() => import('@/pages/admin/ModelConfigPage'));
 
 export const router = createBrowserRouter([
   {
@@ -80,6 +81,14 @@ export const router = createBrowserRouter([
         element: (
           <AuthGuard requiredRoles={['TENANT_ADMIN', 'SUPER_ADMIN']}>
             {LazyLoad(ReviewPage)}
+          </AuthGuard>
+        ),
+      },
+      {
+        path: 'admin/model-configs',
+        element: (
+          <AuthGuard requiredRoles={['TENANT_ADMIN', 'SUPER_ADMIN']}>
+            {LazyLoad(ModelConfigPage)}
           </AuthGuard>
         ),
       },

@@ -7,7 +7,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 @SpringBootApplication(scanBasePackages = "com.platform")
 @EnableDiscoveryClient
-@MapperScan("com.platform.securitysvc.mapper")
+@MapperScan({"com.platform.securitysvc.mapper", "com.platform.core.config"})
 public class SecurityServiceApplication {
 
     public static void main(String[] args) {

@@ -6,9 +6,7 @@ export const fileApi = {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('storageClass', storageClass);
-    return http.post<ApiResult<UploadResult>>('/files/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return http.post<ApiResult<UploadResult>>('/files/upload', formData);
   },
   getPresignedUrl: (filename: string, contentType: string = 'application/octet-stream') =>
     http.get<ApiResult<{ uploadUrl: string }>>('/files/presign', { params: { filename, contentType } }),

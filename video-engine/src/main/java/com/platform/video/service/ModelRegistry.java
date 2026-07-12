@@ -24,6 +24,20 @@ public class ModelRegistry {
         if (available.isEmpty()) {
             throw new RuntimeException("No available video generation model");
         }
+
+        // 1. 按指定 provider 精确匹配
+        if (request.getModelProvider() != null && !request.getModelProvider().isBlank()) {
+            for (VideoGenerationAdapter a : available) {
+                String provider = getProviderFromAdapter(a);
+                if (request.getModelProvider().equalsIgnoreCase(a.modelName())
+                        || request.getModelProvider().equalsIgnoreCase(provider)) {
+                    return a;
+                }
+            }
+            log.warn("Requested video provider '{}' not available, falling back", request.getModelProvider());
+        }
+
+        // 2. 按 style / resolution 匹配
         if (request.getStyle() != null) {
             for (VideoGenerationAdapter a : available) {
                 if (a.capability().getSupportedResolutions() != null
@@ -33,6 +47,18 @@ public class ModelRegistry {
             }
         }
         return available.get(0);
+    }
+
+    private String getProviderFromAdapter(VideoGenerationAdapter adapter) {
+        String className = adapter.getClass().getSimpleName().toLowerCase();
+        if (className.contains("runway")) return "runway";
+        if (className.contains("kling")) return "kling";
+        if (className.contains("pika")) return "pika";
+        if (className.contains("luma")) return "luma";
+        if (className.contains("deepseek")) return "deepseek";
+        if (className.contains("cogvideo")) return "cogvideo";
+        if (className.contains("wan")) return "wan";
+        return className;
     }
 
     public List<VideoGenerationAdapter> getAvailableAdapters() {

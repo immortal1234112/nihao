@@ -9,7 +9,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication(scanBasePackages = "com.platform")
 @EnableDiscoveryClient
 @EnableFeignClients(basePackages = "com.platform.feign")
-@MapperScan("com.platform.agent.mapper")
+@MapperScan({"com.platform.agent.mapper", "com.platform.core.config"})
 public class AgentCoreApplication {
 
     public static void main(String[] args) {

@@ -16,6 +16,7 @@ import {
   UsergroupAddOutlined,
   BarChartOutlined,
   AuditOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -76,6 +77,7 @@ const SideMenu: React.FC = () => {
             children: [
               { key: '/admin/stats' as const, icon: <BarChartOutlined />, label: '系统统计' },
               { key: '/admin/review' as const, icon: <AuditOutlined />, label: '任务审核' },
+              { key: '/admin/model-configs' as const, icon: <SettingOutlined />, label: '模型配置' },
             ],
           },
         ]

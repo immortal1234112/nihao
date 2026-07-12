@@ -1,6 +1,7 @@
 package com.platform.image.adapter.qwen;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.platform.core.config.ModelConfigService;
 import com.platform.image.adapter.ImageGenerationAdapter;
 import com.platform.image.model.GenerateRequest;
 import com.platform.image.model.GenerationResult;
@@ -33,6 +34,7 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
 
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final ModelConfigService configService;
 
     @Value("${qwen-image.api-key:${qwen.api-key:}}")
     private String apiKey;
@@ -43,7 +45,11 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
     @Value("${qwen-image.size:1024*1024}")
     private String defaultSize;
 
-    public QwenImageAdapter() {
+    @Value("${platform.require-api-key:true}")
+    private boolean requireApiKey;
+
+    public QwenImageAdapter(ModelConfigService configService) {
+        this.configService = configService;
         this.objectMapper = new ObjectMapper();
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
@@ -70,7 +76,11 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
     @SuppressWarnings("unchecked")
     public List<GenerationResult> generate(GenerateRequest request) {
         List<GenerationResult> results = new ArrayList<>();
-        String size = request.getSize() != null ? request.getSize() : defaultSize;
+        String size = request.getSize() != null
+            ? request.getSize().replace('x', '*') : defaultSize;
+        String effectiveApiKey = configService.getApiKey("qwen-image",
+            configService.getApiKey("qwen", apiKey));  // 回退到 qwen LLM 的 Key
+        String effectiveModel = configService.getModel("qwen-image", modelName);
 
         try {
             // ---- 步骤 1: 提交异步任务 ----
@@ -81,7 +91,7 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
             }
 
             Map<String, Object> taskBody = new LinkedHashMap<>();
-            taskBody.put("model", modelName);
+            taskBody.put("model", effectiveModel);
             taskBody.put("input", input);
             Map<String, Object> parameters = new LinkedHashMap<>();
             if (size != null) parameters.put("size", size);
@@ -93,7 +103,7 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
             Request taskRequest = new Request.Builder()
                     .url("https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis")
                     .post(RequestBody.create(taskJson, MediaType.parse("application/json")))
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + effectiveApiKey)
                     .header("Content-Type", "application/json")
                     .header("X-DashScope-Async", "enable")
                     .build();
@@ -111,16 +121,16 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
 
             log.info("Qwen Image task submitted: taskId={}", taskId);
 
-            // ---- 步骤 2: 轮询结果（最多等待 120 秒） ----
+            // ---- 步骤 2: 轮询结果（最多等待 32 秒） ----
             String statusUrl = "https://dashscope.aliyuncs.com/api/v1/tasks/" + taskId;
-            int maxRetries = 60;
+            int maxRetries = 40;
             for (int i = 0; i < maxRetries; i++) {
-                Thread.sleep(2000);
+                Thread.sleep(800);
 
                 Request statusRequest = new Request.Builder()
                         .url(statusUrl)
                         .get()
-                        .header("Authorization", "Bearer " + apiKey)
+                        .header("Authorization", "Bearer " + effectiveApiKey)
                         .build();
 
                 try (Response response = httpClient.newCall(statusRequest).execute()) {
@@ -150,7 +160,7 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
                 }
             }
 
-            throw new RuntimeException("Qwen Image task timeout after " + (maxRetries * 2) + "s");
+            throw new RuntimeException("Qwen Image task timeout after " + (maxRetries * 800 / 1000) + "s");
 
         } catch (Exception e) {
             log.error("Qwen Image generation failed: {}", e.getMessage());
@@ -161,10 +171,11 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
     @Override
     public TaskStatus queryStatus(String externalTaskId) {
         try {
+            String effectiveApiKey = configService.getApiKey("qwen-image", apiKey);
             String statusUrl = "https://dashscope.aliyuncs.com/api/v1/tasks/" + externalTaskId;
             Request request = new Request.Builder()
                     .url(statusUrl).get()
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + effectiveApiKey)
                     .build();
 
             try (Response response = httpClient.newCall(request).execute()) {
@@ -191,6 +202,9 @@ public class QwenImageAdapter implements ImageGenerationAdapter {
 
     @Override
     public boolean healthCheck() {
+        if (!requireApiKey) return true;  // dev mode: always available
+        if (configService.isEnabled("qwen-image")) return true;
+        if (configService.isEnabled("qwen")) return true;  // fallback to qwen LLM key
         return apiKey != null && !apiKey.isEmpty() && !"your-qwen-api-key".equals(apiKey);
     }
 }

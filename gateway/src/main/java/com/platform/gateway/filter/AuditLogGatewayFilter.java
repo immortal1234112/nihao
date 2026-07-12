@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.LocalDateTime;
 
@@ -70,7 +71,7 @@ public class AuditLogGatewayFilter implements GlobalFilter, Ordered {
                     } catch (Exception e) {
                         log.warn("Failed to send audit log to MQ: {}", e.getMessage());
                     }
-                }))
+                }).subscribeOn(Schedulers.boundedElastic()))
                 .onErrorResume(e -> {
                     log.debug("Audit log filter error: {}", e.getMessage());
                     return Mono.empty();

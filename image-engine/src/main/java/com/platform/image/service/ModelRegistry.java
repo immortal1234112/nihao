@@ -37,7 +37,18 @@ public class ModelRegistry {
             throw new RuntimeException("No available image generation model");
         }
 
-        // 按 style 匹配
+        // 1. 按指定 provider 精确匹配
+        if (request.getModelProvider() != null && !request.getModelProvider().isBlank()) {
+            for (ImageGenerationAdapter adapter : available) {
+                if (request.getModelProvider().equalsIgnoreCase(adapter.modelName())
+                        || request.getModelProvider().equalsIgnoreCase(getProviderFromAdapter(adapter))) {
+                    return adapter;
+                }
+            }
+            log.warn("Requested provider '{}' not available, falling back", request.getModelProvider());
+        }
+
+        // 2. 按 style 匹配
         if (request.getStyle() != null) {
             for (ImageGenerationAdapter adapter : available) {
                 ModelCapability cap = adapter.capability();
@@ -47,8 +58,18 @@ public class ModelRegistry {
             }
         }
 
-        // 默认返回第一个可用的
+        // 3. 默认返回第一个可用的
         return available.get(0);
+    }
+
+    private String getProviderFromAdapter(ImageGenerationAdapter adapter) {
+        String className = adapter.getClass().getSimpleName().toLowerCase();
+        if (className.contains("qwen")) return "qwen-image";
+        if (className.contains("dalle")) return "dalle";
+        if (className.contains("sd")) return "stability";
+        if (className.contains("midjourney")) return "midjourney";
+        if (className.contains("ernie")) return "ernie-image";
+        return className;
     }
 
     /**

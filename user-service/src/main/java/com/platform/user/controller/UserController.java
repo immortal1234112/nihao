@@ -50,6 +50,8 @@ public class UserController {
         result.put("phone", user.getPhone());
         result.put("avatarUrl", user.getAvatarUrl());
         result.put("status", user.getStatus());
+        result.put("roles", UserContext.getRoles());
+        result.put("tenantId", TenantContext.get());
         result.put("createdAt", user.getCreatedAt());
         return Result.ok(result);
     }

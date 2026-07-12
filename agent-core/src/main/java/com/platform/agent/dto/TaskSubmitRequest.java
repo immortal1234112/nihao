@@ -20,6 +20,9 @@ public class TaskSubmitRequest {
     /** 引擎类型：IMAGE / VIDEO */
     private String engineType = "IMAGE";
 
+    /** 指定模型 provider（如 qwen-image, dalle, stability） */
+    private String modelProvider;
+
     /** 图片参数 */
     private String size;
     private Integer count = 1;

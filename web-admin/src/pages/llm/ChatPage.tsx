@@ -60,8 +60,15 @@ const ChatPage: React.FC = () => {
             <Select
               value={selectedProvider}
               onChange={setSelectedProvider}
-              style={{ width: 160 }}
-              options={models.map((m) => ({ value: m.provider, label: `${m.provider} / ${m.model}` }))}
+              style={{ width: 220 }}
+              options={models.map((m) => {
+                const names: Record<string, string> = {
+                  openai:'OpenAI', anthropic:'Claude', deepseek:'DeepSeek',
+                  qwen:'通义千问', baidu:'文心一言', spark:'讯飞星火',
+                  zhipu:'智谱GLM', moonshot:'Kimi', google:'Gemini'
+                };
+                return { value: m.provider, label: `${names[m.provider] || m.provider} — ${m.model}` };
+              })}
             />
           </Space>
           <Button icon={<DeleteOutlined />} onClick={() => setMessages([])} disabled={messages.length === 0}>

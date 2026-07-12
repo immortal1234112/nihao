@@ -18,4 +18,6 @@ public class VideoGenerationResult {
     private int duration;
     private int fps;
     private long fileSize;
+    /** DeepSeek 等文本模型生成的脚本内容 */
+    private String scriptContent;
 }

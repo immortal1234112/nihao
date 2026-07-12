@@ -16,6 +16,7 @@ import java.util.List;
 @AllArgsConstructor
 public class GenerateRequest {
     private String prompt;
+    private String modelProvider;
     private String size;
     private int count;
     private String style;

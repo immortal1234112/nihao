@@ -17,4 +17,5 @@ public class VideoGenerateRequest {
     private String style;
     private String sourceImageUrl;
     private String negativePrompt;
+    private String modelProvider;
 }

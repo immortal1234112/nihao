@@ -1,9 +1,6 @@
 spring:
   application:
     name: image-engine
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
   config:
     import: optional:nacos:${spring.application.name}.yaml
   cloud:
@@ -13,6 +10,11 @@ spring:
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
         file-extension: yaml
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/agent_platform?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASS:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -32,6 +34,23 @@ spring:
 server:
   port: 8085
 
+platform:
+  require-api-key: ${REQUIRE_API_KEY:true}
+
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: assign_id
+  configuration:
+    map-underscore-to-camel-case: true
+
 logging:
   level:
     com.platform.image: DEBUG
+
+# ========== 表情包生成配置 ==========
+meme:
+  template-cache-ttl: 600
+  template-api: https://justmeme.wtf/api/v1/templates
+  qwen-prompt-model: qwen-turbo
+  fallback-templates-enabled: true

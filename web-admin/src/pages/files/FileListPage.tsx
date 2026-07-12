@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Table, Upload, Button, Space, Typography, Tag, Popconfirm, message, Modal } from 'antd';
 import { UploadOutlined, DownloadOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
-import type { UploadFile } from 'antd';
 import { fileApi } from '@/api/file';
 import { StorageFile } from '@/types/api';
+import { tokenStorage } from '@/utils/token';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -28,15 +28,16 @@ const FileListPage: React.FC = () => {
 
   useEffect(() => { loadFiles(); }, []);
 
-  const handleUpload = async (info: { file: UploadFile }) => {
-    const file = info.file as unknown as File;
-    if (!file) return;
+  const handleUpload = async (file: File, onSuccess: () => void, onError: (msg: string) => void) => {
     try {
       await fileApi.upload(file);
+      onSuccess();
       message.success('上传成功');
       setUploadOpen(false);
       loadFiles();
-    } catch { /* handled */ }
+    } catch {
+      onError('上传失败，请重试');
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -45,6 +46,30 @@ const FileListPage: React.FC = () => {
       message.success('删除成功');
       loadFiles();
     } catch { /* handled */ }
+  };
+
+  const handleDownload = async (file: StorageFile) => {
+    const key = 'file-download';
+    message.loading({ content: '下载中...', key });
+    try {
+      const token = tokenStorage.getAccessToken();
+      const res = await fetch(`/api/v1/files/${file.id}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.originalName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      message.success({ content: '下载完成', key });
+    } catch {
+      message.error({ content: '下载失败', key });
+    }
   };
 
   const formatSize = (bytes: number) => {
@@ -74,7 +99,7 @@ const FileListPage: React.FC = () => {
       render: (_: unknown, record: StorageFile) => (
         <Space>
           <Button type="link" size="small" icon={<DownloadOutlined />}
-            href={fileApi.getDownloadUrl(record.id)} target="_blank">
+            onClick={() => handleDownload(record)}>
             下载
           </Button>
           <Popconfirm title="确定删除该文件？" onConfirm={() => handleDelete(record.id)}>
@@ -111,9 +136,12 @@ const FileListPage: React.FC = () => {
 
       <Modal title="上传文件" open={uploadOpen} onCancel={() => setUploadOpen(false)} footer={null}>
         <Upload.Dragger
-          customRequest={({ file, onSuccess }) => {
-            handleUpload({ file: file as UploadFile });
-            onSuccess?.('ok');
+          customRequest={({ file, onSuccess, onError }) => {
+            handleUpload(
+              file as unknown as File,
+              () => onSuccess?.('ok'),
+              (msg) => onError?.(new Error(msg)),
+            );
           }}
           showUploadList={false}
         >

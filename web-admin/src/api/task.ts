@@ -11,4 +11,5 @@ export const taskApi = {
   getById: (id: string) => http.get<ApiResult<TaskDetail>>(`/tasks/${id}`),
   getResult: (id: string) => http.get<ApiResult<TaskResult>>(`/tasks/${id}/result`),
   cancel: (id: string) => http.delete<ApiResult<null>>(`/tasks/${id}`),
+  delete: (id: string) => http.delete<ApiResult<null>>(`/tasks/${id}/delete`),
 };

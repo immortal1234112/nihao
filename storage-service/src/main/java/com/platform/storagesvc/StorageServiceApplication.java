@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(scanBasePackages = "com.platform")
 @EnableDiscoveryClient
 @EnableFeignClients(basePackages = "com.platform.feign")
-@MapperScan("com.platform.storagesvc.mapper")
+@MapperScan({"com.platform.storagesvc.mapper", "com.platform.core.config"})
 @EnableScheduling
 public class StorageServiceApplication {
 

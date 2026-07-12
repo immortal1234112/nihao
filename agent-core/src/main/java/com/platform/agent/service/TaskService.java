@@ -141,6 +141,22 @@ public class TaskService {
     // ==================== 取消任务 ====================
 
     @Transactional
+    public void deleteTask(String taskId, String userId) {
+        AgentTask task = agentTaskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BizException(ErrorCode.TASK_NOT_FOUND);
+        }
+        if (!task.getUserId().equals(userId)) {
+            throw new BizException(ErrorCode.NO_PERMISSION);
+        }
+        // 删除关联的步骤
+        workflowStepMapper.delete(new LambdaQueryWrapper<WorkflowStep>()
+                .eq(WorkflowStep::getTaskId, taskId));
+        // 删除任务
+        agentTaskMapper.deleteById(taskId);
+        log.info("Task deleted: id={}", taskId);
+    }
+
     public void cancelTask(String taskId, String userId) {
         AgentTask task = agentTaskMapper.selectById(taskId);
         if (task == null) {
@@ -196,8 +212,9 @@ public class TaskService {
         params.put("prompt", request.getPrompt());
         params.put("engineType", request.getEngineType());
         params.put("workflowType", request.getWorkflowType());
+        params.put("modelProvider", request.getModelProvider());
         params.put("count", request.getCount());
-        params.put("size", intent.getOrDefault("aspectRatio", "square"));
+        params.put("size", request.getSize() != null ? request.getSize() : "1024x1024");
         params.put("style", intent.getOrDefault("style", "default"));
         params.put("format", request.getFormat() != null ? request.getFormat() : "png");
         params.put("quality", request.getQuality() != null ? request.getQuality() : "standard");

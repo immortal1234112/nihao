@@ -7,6 +7,15 @@ import { taskApi } from '@/api/task';
 const { Title } = Typography;
 const { TextArea } = Input;
 
+const videoModels = [
+  { value: 'cogvideox-flash', label: 'CogVideoX-Flash (智谱·免费)', desc: '免费，最大10秒，1920×1080，文生视频/图生视频' },
+  { value: 'runway', label: 'Runway Gen-3 Alpha', desc: '最大10秒，1280×768，电影级品质' },
+  { value: 'kling', label: '快手可灵 (Kling V1)', desc: '最大10秒，1920×1080，中文提示词友好' },
+  { value: 'pika', label: 'Pika 2.0', desc: '最大8秒，1920×1080，支持图+文转视频' },
+  { value: 'luma', label: 'Luma Dream Machine V1', desc: '最大5秒，1360×752，电影感风格' },
+  { value: 'deepseek', label: 'DeepSeek 提示词增强', desc: 'AI 自动优化提示词质量，提升出片效果' },
+];
+
 const VideoGenPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
@@ -19,6 +28,7 @@ const VideoGenPage: React.FC = () => {
         prompt: values.prompt as string,
         workflowType: 'SINGLE',
         engineType: 'VIDEO',
+        modelProvider: values.modelProvider as string,
         duration: values.duration as number,
         fps: values.fps as number,
         resolution: values.resolution as string,
@@ -46,6 +56,12 @@ const VideoGenPage: React.FC = () => {
               </Form.Item>
               <Form.Item name="negativePrompt" label="负面提示词">
                 <TextArea rows={2} placeholder="描述你不希望出现的元素（可选）" maxLength={500} />
+              </Form.Item>
+              <Form.Item name="modelProvider" label="模型选择" initialValue="runway">
+                <Select
+                  placeholder="选择视频生成模型"
+                  options={videoModels.map(m => ({ value: m.value, label: m.label }))}
+                />
               </Form.Item>
               <Row gutter={16}>
                 <Col span={8}>
@@ -86,7 +102,13 @@ const VideoGenPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card title="使用说明">
+          <Card title="可用模型">
+            <ul>
+              {videoModels.map(m => (
+                <li key={m.value}><strong>{m.label.split('(')[0].trim()}</strong>: {m.desc}</li>
+              ))}
+            </ul>
+            <Title level={5} style={{ marginTop: 16 }}>使用说明</Title>
             <ul>
               <li>视频生成耗时较长，请耐心等待</li>
               <li>生成一个视频消耗 1 次视频配额</li>

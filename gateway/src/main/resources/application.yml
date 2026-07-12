@@ -8,6 +8,16 @@ spring:
     import: optional:nacos:${spring.application.name}.yaml
   cloud:
     gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            maxAge: 3600
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 30s
       routes:
         - id: auth
           uri: lb://user-service
@@ -33,10 +43,18 @@ spring:
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/open/**
+        - id: llm
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/llm/**
         - id: files
           uri: lb://storage-service
           predicates:
             - Path=/api/v1/files/**
+        - id: meme
+          uri: lb://image-engine
+          predicates:
+            - Path=/api/v1/meme/**
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}

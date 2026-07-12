@@ -43,7 +43,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/v1/auth/login",
             "/api/v1/auth/register",
             "/api/v1/auth/refresh",
-            "/api/v1/open/**"
+            "/api/v1/open/**",
+            "/api/v1/meme/**"
     );
 
     /** 放行的公共资源路径 */

@@ -94,6 +94,7 @@ export interface TaskSubmitRequest {
   prompt: string;
   workflowType: WorkflowType;
   engineType: EngineType;
+  modelProvider?: string;
   size?: string;
   count?: number;
   style?: string;

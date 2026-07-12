@@ -3,11 +3,13 @@ package com.platform.agent.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.platform.agent.entity.AgentTask;
 import com.platform.agent.mapper.AgentTaskMapper;
+import com.platform.core.config.ModelConfigService;
 import com.platform.agent.service.TaskService;
 import com.platform.core.base.PageResult;
 import com.platform.core.base.Result;
 import com.platform.core.exception.BizException;
 import com.platform.core.exception.ErrorCode;
+import com.platform.web.annotation.AuditLog;
 import com.platform.web.annotation.RequireRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,7 @@ public class AdminController {
 
     private final AgentTaskMapper agentTaskMapper;
     private final TaskService taskService;
+    private final ModelConfigService modelConfigService;
 
     @GetMapping("/stats")
     @RequireRole({"TENANT_ADMIN", "SUPER_ADMIN"})
@@ -79,6 +82,37 @@ public class AdminController {
         task.setStatus("PASS".equals(action) ? AgentTask.STATUS_PASS : AgentTask.STATUS_REJECT);
         task.setCompletedAt(LocalDateTime.now());
         agentTaskMapper.updateById(task);
+        return Result.ok();
+    }
+
+    @GetMapping("/model-configs")
+    @RequireRole({"TENANT_ADMIN", "SUPER_ADMIN"})
+    public Result<List<Map<String, Object>>> listModelConfigs() {
+        return Result.ok(modelConfigService.listAll());
+    }
+
+    @PutMapping("/model-configs/{provider}")
+    @RequireRole({"TENANT_ADMIN", "SUPER_ADMIN"})
+    @AuditLog(action = "UPDATE_MODEL_CONFIG")
+    public Result<Void> updateModelConfig(
+            @PathVariable String provider,
+            @RequestBody Map<String, Object> body) {
+        modelConfigService.saveConfig(
+            provider,
+            (String) body.get("apiKey"),
+            (String) body.get("apiSecret"),
+            (String) body.get("baseUrl"),
+            (String) body.get("model"),
+            body.get("enabled") != null ? ((Number) body.get("enabled")).intValue() : null
+        );
+        return Result.ok();
+    }
+
+    @PostMapping("/model-configs/refresh")
+    @RequireRole({"TENANT_ADMIN", "SUPER_ADMIN"})
+    @AuditLog(action = "REFRESH_MODEL_CONFIG")
+    public Result<Void> refreshModelConfigs() {
+        modelConfigService.refreshCache();
         return Result.ok();
     }
 

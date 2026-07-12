@@ -47,20 +47,13 @@ public class WorkflowEngine {
 
         switch (workflowType) {
             case AgentTask.WF_SINGLE -> {
-                // 1 个生成步骤 + 1 个审核步骤
+                // 单任务：只有 1 个生成步骤（无审核，提速）
                 WorkflowStep genStep = createStep(
                         task.getId(), 0,
                         "IMAGE".equals(engineType) ? WorkflowStep.TYPE_IMAGE : WorkflowStep.TYPE_VIDEO,
                         JsonUtils.toJson(params)
                 );
                 steps.add(genStep);
-
-                WorkflowStep auditStep = createStep(
-                        task.getId(), 1,
-                        WorkflowStep.TYPE_AUDIT,
-                        "{}"
-                );
-                steps.add(auditStep);
             }
 
             case AgentTask.WF_PIPELINE -> {

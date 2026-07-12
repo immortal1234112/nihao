@@ -11,7 +11,7 @@ spring:
         server-addr: ${NACOS_ADDR:localhost:8848}
         file-extension: yaml
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/storage_service?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/storage_service?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASS:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver

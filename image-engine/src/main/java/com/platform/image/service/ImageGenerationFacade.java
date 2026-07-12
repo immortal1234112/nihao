@@ -109,6 +109,7 @@ public class ImageGenerationFacade {
     private GenerateRequest buildRequest(Map<String, Object> params) {
         return GenerateRequest.builder()
                 .prompt((String) params.get("prompt"))
+                .modelProvider((String) params.get("modelProvider"))
                 .size((String) params.getOrDefault("size", "1024x1024"))
                 .count(params.containsKey("count") ? ((Number) params.get("count")).intValue() : 1)
                 .style((String) params.get("style"))
