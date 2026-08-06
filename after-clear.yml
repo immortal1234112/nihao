@@ -1,0 +1,23 @@
+- generic [ref=f5e12]:
+  - generic [ref=f5e13]:
+    - img "rocket" [ref=f5e15]:
+      - img [ref=f5e16]
+    - heading "AI Agent 创作平台" [level=2] [ref=f5e18]
+    - text: 企业级 AI 内容生成平台
+  - generic [ref=f5e19]:
+    - generic [ref=f5e25]:
+      - img "user" [ref=f5e27]:
+        - img [ref=f5e28]
+      - textbox "用户名" [ref=f5e30]: admin
+    - generic [ref=f5e36]:
+      - img "lock" [ref=f5e38]:
+        - img [ref=f5e39]
+      - textbox "密码" [ref=f5e41]: admin123
+      - img "eye-invisible" [ref=f5e43] [cursor=pointer]:
+        - img [ref=f5e44]
+    - button "登 录" [ref=f5e52] [cursor=pointer]:
+      - generic [ref=f5e53]: 登 录
+  - generic [ref=f5e55]:
+    - text: 还没有账户？
+    - link "立即注册" [ref=f5e56] [cursor=pointer]:
+      - /url: /register

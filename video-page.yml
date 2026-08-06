@@ -1,0 +1,191 @@
+- generic [ref=f9e11]:
+  - complementary [ref=f9e12]:
+    - generic [ref=f9e13]:
+      - generic [ref=f9e14]: AI Agent 创作平台
+      - menu [ref=f9e15]:
+        - menuitem "dashboard 首页仪表盘" [ref=f9e16] [cursor=pointer]:
+          - img "dashboard" [ref=f9e17]:
+            - img [ref=f9e18]
+          - generic [ref=f9e20]: 首页仪表盘
+        - text: AI 创作
+        - group [ref=f9e21]:
+          - menuitem "picture 图片生成" [ref=f9e22] [cursor=pointer]:
+            - img "picture" [ref=f9e23]:
+              - img [ref=f9e24]
+            - generic [ref=f9e26]: 图片生成
+          - menuitem "video-camera 视频生成" [ref=f9e27] [cursor=pointer]:
+            - img "video-camera" [ref=f9e28]:
+              - img [ref=f9e29]
+            - generic [ref=f9e31]: 视频生成
+          - menuitem "appstore 批量生成" [ref=f9e32] [cursor=pointer]:
+            - img "appstore" [ref=f9e33]:
+              - img [ref=f9e34]
+            - generic [ref=f9e36]: 批量生成
+          - menuitem "node-index 流水线" [ref=f9e37] [cursor=pointer]:
+            - img "node-index" [ref=f9e38]:
+              - img [ref=f9e39]
+            - generic [ref=f9e41]: 流水线
+        - menuitem "unordered-list 任务管理" [ref=f9e42] [cursor=pointer]:
+          - img "unordered-list" [ref=f9e43]:
+            - img [ref=f9e44]
+          - generic [ref=f9e46]: 任务管理
+        - menuitem "folder-open 文件管理" [ref=f9e47] [cursor=pointer]:
+          - img "folder-open" [ref=f9e48]:
+            - img [ref=f9e49]
+          - generic [ref=f9e51]: 文件管理
+        - text: LLM 对话
+        - group [ref=f9e52]:
+          - menuitem "cluster 模型广场" [ref=f9e53] [cursor=pointer]:
+            - img "cluster" [ref=f9e54]:
+              - img [ref=f9e55]
+            - generic [ref=f9e57]: 模型广场
+          - menuitem "message AI 对话" [ref=f9e58] [cursor=pointer]:
+            - img "message" [ref=f9e59]:
+              - img [ref=f9e60]
+            - generic [ref=f9e62]: AI 对话
+        - text: 个人中心
+        - group [ref=f9e63]:
+          - menuitem "user 个人信息" [ref=f9e64] [cursor=pointer]:
+            - img "user" [ref=f9e65]:
+              - img [ref=f9e66]
+            - generic [ref=f9e68]: 个人信息
+          - menuitem "dashboard 配额管理" [ref=f9e69] [cursor=pointer]:
+            - img "dashboard" [ref=f9e70]:
+              - img [ref=f9e71]
+            - generic [ref=f9e73]: 配额管理
+          - menuitem "key API Key" [ref=f9e74] [cursor=pointer]:
+            - img "key" [ref=f9e75]:
+              - img [ref=f9e76]
+            - generic [ref=f9e78]: API Key
+        - text: 租户管理
+        - group [ref=f9e79]:
+          - menuitem "team 租户信息" [ref=f9e80] [cursor=pointer]:
+            - img "team" [ref=f9e81]:
+              - img [ref=f9e82]
+            - generic [ref=f9e84]: 租户信息
+          - menuitem "usergroup-add 成员管理" [ref=f9e85] [cursor=pointer]:
+            - img "usergroup-add" [ref=f9e86]:
+              - img [ref=f9e87]
+            - generic [ref=f9e89]: 成员管理
+        - text: 管理后台
+        - group [ref=f9e90]:
+          - menuitem "bar-chart 系统统计" [ref=f9e91] [cursor=pointer]:
+            - img "bar-chart" [ref=f9e92]:
+              - img [ref=f9e93]
+            - generic [ref=f9e95]: 系统统计
+          - menuitem "audit 任务审核" [ref=f9e96] [cursor=pointer]:
+            - img "audit" [ref=f9e97]:
+              - img [ref=f9e98]
+            - generic [ref=f9e100]: 任务审核
+          - menuitem "setting 模型配置" [ref=f9e101] [cursor=pointer]:
+            - img "setting" [ref=f9e102]:
+              - img [ref=f9e103]
+            - generic [ref=f9e105]: 模型配置
+  - generic [ref=f9e106]:
+    - banner [ref=f9e107]:
+      - button "menu-fold" [ref=f9e108] [cursor=pointer]:
+        - img "menu-fold" [ref=f9e110]:
+          - img [ref=f9e111]
+      - generic [ref=f9e113] [cursor=pointer]:
+        - img "user" [ref=f9e116]:
+          - img [ref=f9e117]
+        - generic [ref=f9e119]: admin
+    - main [ref=f9e120]:
+      - generic [ref=f9e121]:
+        - heading "AI 视频生成" [level=4] [ref=f9e122]
+        - generic [ref=f9e123]:
+          - generic [ref=f9e127]:
+            - generic [ref=f9e129]:
+              - generic "提示词" [ref=f9e131]: "* 提示词"
+              - generic [ref=f9e135]:
+                - textbox "* 提示词" [ref=f9e136]:
+                  - /placeholder: 描述你想要生成的视频内容...
+                - generic:
+                  - generic: 0 / 2000
+            - generic [ref=f9e138]:
+              - generic "负面提示词" [ref=f9e140]
+              - textbox "负面提示词" [ref=f9e144]:
+                - /placeholder: 描述你不希望出现的元素（可选）
+            - generic [ref=f9e146]:
+              - generic "模型选择" [ref=f9e148]
+              - generic [ref=f9e152] [cursor=pointer]:
+                - generic [ref=f9e154]:
+                  - combobox "模型选择" [ref=f9e156]
+                  - generic "Runway Gen-3 Alpha" [ref=f9e157]
+                - generic:
+                  - img:
+                    - img
+            - generic [ref=f9e158]:
+              - generic [ref=f9e161]:
+                - generic "时长（秒）" [ref=f9e163]
+                - generic [ref=f9e167] [cursor=pointer]:
+                  - slider [ref=f9e174]
+                  - generic:
+                    - generic [ref=f9e175]: 1s
+                    - generic [ref=f9e176]: 5s
+                    - generic [ref=f9e177]: 15s
+                    - generic [ref=f9e178]: 30s
+              - generic [ref=f9e181]:
+                - generic "帧率" [ref=f9e183]
+                - generic [ref=f9e187] [cursor=pointer]:
+                  - generic [ref=f9e189]:
+                    - combobox "帧率" [ref=f9e191]
+                    - generic "24 fps" [ref=f9e192]
+                  - generic:
+                    - img:
+                      - img
+              - generic [ref=f9e195]:
+                - generic "分辨率" [ref=f9e197]
+                - generic [ref=f9e201] [cursor=pointer]:
+                  - generic [ref=f9e203]:
+                    - combobox "分辨率" [ref=f9e205]
+                    - generic "1080p" [ref=f9e206]
+                  - generic:
+                    - img:
+                      - img
+            - generic [ref=f9e208]:
+              - generic "风格" [ref=f9e210]
+              - generic [ref=f9e214] [cursor=pointer]:
+                - generic [ref=f9e216]:
+                  - combobox "风格" [ref=f9e218]
+                  - generic: 选择风格
+                - generic:
+                  - img:
+                    - img
+            - generic [ref=f9e224]:
+              - button "send 提交生成" [ref=f9e226] [cursor=pointer]:
+                - img "send" [ref=f9e228]:
+                  - img [ref=f9e229]
+                - generic [ref=f9e231]: 提交生成
+              - button "clear 重置" [ref=f9e233] [cursor=pointer]:
+                - img "clear" [ref=f9e235]:
+                  - img [ref=f9e236]
+                - generic [ref=f9e238]: 重置
+          - generic [ref=f9e240]:
+            - generic [ref=f9e243]: 可用模型
+            - generic [ref=f9e244]:
+              - list [ref=f9e245]:
+                - listitem [ref=f9e246]:
+                  - strong [ref=f9e247]: CogVideoX-Flash
+                  - text: ": 免费，最大10秒，1920×1080，文生视频/图生视频"
+                - listitem [ref=f9e248]:
+                  - strong [ref=f9e249]: Runway Gen-3 Alpha
+                  - text: ": 最大10秒，1280×768，电影级品质"
+                - listitem [ref=f9e250]:
+                  - strong [ref=f9e251]: 快手可灵
+                  - text: ": 最大10秒，1920×1080，中文提示词友好"
+                - listitem [ref=f9e252]:
+                  - strong [ref=f9e253]: Pika 2.0
+                  - text: ": 最大8秒，1920×1080，支持图+文转视频"
+                - listitem [ref=f9e254]:
+                  - strong [ref=f9e255]: Luma Dream Machine V1
+                  - text: ": 最大5秒，1360×752，电影感风格"
+                - listitem [ref=f9e256]:
+                  - strong [ref=f9e257]: DeepSeek 提示词增强
+                  - text: ": AI 自动优化提示词质量，提升出片效果"
+              - heading "使用说明" [level=5] [ref=f9e258]
+              - list [ref=f9e259]:
+                - listitem [ref=f9e260]: 视频生成耗时较长，请耐心等待
+                - listitem [ref=f9e261]: 生成一个视频消耗 1 次视频配额
+                - listitem [ref=f9e262]: 建议从较短时长开始尝试
+                - listitem [ref=f9e263]: 1080p 分辨率视频需要更多处理时间

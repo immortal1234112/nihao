@@ -1,5 +1,0 @@
-com\platform\security\crypto\BCryptUtils.class
-com\platform\security\crypto\AesUtils.class
-com\platform\security\jwt\TokenPair.class
-com\platform\security\jwt\JwtProperties.class
-com\platform\security\jwt\JwtUtils.class

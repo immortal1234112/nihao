@@ -1,8 +1,0 @@
-com\platform\securitysvc\service\WatermarkService.class
-com\platform\securitysvc\consumer\AuditLogConsumer.class
-com\platform\securitysvc\service\PromptAuditService.class
-com\platform\securitysvc\controller\InternalAuditController.class
-com\platform\securitysvc\mapper\AuditLogMapper.class
-com\platform\securitysvc\service\ContentSafetyService.class
-com\platform\securitysvc\SecurityServiceApplication.class
-com\platform\securitysvc\entity\AuditLog.class

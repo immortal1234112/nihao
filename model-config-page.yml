@@ -1,0 +1,577 @@
+- generic [ref=f7e11]:
+  - complementary [ref=f7e12]:
+    - generic [ref=f7e13]:
+      - generic [ref=f7e14]: AI Agent 创作平台
+      - menu [ref=f7e15]:
+        - menuitem "dashboard 首页仪表盘" [ref=f7e16] [cursor=pointer]:
+          - img "dashboard" [ref=f7e17]:
+            - img [ref=f7e18]
+          - generic [ref=f7e20]: 首页仪表盘
+        - text: AI 创作
+        - group [ref=f7e21]:
+          - menuitem "picture 图片生成" [ref=f7e22] [cursor=pointer]:
+            - img "picture" [ref=f7e23]:
+              - img [ref=f7e24]
+            - generic [ref=f7e26]: 图片生成
+          - menuitem "video-camera 视频生成" [ref=f7e27] [cursor=pointer]:
+            - img "video-camera" [ref=f7e28]:
+              - img [ref=f7e29]
+            - generic [ref=f7e31]: 视频生成
+          - menuitem "appstore 批量生成" [ref=f7e32] [cursor=pointer]:
+            - img "appstore" [ref=f7e33]:
+              - img [ref=f7e34]
+            - generic [ref=f7e36]: 批量生成
+          - menuitem "node-index 流水线" [ref=f7e37] [cursor=pointer]:
+            - img "node-index" [ref=f7e38]:
+              - img [ref=f7e39]
+            - generic [ref=f7e41]: 流水线
+        - menuitem "unordered-list 任务管理" [ref=f7e42] [cursor=pointer]:
+          - img "unordered-list" [ref=f7e43]:
+            - img [ref=f7e44]
+          - generic [ref=f7e46]: 任务管理
+        - menuitem "folder-open 文件管理" [ref=f7e47] [cursor=pointer]:
+          - img "folder-open" [ref=f7e48]:
+            - img [ref=f7e49]
+          - generic [ref=f7e51]: 文件管理
+        - text: LLM 对话
+        - group [ref=f7e52]:
+          - menuitem "cluster 模型广场" [ref=f7e53] [cursor=pointer]:
+            - img "cluster" [ref=f7e54]:
+              - img [ref=f7e55]
+            - generic [ref=f7e57]: 模型广场
+          - menuitem "message AI 对话" [ref=f7e58] [cursor=pointer]:
+            - img "message" [ref=f7e59]:
+              - img [ref=f7e60]
+            - generic [ref=f7e62]: AI 对话
+        - text: 个人中心
+        - group [ref=f7e63]:
+          - menuitem "user 个人信息" [ref=f7e64] [cursor=pointer]:
+            - img "user" [ref=f7e65]:
+              - img [ref=f7e66]
+            - generic [ref=f7e68]: 个人信息
+          - menuitem "dashboard 配额管理" [ref=f7e69] [cursor=pointer]:
+            - img "dashboard" [ref=f7e70]:
+              - img [ref=f7e71]
+            - generic [ref=f7e73]: 配额管理
+          - menuitem "key API Key" [ref=f7e74] [cursor=pointer]:
+            - img "key" [ref=f7e75]:
+              - img [ref=f7e76]
+            - generic [ref=f7e78]: API Key
+        - text: 租户管理
+        - group [ref=f7e79]:
+          - menuitem "team 租户信息" [ref=f7e80] [cursor=pointer]:
+            - img "team" [ref=f7e81]:
+              - img [ref=f7e82]
+            - generic [ref=f7e84]: 租户信息
+          - menuitem "usergroup-add 成员管理" [ref=f7e85] [cursor=pointer]:
+            - img "usergroup-add" [ref=f7e86]:
+              - img [ref=f7e87]
+            - generic [ref=f7e89]: 成员管理
+        - text: 管理后台
+        - group [ref=f7e90]:
+          - menuitem "bar-chart 系统统计" [ref=f7e91] [cursor=pointer]:
+            - img "bar-chart" [ref=f7e92]:
+              - img [ref=f7e93]
+            - generic [ref=f7e95]: 系统统计
+          - menuitem "audit 任务审核" [ref=f7e96] [cursor=pointer]:
+            - img "audit" [ref=f7e97]:
+              - img [ref=f7e98]
+            - generic [ref=f7e100]: 任务审核
+          - menuitem "setting 模型配置" [ref=f7e101] [cursor=pointer]:
+            - img "setting" [ref=f7e102]:
+              - img [ref=f7e103]
+            - generic [ref=f7e105]: 模型配置
+  - generic [ref=f7e106]:
+    - banner [ref=f7e107]:
+      - button "menu-fold" [ref=f7e108] [cursor=pointer]:
+        - img "menu-fold" [ref=f7e110]:
+          - img [ref=f7e111]
+      - generic [ref=f7e113] [cursor=pointer]:
+        - img "user" [ref=f7e116]:
+          - img [ref=f7e117]
+        - generic [ref=f7e119]: admin
+    - main [ref=f7e120]:
+      - generic [ref=f7e121]:
+        - generic [ref=f7e122]:
+          - generic [ref=f7e123]:
+            - heading "模型配置" [level=4] [ref=f7e124]
+            - text: 配置各模型的 API Key，配置后立即生效无需重启
+          - generic [ref=f7e125]:
+            - button "reload 刷新" [ref=f7e127] [cursor=pointer]:
+              - img "reload" [ref=f7e129]:
+                - img [ref=f7e130]
+              - generic [ref=f7e132]: 刷新
+            - button "reload 刷新缓存" [ref=f7e134] [cursor=pointer]:
+              - img "reload" [ref=f7e136]:
+                - img [ref=f7e137]
+              - generic [ref=f7e139]: 刷新缓存
+        - table [ref=f7e146]:
+          - rowgroup [ref=f7e154]:
+            - row "模型 API Key Secret 模型名 状态 操作" [ref=f7e155]:
+              - columnheader "模型" [ref=f7e156]
+              - columnheader "API Key" [ref=f7e157]
+              - columnheader "Secret" [ref=f7e158]
+              - columnheader "模型名" [ref=f7e159]
+              - columnheader "状态" [ref=f7e160]
+              - columnheader "操作" [ref=f7e161]
+          - rowgroup [ref=f7e162]:
+            - row "OpenAI LLM close-circle 未配置 **** 不需要 gpt-4o 未启用 setting 配置" [ref=f7e163]:
+              - cell "OpenAI LLM" [ref=f7e164]:
+                - generic [ref=f7e165]:
+                  - generic [ref=f7e166]: OpenAI
+                  - generic [ref=f7e168]: LLM
+              - cell "close-circle 未配置 ****" [ref=f7e169]:
+                - generic [ref=f7e170]:
+                  - generic [ref=f7e172]:
+                    - img "close-circle" [ref=f7e173]:
+                      - img [ref=f7e174]
+                    - text: 未配置
+                  - code [ref=f7e178]: "****"
+              - cell "不需要" [ref=f7e179]:
+                - generic [ref=f7e180]: 不需要
+              - cell "gpt-4o" [ref=f7e181]:
+                - code [ref=f7e183]: gpt-4o
+              - cell "未启用" [ref=f7e184]:
+                - generic [ref=f7e185]: 未启用
+              - cell "setting 配置" [ref=f7e186]:
+                - button "setting 配置" [ref=f7e187] [cursor=pointer]:
+                  - img "setting" [ref=f7e189]:
+                    - img [ref=f7e190]
+                  - generic [ref=f7e192]: 配置
+            - row "本地 SD (免费) 图片 close-circle 未配置 **** 不需要 sdxl-turbo 未启用 setting 配置" [ref=f7e193]:
+              - cell "本地 SD (免费) 图片" [ref=f7e194]:
+                - generic [ref=f7e195]:
+                  - generic [ref=f7e196]: 本地 SD (免费)
+                  - generic [ref=f7e198]: 图片
+              - cell "close-circle 未配置 ****" [ref=f7e199]:
+                - generic [ref=f7e200]:
+                  - generic [ref=f7e202]:
+                    - img "close-circle" [ref=f7e203]:
+                      - img [ref=f7e204]
+                    - text: 未配置
+                  - code [ref=f7e208]: "****"
+              - cell "不需要" [ref=f7e209]:
+                - generic [ref=f7e210]: 不需要
+              - cell "sdxl-turbo" [ref=f7e211]:
+                - code [ref=f7e213]: sdxl-turbo
+              - cell "未启用" [ref=f7e214]:
+                - generic [ref=f7e215]: 未启用
+              - cell "setting 配置" [ref=f7e216]:
+                - button "setting 配置" [ref=f7e217] [cursor=pointer]:
+                  - img "setting" [ref=f7e219]:
+                    - img [ref=f7e220]
+                  - generic [ref=f7e222]: 配置
+            - row "本地视频 (免费) 视频 close-circle 未配置 **** 不需要 cogvideox-2b 未启用 setting 配置" [ref=f7e223]:
+              - cell "本地视频 (免费) 视频" [ref=f7e224]:
+                - generic [ref=f7e225]:
+                  - generic [ref=f7e226]: 本地视频 (免费)
+                  - generic [ref=f7e228]: 视频
+              - cell "close-circle 未配置 ****" [ref=f7e229]:
+                - generic [ref=f7e230]:
+                  - generic [ref=f7e232]:
+                    - img "close-circle" [ref=f7e233]:
+                      - img [ref=f7e234]
+                    - text: 未配置
+                  - code [ref=f7e238]: "****"
+              - cell "不需要" [ref=f7e239]:
+                - generic [ref=f7e240]: 不需要
+              - cell "cogvideox-2b" [ref=f7e241]:
+                - code [ref=f7e243]: cogvideox-2b
+              - cell "未启用" [ref=f7e244]:
+                - generic [ref=f7e245]: 未启用
+              - cell "setting 配置" [ref=f7e246]:
+                - button "setting 配置" [ref=f7e247] [cursor=pointer]:
+                  - img "setting" [ref=f7e249]:
+                    - img [ref=f7e250]
+                  - generic [ref=f7e252]: 配置
+            - row "通义万相 图片 check-circle 已配置 sk-t****t123 不需要 wanx-v1 可用 setting 配置" [ref=f7e253]:
+              - cell "通义万相 图片" [ref=f7e254]:
+                - generic [ref=f7e255]:
+                  - generic [ref=f7e256]: 通义万相
+                  - generic [ref=f7e258]: 图片
+              - cell "check-circle 已配置 sk-t****t123" [ref=f7e259]:
+                - generic [ref=f7e260]:
+                  - generic [ref=f7e262]:
+                    - img "check-circle" [ref=f7e263]:
+                      - img [ref=f7e264]
+                    - text: 已配置
+                  - code [ref=f7e269]: sk-t****t123
+              - cell "不需要" [ref=f7e270]:
+                - generic [ref=f7e271]: 不需要
+              - cell "wanx-v1" [ref=f7e272]:
+                - code [ref=f7e274]: wanx-v1
+              - cell "可用" [ref=f7e275]:
+                - generic [ref=f7e276]: 可用
+              - cell "setting 配置" [ref=f7e277]:
+                - button "setting 配置" [ref=f7e278] [cursor=pointer]:
+                  - img "setting" [ref=f7e280]:
+                    - img [ref=f7e281]
+                  - generic [ref=f7e283]: 配置
+            - row "DALL·E 3 图片 close-circle 未配置 **** 不需要 dall-e-3 未启用 setting 配置" [ref=f7e284]:
+              - cell "DALL·E 3 图片" [ref=f7e285]:
+                - generic [ref=f7e286]:
+                  - generic [ref=f7e287]: DALL·E 3
+                  - generic [ref=f7e289]: 图片
+              - cell "close-circle 未配置 ****" [ref=f7e290]:
+                - generic [ref=f7e291]:
+                  - generic [ref=f7e293]:
+                    - img "close-circle" [ref=f7e294]:
+                      - img [ref=f7e295]
+                    - text: 未配置
+                  - code [ref=f7e299]: "****"
+              - cell "不需要" [ref=f7e300]:
+                - generic [ref=f7e301]: 不需要
+              - cell "dall-e-3" [ref=f7e302]:
+                - code [ref=f7e304]: dall-e-3
+              - cell "未启用" [ref=f7e305]:
+                - generic [ref=f7e306]: 未启用
+              - cell "setting 配置" [ref=f7e307]:
+                - button "setting 配置" [ref=f7e308] [cursor=pointer]:
+                  - img "setting" [ref=f7e310]:
+                    - img [ref=f7e311]
+                  - generic [ref=f7e313]: 配置
+            - row "Stable Diffusion 图片 close-circle 未配置 **** 不需要 stable-diffusion-xl 未启用 setting 配置" [ref=f7e314]:
+              - cell "Stable Diffusion 图片" [ref=f7e315]:
+                - generic [ref=f7e316]:
+                  - generic [ref=f7e317]: Stable Diffusion
+                  - generic [ref=f7e319]: 图片
+              - cell "close-circle 未配置 ****" [ref=f7e320]:
+                - generic [ref=f7e321]:
+                  - generic [ref=f7e323]:
+                    - img "close-circle" [ref=f7e324]:
+                      - img [ref=f7e325]
+                    - text: 未配置
+                  - code [ref=f7e329]: "****"
+              - cell "不需要" [ref=f7e330]:
+                - generic [ref=f7e331]: 不需要
+              - cell "stable-diffusion-xl" [ref=f7e332]:
+                - code [ref=f7e334]: stable-diffusion-xl
+              - cell "未启用" [ref=f7e335]:
+                - generic [ref=f7e336]: 未启用
+              - cell "setting 配置" [ref=f7e337]:
+                - button "setting 配置" [ref=f7e338] [cursor=pointer]:
+                  - img "setting" [ref=f7e340]:
+                    - img [ref=f7e341]
+                  - generic [ref=f7e343]: 配置
+            - row "Midjourney 图片 close-circle 未配置 **** 不需要 midjourney-v6 未启用 setting 配置" [ref=f7e344]:
+              - cell "Midjourney 图片" [ref=f7e345]:
+                - generic [ref=f7e346]:
+                  - generic [ref=f7e347]: Midjourney
+                  - generic [ref=f7e349]: 图片
+              - cell "close-circle 未配置 ****" [ref=f7e350]:
+                - generic [ref=f7e351]:
+                  - generic [ref=f7e353]:
+                    - img "close-circle" [ref=f7e354]:
+                      - img [ref=f7e355]
+                    - text: 未配置
+                  - code [ref=f7e359]: "****"
+              - cell "不需要" [ref=f7e360]:
+                - generic [ref=f7e361]: 不需要
+              - cell "midjourney-v6" [ref=f7e362]:
+                - code [ref=f7e364]: midjourney-v6
+              - cell "未启用" [ref=f7e365]:
+                - generic [ref=f7e366]: 未启用
+              - cell "setting 配置" [ref=f7e367]:
+                - button "setting 配置" [ref=f7e368] [cursor=pointer]:
+                  - img "setting" [ref=f7e370]:
+                    - img [ref=f7e371]
+                  - generic [ref=f7e373]: 配置
+            - row "文心一格 图片 close-circle 未配置 **** 不需要 ernie-vilg-v2 未启用 setting 配置" [ref=f7e374]:
+              - cell "文心一格 图片" [ref=f7e375]:
+                - generic [ref=f7e376]:
+                  - generic [ref=f7e377]: 文心一格
+                  - generic [ref=f7e379]: 图片
+              - cell "close-circle 未配置 ****" [ref=f7e380]:
+                - generic [ref=f7e381]:
+                  - generic [ref=f7e383]:
+                    - img "close-circle" [ref=f7e384]:
+                      - img [ref=f7e385]
+                    - text: 未配置
+                  - code [ref=f7e389]: "****"
+              - cell "不需要" [ref=f7e390]:
+                - generic [ref=f7e391]: 不需要
+              - cell "ernie-vilg-v2" [ref=f7e392]:
+                - code [ref=f7e394]: ernie-vilg-v2
+              - cell "未启用" [ref=f7e395]:
+                - generic [ref=f7e396]: 未启用
+              - cell "setting 配置" [ref=f7e397]:
+                - button "setting 配置" [ref=f7e398] [cursor=pointer]:
+                  - img "setting" [ref=f7e400]:
+                    - img [ref=f7e401]
+                  - generic [ref=f7e403]: 配置
+            - row "Runway Gen-3 视频 check-circle 已配置 key_****95b7 不需要 gen3-alpha 可用 setting 配置" [ref=f7e404]:
+              - cell "Runway Gen-3 视频" [ref=f7e405]:
+                - generic [ref=f7e406]:
+                  - generic [ref=f7e407]: Runway Gen-3
+                  - generic [ref=f7e409]: 视频
+              - cell "check-circle 已配置 key_****95b7" [ref=f7e410]:
+                - generic [ref=f7e411]:
+                  - generic [ref=f7e413]:
+                    - img "check-circle" [ref=f7e414]:
+                      - img [ref=f7e415]
+                    - text: 已配置
+                  - code [ref=f7e420]: key_****95b7
+              - cell "不需要" [ref=f7e421]:
+                - generic [ref=f7e422]: 不需要
+              - cell "gen3-alpha" [ref=f7e423]:
+                - code [ref=f7e425]: gen3-alpha
+              - cell "可用" [ref=f7e426]:
+                - generic [ref=f7e427]: 可用
+              - cell "setting 配置" [ref=f7e428]:
+                - button "setting 配置" [ref=f7e429] [cursor=pointer]:
+                  - img "setting" [ref=f7e431]:
+                    - img [ref=f7e432]
+                  - generic [ref=f7e434]: 配置
+            - row "快手可灵 视频 close-circle 未配置 **** 不需要 kling-v1 未启用 setting 配置" [ref=f7e435]:
+              - cell "快手可灵 视频" [ref=f7e436]:
+                - generic [ref=f7e437]:
+                  - generic [ref=f7e438]: 快手可灵
+                  - generic [ref=f7e440]: 视频
+              - cell "close-circle 未配置 ****" [ref=f7e441]:
+                - generic [ref=f7e442]:
+                  - generic [ref=f7e444]:
+                    - img "close-circle" [ref=f7e445]:
+                      - img [ref=f7e446]
+                    - text: 未配置
+                  - code [ref=f7e450]: "****"
+              - cell "不需要" [ref=f7e451]:
+                - generic [ref=f7e452]: 不需要
+              - cell "kling-v1" [ref=f7e453]:
+                - code [ref=f7e455]: kling-v1
+              - cell "未启用" [ref=f7e456]:
+                - generic [ref=f7e457]: 未启用
+              - cell "setting 配置" [ref=f7e458]:
+                - button "setting 配置" [ref=f7e459] [cursor=pointer]:
+                  - img "setting" [ref=f7e461]:
+                    - img [ref=f7e462]
+                  - generic [ref=f7e464]: 配置
+            - row "Pika 2.0 视频 close-circle 未配置 **** 不需要 pika-2.0 未启用 setting 配置" [ref=f7e465]:
+              - cell "Pika 2.0 视频" [ref=f7e466]:
+                - generic [ref=f7e467]:
+                  - generic [ref=f7e468]: Pika 2.0
+                  - generic [ref=f7e470]: 视频
+              - cell "close-circle 未配置 ****" [ref=f7e471]:
+                - generic [ref=f7e472]:
+                  - generic [ref=f7e474]:
+                    - img "close-circle" [ref=f7e475]:
+                      - img [ref=f7e476]
+                    - text: 未配置
+                  - code [ref=f7e480]: "****"
+              - cell "不需要" [ref=f7e481]:
+                - generic [ref=f7e482]: 不需要
+              - cell "pika-2.0" [ref=f7e483]:
+                - code [ref=f7e485]: pika-2.0
+              - cell "未启用" [ref=f7e486]:
+                - generic [ref=f7e487]: 未启用
+              - cell "setting 配置" [ref=f7e488]:
+                - button "setting 配置" [ref=f7e489] [cursor=pointer]:
+                  - img "setting" [ref=f7e491]:
+                    - img [ref=f7e492]
+                  - generic [ref=f7e494]: 配置
+            - row "Anthropic Claude LLM close-circle 未配置 **** 不需要 claude-sonnet-4-20250514 未启用 setting 配置" [ref=f7e495]:
+              - cell "Anthropic Claude LLM" [ref=f7e496]:
+                - generic [ref=f7e497]:
+                  - generic [ref=f7e498]: Anthropic Claude
+                  - generic [ref=f7e500]: LLM
+              - cell "close-circle 未配置 ****" [ref=f7e501]:
+                - generic [ref=f7e502]:
+                  - generic [ref=f7e504]:
+                    - img "close-circle" [ref=f7e505]:
+                      - img [ref=f7e506]
+                    - text: 未配置
+                  - code [ref=f7e510]: "****"
+              - cell "不需要" [ref=f7e511]:
+                - generic [ref=f7e512]: 不需要
+              - cell "claude-sonnet-4-20250514" [ref=f7e513]:
+                - code [ref=f7e515]: claude-sonnet-4-20250514
+              - cell "未启用" [ref=f7e516]:
+                - generic [ref=f7e517]: 未启用
+              - cell "setting 配置" [ref=f7e518]:
+                - button "setting 配置" [ref=f7e519] [cursor=pointer]:
+                  - img "setting" [ref=f7e521]:
+                    - img [ref=f7e522]
+                  - generic [ref=f7e524]: 配置
+            - row "Luma Dream Machine 视频 close-circle 未配置 **** 不需要 dream-machine-v1 未启用 setting 配置" [ref=f7e525]:
+              - cell "Luma Dream Machine 视频" [ref=f7e526]:
+                - generic [ref=f7e527]:
+                  - generic [ref=f7e528]: Luma Dream Machine
+                  - generic [ref=f7e530]: 视频
+              - cell "close-circle 未配置 ****" [ref=f7e531]:
+                - generic [ref=f7e532]:
+                  - generic [ref=f7e534]:
+                    - img "close-circle" [ref=f7e535]:
+                      - img [ref=f7e536]
+                    - text: 未配置
+                  - code [ref=f7e540]: "****"
+              - cell "不需要" [ref=f7e541]:
+                - generic [ref=f7e542]: 不需要
+              - cell "dream-machine-v1" [ref=f7e543]:
+                - code [ref=f7e545]: dream-machine-v1
+              - cell "未启用" [ref=f7e546]:
+                - generic [ref=f7e547]: 未启用
+              - cell "setting 配置" [ref=f7e548]:
+                - button "setting 配置" [ref=f7e549] [cursor=pointer]:
+                  - img "setting" [ref=f7e551]:
+                    - img [ref=f7e552]
+                  - generic [ref=f7e554]: 配置
+            - row "DeepSeek LLM check-circle 已配置 sk-c****6acb 不需要 deepseek-chat 可用 setting 配置" [ref=f7e555]:
+              - cell "DeepSeek LLM" [ref=f7e556]:
+                - generic [ref=f7e557]:
+                  - generic [ref=f7e558]: DeepSeek
+                  - generic [ref=f7e560]: LLM
+              - cell "check-circle 已配置 sk-c****6acb" [ref=f7e561]:
+                - generic [ref=f7e562]:
+                  - generic [ref=f7e564]:
+                    - img "check-circle" [ref=f7e565]:
+                      - img [ref=f7e566]
+                    - text: 已配置
+                  - code [ref=f7e571]: sk-c****6acb
+              - cell "不需要" [ref=f7e572]:
+                - generic [ref=f7e573]: 不需要
+              - cell "deepseek-chat" [ref=f7e574]:
+                - code [ref=f7e576]: deepseek-chat
+              - cell "可用" [ref=f7e577]:
+                - generic [ref=f7e578]: 可用
+              - cell "setting 配置" [ref=f7e579]:
+                - button "setting 配置" [ref=f7e580] [cursor=pointer]:
+                  - img "setting" [ref=f7e582]:
+                    - img [ref=f7e583]
+                  - generic [ref=f7e585]: 配置
+            - row "通义千问 LLM check-circle 已配置 sk-w****pegn 不需要 qwen-turbo 可用 setting 配置" [ref=f7e586]:
+              - cell "通义千问 LLM" [ref=f7e587]:
+                - generic [ref=f7e588]:
+                  - generic [ref=f7e589]: 通义千问
+                  - generic [ref=f7e591]: LLM
+              - cell "check-circle 已配置 sk-w****pegn" [ref=f7e592]:
+                - generic [ref=f7e593]:
+                  - generic [ref=f7e595]:
+                    - img "check-circle" [ref=f7e596]:
+                      - img [ref=f7e597]
+                    - text: 已配置
+                  - code [ref=f7e602]: sk-w****pegn
+              - cell "不需要" [ref=f7e603]:
+                - generic [ref=f7e604]: 不需要
+              - cell "qwen-turbo" [ref=f7e605]:
+                - code [ref=f7e607]: qwen-turbo
+              - cell "可用" [ref=f7e608]:
+                - generic [ref=f7e609]: 可用
+              - cell "setting 配置" [ref=f7e610]:
+                - button "setting 配置" [ref=f7e611] [cursor=pointer]:
+                  - img "setting" [ref=f7e613]:
+                    - img [ref=f7e614]
+                  - generic [ref=f7e616]: 配置
+            - row "文心一言 LLM close-circle 未配置 **** 不需要 ernie-4.0-8k 未启用 setting 配置" [ref=f7e617]:
+              - cell "文心一言 LLM" [ref=f7e618]:
+                - generic [ref=f7e619]:
+                  - generic [ref=f7e620]: 文心一言
+                  - generic [ref=f7e622]: LLM
+              - cell "close-circle 未配置 ****" [ref=f7e623]:
+                - generic [ref=f7e624]:
+                  - generic [ref=f7e626]:
+                    - img "close-circle" [ref=f7e627]:
+                      - img [ref=f7e628]
+                    - text: 未配置
+                  - code [ref=f7e632]: "****"
+              - cell "不需要" [ref=f7e633]:
+                - generic [ref=f7e634]: 不需要
+              - cell "ernie-4.0-8k" [ref=f7e635]:
+                - code [ref=f7e637]: ernie-4.0-8k
+              - cell "未启用" [ref=f7e638]:
+                - generic [ref=f7e639]: 未启用
+              - cell "setting 配置" [ref=f7e640]:
+                - button "setting 配置" [ref=f7e641] [cursor=pointer]:
+                  - img "setting" [ref=f7e643]:
+                    - img [ref=f7e644]
+                  - generic [ref=f7e646]: 配置
+            - row "讯飞星火 LLM close-circle 未配置 **** 不需要 4.0Ultra 未启用 setting 配置" [ref=f7e647]:
+              - cell "讯飞星火 LLM" [ref=f7e648]:
+                - generic [ref=f7e649]:
+                  - generic [ref=f7e650]: 讯飞星火
+                  - generic [ref=f7e652]: LLM
+              - cell "close-circle 未配置 ****" [ref=f7e653]:
+                - generic [ref=f7e654]:
+                  - generic [ref=f7e656]:
+                    - img "close-circle" [ref=f7e657]:
+                      - img [ref=f7e658]
+                    - text: 未配置
+                  - code [ref=f7e662]: "****"
+              - cell "不需要" [ref=f7e663]:
+                - generic [ref=f7e664]: 不需要
+              - cell "4.0Ultra" [ref=f7e665]:
+                - code [ref=f7e667]: 4.0Ultra
+              - cell "未启用" [ref=f7e668]:
+                - generic [ref=f7e669]: 未启用
+              - cell "setting 配置" [ref=f7e670]:
+                - button "setting 配置" [ref=f7e671] [cursor=pointer]:
+                  - img "setting" [ref=f7e673]:
+                    - img [ref=f7e674]
+                  - generic [ref=f7e676]: 配置
+            - row "智谱 GLM LLM check-circle 已配置 38b8****hcrF 不需要 glm-4-plus 可用 setting 配置" [ref=f7e677]:
+              - cell "智谱 GLM LLM" [ref=f7e678]:
+                - generic [ref=f7e679]:
+                  - generic [ref=f7e680]: 智谱 GLM
+                  - generic [ref=f7e682]: LLM
+              - cell "check-circle 已配置 38b8****hcrF" [ref=f7e683]:
+                - generic [ref=f7e684]:
+                  - generic [ref=f7e686]:
+                    - img "check-circle" [ref=f7e687]:
+                      - img [ref=f7e688]
+                    - text: 已配置
+                  - code [ref=f7e693]: 38b8****hcrF
+              - cell "不需要" [ref=f7e694]:
+                - generic [ref=f7e695]: 不需要
+              - cell "glm-4-plus" [ref=f7e696]:
+                - code [ref=f7e698]: glm-4-plus
+              - cell "可用" [ref=f7e699]:
+                - generic [ref=f7e700]: 可用
+              - cell "setting 配置" [ref=f7e701]:
+                - button "setting 配置" [ref=f7e702] [cursor=pointer]:
+                  - img "setting" [ref=f7e704]:
+                    - img [ref=f7e705]
+                  - generic [ref=f7e707]: 配置
+            - row "月之暗面 Kimi LLM close-circle 未配置 **** 不需要 moonshot-v1-8k 未启用 setting 配置" [ref=f7e708]:
+              - cell "月之暗面 Kimi LLM" [ref=f7e709]:
+                - generic [ref=f7e710]:
+                  - generic [ref=f7e711]: 月之暗面 Kimi
+                  - generic [ref=f7e713]: LLM
+              - cell "close-circle 未配置 ****" [ref=f7e714]:
+                - generic [ref=f7e715]:
+                  - generic [ref=f7e717]:
+                    - img "close-circle" [ref=f7e718]:
+                      - img [ref=f7e719]
+                    - text: 未配置
+                  - code [ref=f7e723]: "****"
+              - cell "不需要" [ref=f7e724]:
+                - generic [ref=f7e725]: 不需要
+              - cell "moonshot-v1-8k" [ref=f7e726]:
+                - code [ref=f7e728]: moonshot-v1-8k
+              - cell "未启用" [ref=f7e729]:
+                - generic [ref=f7e730]: 未启用
+              - cell "setting 配置" [ref=f7e731]:
+                - button "setting 配置" [ref=f7e732] [cursor=pointer]:
+                  - img "setting" [ref=f7e734]:
+                    - img [ref=f7e735]
+                  - generic [ref=f7e737]: 配置
+            - row "Google Gemini LLM close-circle 未配置 **** 不需要 gemini-2.0-flash 未启用 setting 配置" [ref=f7e738]:
+              - cell "Google Gemini LLM" [ref=f7e739]:
+                - generic [ref=f7e740]:
+                  - generic [ref=f7e741]: Google Gemini
+                  - generic [ref=f7e743]: LLM
+              - cell "close-circle 未配置 ****" [ref=f7e744]:
+                - generic [ref=f7e745]:
+                  - generic [ref=f7e747]:
+                    - img "close-circle" [ref=f7e748]:
+                      - img [ref=f7e749]
+                    - text: 未配置
+                  - code [ref=f7e753]: "****"
+              - cell "不需要" [ref=f7e754]:
+                - generic [ref=f7e755]: 不需要
+              - cell "gemini-2.0-flash" [ref=f7e756]:
+                - code [ref=f7e758]: gemini-2.0-flash
+              - cell "未启用" [ref=f7e759]:
+                - generic [ref=f7e760]: 未启用
+              - cell "setting 配置" [ref=f7e761]:
+                - button "setting 配置" [ref=f7e762] [cursor=pointer]:
+                  - img "setting" [ref=f7e764]:
+                    - img [ref=f7e765]
+                  - generic [ref=f7e767]: 配置

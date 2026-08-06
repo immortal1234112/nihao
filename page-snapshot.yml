@@ -1,0 +1,121 @@
+- generic [ref=f4e3]:
+  - complementary [ref=f4e4]:
+    - generic [ref=f4e5]:
+      - generic [ref=f4e6]: AI Agent 创作平台
+      - menu [ref=f4e7]:
+        - menuitem "dashboard 首页仪表盘" [ref=f4e8] [cursor=pointer]:
+          - img "dashboard" [ref=f4e9]:
+            - img [ref=f4e10]
+          - generic [ref=f4e12]: 首页仪表盘
+        - text: AI 创作
+        - group [ref=f4e13]:
+          - menuitem "picture 图片生成" [ref=f4e14] [cursor=pointer]:
+            - img "picture" [ref=f4e15]:
+              - img [ref=f4e16]
+            - generic [ref=f4e18]: 图片生成
+          - menuitem "video-camera 视频生成" [ref=f4e19] [cursor=pointer]:
+            - img "video-camera" [ref=f4e20]:
+              - img [ref=f4e21]
+            - generic [ref=f4e23]: 视频生成
+          - menuitem "appstore 批量生成" [ref=f4e24] [cursor=pointer]:
+            - img "appstore" [ref=f4e25]:
+              - img [ref=f4e26]
+            - generic [ref=f4e28]: 批量生成
+          - menuitem "node-index 流水线" [ref=f4e29] [cursor=pointer]:
+            - img "node-index" [ref=f4e30]:
+              - img [ref=f4e31]
+            - generic [ref=f4e33]: 流水线
+        - menuitem "unordered-list 任务管理" [ref=f4e34] [cursor=pointer]:
+          - img "unordered-list" [ref=f4e35]:
+            - img [ref=f4e36]
+          - generic [ref=f4e38]: 任务管理
+        - menuitem "folder-open 文件管理" [active] [ref=f4e39] [cursor=pointer]:
+          - img "folder-open" [ref=f4e40]:
+            - img [ref=f4e41]
+          - generic [ref=f4e43]: 文件管理
+        - text: LLM 对话
+        - group [ref=f4e44]:
+          - menuitem "cluster 模型广场" [ref=f4e45] [cursor=pointer]:
+            - img "cluster" [ref=f4e46]:
+              - img [ref=f4e47]
+            - generic [ref=f4e49]: 模型广场
+          - menuitem "message AI 对话" [ref=f4e50] [cursor=pointer]:
+            - img "message" [ref=f4e51]:
+              - img [ref=f4e52]
+            - generic [ref=f4e54]: AI 对话
+        - text: 个人中心
+        - group [ref=f4e55]:
+          - menuitem "user 个人信息" [ref=f4e56] [cursor=pointer]:
+            - img "user" [ref=f4e57]:
+              - img [ref=f4e58]
+            - generic [ref=f4e60]: 个人信息
+          - menuitem "dashboard 配额管理" [ref=f4e61] [cursor=pointer]:
+            - img "dashboard" [ref=f4e62]:
+              - img [ref=f4e63]
+            - generic [ref=f4e65]: 配额管理
+          - menuitem "key API Key" [ref=f4e66] [cursor=pointer]:
+            - img "key" [ref=f4e67]:
+              - img [ref=f4e68]
+            - generic [ref=f4e70]: API Key
+        - text: 租户管理
+        - group [ref=f4e71]:
+          - menuitem "team 租户信息" [ref=f4e72] [cursor=pointer]:
+            - img "team" [ref=f4e73]:
+              - img [ref=f4e74]
+            - generic [ref=f4e76]: 租户信息
+          - menuitem "usergroup-add 成员管理" [ref=f4e77] [cursor=pointer]:
+            - img "usergroup-add" [ref=f4e78]:
+              - img [ref=f4e79]
+            - generic [ref=f4e81]: 成员管理
+        - text: 管理后台
+        - group [ref=f4e82]:
+          - menuitem "bar-chart 系统统计" [ref=f4e83] [cursor=pointer]:
+            - img "bar-chart" [ref=f4e84]:
+              - img [ref=f4e85]
+            - generic [ref=f4e87]: 系统统计
+          - menuitem "audit 任务审核" [ref=f4e88] [cursor=pointer]:
+            - img "audit" [ref=f4e89]:
+              - img [ref=f4e90]
+            - generic [ref=f4e92]: 任务审核
+          - menuitem "setting 模型配置" [ref=f4e93] [cursor=pointer]:
+            - img "setting" [ref=f4e94]:
+              - img [ref=f4e95]
+            - generic [ref=f4e97]: 模型配置
+  - generic [ref=f4e98]:
+    - banner [ref=f4e99]:
+      - button "menu-fold" [ref=f4e100] [cursor=pointer]:
+        - img "menu-fold" [ref=f4e102]:
+          - img [ref=f4e103]
+      - generic [ref=f4e105] [cursor=pointer]:
+        - img "user" [ref=f4e108]:
+          - img [ref=f4e109]
+        - generic [ref=f4e111]: admin
+    - main [ref=f4e112]:
+      - generic [ref=f4e113]:
+        - generic [ref=f4e114]:
+          - heading "文件管理" [level=4] [ref=f4e115]
+          - generic [ref=f4e116]:
+            - button "reload 刷新" [ref=f4e118] [cursor=pointer]:
+              - img "reload" [ref=f4e120]:
+                - img [ref=f4e121]
+              - generic [ref=f4e123]: 刷新
+            - button "upload 上传文件" [ref=f4e125] [cursor=pointer]:
+              - img "upload" [ref=f4e127]:
+                - img [ref=f4e128]
+              - generic [ref=f4e130]: 上传文件
+        - table [ref=f4e137]:
+          - rowgroup [ref=f4e146]:
+            - row "文件名 类型 大小 存储类型 来源 上传时间 操作" [ref=f4e147]:
+              - columnheader "文件名" [ref=f4e148]
+              - columnheader "类型" [ref=f4e149]
+              - columnheader "大小" [ref=f4e150]
+              - columnheader "存储类型" [ref=f4e151]
+              - columnheader "来源" [ref=f4e152]
+              - columnheader "上传时间" [ref=f4e153]
+              - columnheader "操作" [ref=f4e154]
+          - rowgroup [ref=f4e155]:
+            - row "暂无数据 暂无数据" [ref=f4e156]:
+              - cell "暂无数据 暂无数据" [ref=f4e157]:
+                - generic [ref=f4e158]:
+                  - img "暂无数据" [ref=f4e160]
+                  - generic [ref=f4e166]: 暂无数据

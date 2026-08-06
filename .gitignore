@@ -28,3 +28,22 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Java / Maven ###
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+!.mvn/wrapper/maven-wrapper.jar
+
+### Python ###
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+inference/models/
+
+### Tools ###
+.playwright-mcp/

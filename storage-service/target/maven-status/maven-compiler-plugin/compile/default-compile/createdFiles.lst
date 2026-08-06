@@ -1,8 +1,0 @@
-com\platform\storagesvc\config\MinioConfig.class
-com\platform\storagesvc\controller\FileController.class
-com\platform\storagesvc\controller\InternalFileController.class
-com\platform\storagesvc\mapper\StorageFileMapper.class
-com\platform\storagesvc\entity\StorageFile.class
-com\platform\storagesvc\adapter\MinioStorageAdapter.class
-com\platform\storagesvc\service\FileService.class
-com\platform\storagesvc\StorageServiceApplication.class
