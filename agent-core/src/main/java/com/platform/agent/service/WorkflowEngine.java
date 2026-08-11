@@ -7,6 +7,10 @@ import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
 import com.platform.agent.mapper.AgentTaskMapper;
 import com.platform.agent.mapper.WorkflowStepMapper;
+import com.platform.agent.rag.dto.RagReference;
+import com.platform.agent.rag.dto.RagSearchRequest;
+import com.platform.agent.rag.dto.RagSearchResult;
+import com.platform.agent.rag.service.RagService;
 import com.platform.core.util.JsonUtils;
 import com.platform.mq.exchange.ExchangeConstants;
 import com.platform.mq.message.TaskMessage;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +36,7 @@ public class WorkflowEngine {
     private final WorkflowStepMapper workflowStepMapper;
     private final AgentTaskMapper agentTaskMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final RagService ragService;
 
     // ==================== 构建工作流 ====================
 
@@ -63,7 +69,8 @@ public class WorkflowEngine {
                 if (pipelineSteps != null) {
                     for (int i = 0; i < pipelineSteps.size(); i++) {
                         Map<String, Object> stepDef = pipelineSteps.get(i);
-                        String type = (String) stepDef.getOrDefault("type", WorkflowStep.TYPE_IMAGE);
+                        // 前端提交字段为 stepType，兼容旧数据/API 的 type（默认为 IMAGE）
+                        String type = (String) stepDef.getOrDefault("stepType", stepDef.getOrDefault("type", WorkflowStep.TYPE_IMAGE));
                         WorkflowStep step = createStep(task.getId(), i, type, JsonUtils.toJson(stepDef));
                         steps.add(step);
                     }
@@ -144,6 +151,12 @@ public class WorkflowEngine {
         step.setStartedAt(LocalDateTime.now());
         workflowStepMapper.updateById(step);
 
+        // RAG_RETRIEVE 在本服务同步执行（本服务已标记 PROCESSING，见上方 updateById）
+        if (WorkflowStep.TYPE_RAG_RETRIEVE.equals(step.getStepType())) {
+            handleRagRetrieve(step);
+            return;
+        }
+
         // 确定引擎类型和路由键
         String engineType = step.getStepType();
         String routingKey;
@@ -168,6 +181,96 @@ public class WorkflowEngine {
 
         rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, routingKey, message);
         log.info("Step dispatched: taskId={}, step={}, engineType={}", step.getTaskId(), step.getStepOrder(), engineType);
+    }
+
+    // ==================== RAG 检索步骤 ====================
+
+    /**
+     * 同步执行 RAG_RETRIEVE 步骤：检索 → 步骤输出写 refs → 注入后续 PENDING 步骤的 ragContext → 推进。
+     * 必须正确闭环（DONE + advanceStep），不可照抄 AUDIT/POST_PROCESS 分支。
+     */
+    private void handleRagRetrieve(WorkflowStep step) {
+        String taskId = step.getTaskId();
+        try {
+            Map<String, Object> input = parseParams(step.getInput());
+            String datasetId = (String) input.get("datasetId");
+            String query = (String) input.get("query");
+            Integer topK = input.get("topK") instanceof Number n ? n.intValue() : 3;
+            if (datasetId == null || datasetId.isBlank()) {
+                throw new RuntimeException("RAG_RETRIEVE 步骤缺少 datasetId");
+            }
+
+            AgentTask task = agentTaskMapper.selectById(taskId);
+            if (task == null) {
+                throw new RuntimeException("任务不存在: " + taskId);
+            }
+            if (query == null || query.isBlank()) {
+                query = extractPrompt(task.getRequestParams());
+            }
+            if (query == null || query.isBlank()) {
+                throw new RuntimeException("RAG_RETRIEVE 步骤缺少 query（且任务无 prompt 可作缺省）");
+            }
+
+            RagSearchRequest searchRequest = new RagSearchRequest();
+            searchRequest.setDatasetId(datasetId);
+            searchRequest.setQuery(query);
+            searchRequest.setTopK(topK);
+            RagSearchResult searchResult = ragService.search(task.getUserId(), task.getTenantId(), searchRequest);
+            List<RagReference> refs = searchResult.getChunks();
+
+            // 步骤输出 refs（JSON 序列化为 List<RagReference>）
+            Map<String, Object> output = new HashMap<>();
+            output.put("query", query);
+            output.put("chunks", refs);
+            step.setOutput(JsonUtils.toJson(output));
+            step.setStatus(WorkflowStep.STATUS_DONE);
+            step.setFinishedAt(LocalDateTime.now());
+            workflowStepMapper.updateById(step);
+
+            // 注入后续 PENDING 步骤的 ragContext（下游引擎分发时经 TaskMessage.params 自动携带）
+            injectRagContext(taskId, refs);
+
+            log.info("RAG_RETRIEVE step done: taskId={}, step={}, hits={}", taskId, step.getStepOrder(), refs.size());
+        } catch (Exception e) {
+            // RAG 是增强不是阻塞：标记 FAILED 但不阻止流水线继续
+            log.error("RAG_RETRIEVE step failed: taskId={}, step={}", taskId, step.getStepOrder(), e);
+            step.setStatus(WorkflowStep.STATUS_FAILED);
+            step.setOutput("{\"error\": \"" + escapeJson(e.getMessage()) + "\"}");
+            step.setFinishedAt(LocalDateTime.now());
+            workflowStepMapper.updateById(step);
+        }
+        advanceStep(taskId);
+    }
+
+    /** 将检索结果写入同任务其余 PENDING 步骤的 input.ragContext */
+    private void injectRagContext(String taskId, List<RagReference> refs) {
+        if (refs == null || refs.isEmpty()) return;
+        List<WorkflowStep> pending = workflowStepMapper.selectList(
+                new LambdaQueryWrapper<WorkflowStep>()
+                        .eq(WorkflowStep::getTaskId, taskId)
+                        .eq(WorkflowStep::getStatus, WorkflowStep.STATUS_PENDING));
+        for (WorkflowStep s : pending) {
+            try {
+                // parseParams 可能返回不可变 Map.of()，必须拷贝后修改
+                Map<String, Object> inputMap = new HashMap<>(parseParams(s.getInput()));
+                inputMap.put("ragContext", Map.of("chunks", refs));
+                s.setInput(JsonUtils.toJson(inputMap));
+                workflowStepMapper.updateById(s);
+            } catch (Exception e) {
+                log.warn("Inject ragContext failed: taskId={}, step={}", taskId, s.getStepOrder(), e);
+            }
+        }
+    }
+
+    private String extractPrompt(String requestParams) {
+        if (requestParams == null || requestParams.isBlank()) return null;
+        try {
+            Map<String, Object> map = JsonUtils.fromJson(requestParams, Map.class);
+            Object prompt = map.get("prompt");
+            return prompt != null ? prompt.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ==================== 处理失败 ====================

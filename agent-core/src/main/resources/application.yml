@@ -35,6 +35,15 @@ server:
 platform:
   require-api-key: ${REQUIRE_API_KEY:true}
 
+rag:
+  chunk-size: 500
+  chunk-overlap: 50
+  embedding-batch-size: 32
+  embedding-max-retries: 2
+  search-max-candidates: 2000
+  search-topk-limit: 10
+  upload-max-size-bytes: 2097152
+
 mybatis-plus:
   global-config:
     db-config:

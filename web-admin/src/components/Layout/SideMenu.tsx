@@ -17,6 +17,7 @@ import {
   BarChartOutlined,
   AuditOutlined,
   SettingOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -48,6 +49,13 @@ const SideMenu: React.FC = () => {
       children: [
         { key: '/llm/models', icon: <ClusterOutlined />, label: '模型广场' },
         { key: '/llm/chat', icon: <MessageOutlined />, label: 'AI 对话' },
+      ],
+    },
+    {
+      type: 'group' as const,
+      label: '知识库',
+      children: [
+        { key: '/rag/datasets', icon: <DatabaseOutlined />, label: '知识库管理' },
       ],
     },
     {

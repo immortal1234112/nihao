@@ -69,6 +69,7 @@ public class ModelRegistry {
         if (className.contains("sd")) return "stability";
         if (className.contains("midjourney")) return "midjourney";
         if (className.contains("ernie")) return "ernie-image";
+        if (className.contains("agnes")) return "agnes-image";
         return className;
     }
 

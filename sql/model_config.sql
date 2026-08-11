@@ -36,4 +36,13 @@ INSERT INTO model_config (id, provider, api_key, api_secret, base_url, model, en
 ('17', 'runway', '', '', 'https://api.runwayml.com', 'gen3-alpha', 0),
 ('18', 'kling', '', '', 'https://api.klingai.com', 'kling-v1', 0),
 ('19', 'pika', '', '', 'https://api.pika.art', 'pika-2.0', 0),
-('20', 'luma', '', '', 'https://api.lumalabs.ai', 'dream-machine-v1', 0);
+('20', 'luma', '', '', 'https://api.lumalabs.ai', 'dream-machine-v1', 0),
+-- 向量 embedding
+('21', 'qwen-embedding', '', '', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'text-embedding-v3', 0),
+('22', 'openai-embedding', '', '', 'https://api.openai.com', 'text-embedding-3-small', 0),
+-- Agnes (OpenAI 兼容)
+('23', 'agnes', '', '', 'https://apihub.agnes-ai.com', 'agnes-2.5-flash', 0),
+('24', 'agnes-image', '', '', 'https://apihub.agnes-ai.com', 'agnes-image-2.1-flash', 0),
+('25', 'agnes-video', '', '', 'https://apihub.agnes-ai.com', 'agnes-video-v2.0', 0),
+-- 硅基流动 (SiliconFlow, OpenAI 兼容, bge-m3 免费)
+('26', 'siliconflow-embedding', '', '', 'https://api.siliconflow.cn/v1', 'BAAI/bge-m3', 0);

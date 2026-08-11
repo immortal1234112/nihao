@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, Select, Typography, Space, Spin, Empty } from 'antd';
+import { Card, Input, Button, Select, Typography, Space, Spin, Empty, Collapse } from 'antd';
 import { SendOutlined, DeleteOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { llmApi } from '@/api/llm';
-import { LlmModel } from '@/types/api';
+import DatasetSelect from '@/components/rag/DatasetSelect';
+import { LlmModel, RagReference } from '@/types/api';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -12,6 +13,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   time: string;
+  references?: RagReference[];
 }
 
 const ChatPage: React.FC = () => {
@@ -20,6 +22,7 @@ const ChatPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<LlmModel[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [selectedDataset, setSelectedDataset] = useState<string | undefined>(undefined);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,11 +43,17 @@ const ChatPage: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await llmApi.chat({ provider: selectedProvider, message: userMsg.content });
+      const res = await llmApi.chat({
+        provider: selectedProvider,
+        message: userMsg.content,
+        datasetId: selectedDataset,
+        topK: 3,
+      });
       const assistantMsg: Message = {
         role: 'assistant',
         content: res.data.data.content,
         time: new Date().toLocaleTimeString(),
+        references: res.data.data.references,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } finally {
@@ -65,10 +74,16 @@ const ChatPage: React.FC = () => {
                 const names: Record<string, string> = {
                   openai:'OpenAI', anthropic:'Claude', deepseek:'DeepSeek',
                   qwen:'通义千问', baidu:'文心一言', spark:'讯飞星火',
-                  zhipu:'智谱GLM', moonshot:'Kimi', google:'Gemini'
+                  zhipu:'智谱GLM', moonshot:'Kimi', google:'Gemini', agnes:'Agnes'
                 };
                 return { value: m.provider, label: `${names[m.provider] || m.provider} — ${m.model}` };
               })}
+            />
+            <DatasetSelect
+              value={selectedDataset}
+              onChange={setSelectedDataset}
+              style={{ width: 180 }}
+              placeholder="知识库（可选，RAG 增强）"
             />
           </Space>
           <Button icon={<DeleteOutlined />} onClick={() => setMessages([])} disabled={messages.length === 0}>
@@ -101,6 +116,25 @@ const ChatPage: React.FC = () => {
                     msg.content
                   )}
                 </div>
+                {msg.role === 'assistant' && msg.references && msg.references.length > 0 && (
+                  <Collapse
+                    size="small"
+                    ghost
+                    style={{ marginTop: 4, maxWidth: '80%', display: 'inline-block' }}
+                    items={[{
+                      key: 'refs',
+                      label: `参考资料（${msg.references.length} 条）`,
+                      children: msg.references.map((ref) => (
+                        <div key={ref.chunkId} style={{ marginBottom: 8, fontSize: 12 }}>
+                          <div style={{ color: '#1677ff' }}>
+                            [{ref.documentName}] 相似度 {(ref.similarity * 100).toFixed(1)}%
+                          </div>
+                          <div style={{ color: '#666', marginTop: 2 }}>{ref.content}</div>
+                        </div>
+                      )),
+                    }]}
+                  />
+                )}
                 <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{msg.time}</div>
               </div>
             ))

@@ -42,4 +42,10 @@ public class TaskSubmitRequest {
 
     /** 流水线步骤定义 */
     private java.util.List<Map<String, Object>> pipelineSteps;
+
+    /** RAG 知识库增强：知识库 ID（可选，不传不增强） */
+    private String datasetId;
+
+    /** RAG 检索条数（可选，默认 3，上限 10） */
+    private Integer ragTopK;
 }

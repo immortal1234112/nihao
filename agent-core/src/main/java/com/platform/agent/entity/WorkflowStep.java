@@ -47,6 +47,7 @@ public class WorkflowStep extends BaseEntity {
     public static final String TYPE_VIDEO = "VIDEO";
     public static final String TYPE_AUDIT = "AUDIT";
     public static final String TYPE_POST_PROCESS = "POST_PROCESS";
+    public static final String TYPE_RAG_RETRIEVE = "RAG_RETRIEVE";
 
     // ========== 状态常量 ==========
     public static final String STATUS_PENDING = "PENDING";

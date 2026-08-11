@@ -47,6 +47,10 @@ spring:
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/llm/**
+        - id: rag
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/rag/**
         - id: files
           uri: lb://storage-service
           predicates:

@@ -31,6 +31,8 @@ const MemberPage = lazy(() => import('@/pages/tenant/MemberPage'));
 const StatsPage = lazy(() => import('@/pages/admin/StatsPage'));
 const ReviewPage = lazy(() => import('@/pages/admin/ReviewPage'));
 const ModelConfigPage = lazy(() => import('@/pages/admin/ModelConfigPage'));
+const DatasetsPage = lazy(() => import('@/pages/rag/DatasetsPage'));
+const DatasetDetailPage = lazy(() => import('@/pages/rag/DatasetDetailPage'));
 
 export const router = createBrowserRouter([
   {
@@ -56,6 +58,8 @@ export const router = createBrowserRouter([
       { path: 'files', element: LazyLoad(FileListPage) },
       { path: 'llm/models', element: LazyLoad(ModelListPage) },
       { path: 'llm/chat', element: LazyLoad(ChatPage) },
+      { path: 'rag/datasets', element: LazyLoad(DatasetsPage) },
+      { path: 'rag/datasets/:id', element: LazyLoad(DatasetDetailPage) },
       { path: 'user/profile', element: LazyLoad(ProfilePage) },
       { path: 'user/quota', element: LazyLoad(QuotaPage) },
       { path: 'user/api-keys', element: LazyLoad(ApiKeyPage) },

@@ -58,6 +58,7 @@ public class ModelRegistry {
         if (className.contains("deepseek")) return "deepseek";
         if (className.contains("cogvideo")) return "cogvideo";
         if (className.contains("wan")) return "wan";
+        if (className.contains("agnes")) return "agnes-video";
         return className;
     }
 

@@ -1,27 +1,43 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Select, Button, Row, Col, Typography, message, Space, Steps } from 'antd';
+import { Card, Form, Input, Select, Button, Row, Col, Typography, message, Space, Steps, InputNumber } from 'antd';
 import { SendOutlined, ClearOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import DatasetSelect from '@/components/rag/DatasetSelect';
 
 const { Title } = Typography;
 const { TextArea } = Input;
+
+type PipelineStep = {
+  stepType: string;
+  prompt?: string;
+  datasetId?: string;
+  topK?: number;
+  [key: string]: unknown;
+};
 
 const PipelinePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const [steps, setSteps] = useState<Array<{ stepType: string; prompt?: string }>>([
+  const [steps, setSteps] = useState<PipelineStep[]>([
     { stepType: 'IMAGE' },
     { stepType: 'VIDEO' },
   ]);
 
   const addStep = () => setSteps([...steps, { stepType: 'IMAGE' }]);
   const removeStep = (index: number) => setSteps(steps.filter((_, i) => i !== index));
+  const updateStep = (index: number, patch: Partial<PipelineStep>) => {
+    setSteps(steps.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  };
 
   const onFinish = async (values: { prompt: string }) => {
     if (steps.length < 2) {
       message.warning('流水线至少需要 2 个步骤');
+      return;
+    }
+    if (steps.some((s) => s.stepType === 'RAG_RETRIEVE' && !s.datasetId)) {
+      message.warning('知识库检索步骤需要选择知识库');
       return;
     }
     setLoading(true);
@@ -61,28 +77,48 @@ const PipelinePage: React.FC = () => {
                   current={-1}
                   items={steps.map((step, i) => ({
                     title: (
-                      <Space>
-                        <Select
-                          value={step.stepType}
-                          onChange={(v) => {
-                            const newSteps = [...steps];
-                            newSteps[i].stepType = v;
-                            setSteps(newSteps);
-                          }}
-                          style={{ width: 120 }}
-                          options={[
-                            { value: 'IMAGE', label: '图片生成' },
-                            { value: 'VIDEO', label: '视频生成' },
-                            { value: 'AUDIT', label: '安全审核' },
-                            { value: 'POST_PROCESS', label: '后处理' },
-                          ]}
-                        />
-                        {steps.length > 2 && (
-                          <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeStep(i)} />
+                      <div>
+                        <Space>
+                          <Select
+                            value={step.stepType}
+                            onChange={(v) => updateStep(i, { stepType: v })}
+                            style={{ width: 140 }}
+                            options={[
+                              { value: 'IMAGE', label: '图片生成' },
+                              { value: 'VIDEO', label: '视频生成' },
+                              { value: 'RAG_RETRIEVE', label: '知识库检索' },
+                              { value: 'AUDIT', label: '安全审核' },
+                              { value: 'POST_PROCESS', label: '后处理' },
+                            ]}
+                          />
+                          {steps.length > 2 && (
+                            <Button type="text" danger size="small" icon={<DeleteOutlined />} onClick={() => removeStep(i)} />
+                          )}
+                        </Space>
+                        {step.stepType === 'RAG_RETRIEVE' && (
+                          <Space style={{ marginTop: 8 }} wrap>
+                            <DatasetSelect
+                              value={step.datasetId}
+                              onChange={(v) => updateStep(i, { datasetId: v })}
+                              style={{ width: 220 }}
+                              placeholder="选择知识库（必选）"
+                            />
+                            <InputNumber
+                              min={1}
+                              max={10}
+                              defaultValue={3}
+                              value={step.topK ?? 3}
+                              onChange={(v) => updateStep(i, { topK: v ?? undefined })}
+                              addonBefore="topK"
+                              style={{ width: 110 }}
+                            />
+                          </Space>
                         )}
-                      </Space>
+                      </div>
                     ),
-                    description: `步骤 ${i + 1}`,
+                    description: step.stepType === 'RAG_RETRIEVE'
+                      ? `步骤 ${i + 1}：检索结果将注入后续步骤`
+                      : `步骤 ${i + 1}`,
                   }))}
               />
               </div>

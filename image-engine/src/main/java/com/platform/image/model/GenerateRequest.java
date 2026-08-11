@@ -18,6 +18,7 @@ public class GenerateRequest {
     private String prompt;
     private String modelProvider;
     private String size;
+    private String aspectRatio;
     private int count;
     private String style;
     private String format;

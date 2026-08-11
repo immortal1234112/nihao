@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Select, Slider, Button, Row, Col, Typography, message, Space, Tabs, Spin } from 'antd';
 import { SendOutlined, ClearOutlined, PictureOutlined, SmileOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import DatasetSelect from '@/components/rag/DatasetSelect';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -15,6 +16,7 @@ const imageModels = [
   { value: 'stability', label: 'Stable Diffusion (Stability AI)', provider: 'stability', desc: '开源，1024×1024，风格全面' },
   { value: 'midjourney', label: 'Midjourney V6', provider: 'midjourney', desc: '艺术感强，1024×1024' },
   { value: 'ernie-image', label: '文心一格 (百度)', provider: 'baidu', desc: '百度，中文优化，1024×1024' },
+  { value: 'agnes-image', label: 'Agnes Image 2.1 (免费)', provider: 'agnes-image', desc: 'Agnes AI，高信息密度，1K~4K，支持 21:9 宽幅' },
 ];
 
 const ImageGenPage: React.FC = () => {
@@ -37,6 +39,8 @@ const ImageGenPage: React.FC = () => {
         quality: values.quality as string,
         negativePrompt: values.negativePrompt as string,
         aspectRatio: values.aspectRatio as string,
+        datasetId: values.datasetId as string | undefined,
+        ragTopK: 3,
       });
       message.success('任务提交成功');
       const taskId = res.data.data?.task?.id;
@@ -73,6 +77,13 @@ const ImageGenPage: React.FC = () => {
                           placeholder="选择图片生成模型"
                           options={imageModels.map(m => ({ value: m.provider, label: m.label }))}
                         />
+                      </Form.Item>
+                      <Form.Item
+                        name="datasetId"
+                        label="知识库增强（可选）"
+                        extra="选中知识库后，检索结果将自动附加到提示词，提升内容准确性"
+                      >
+                        <DatasetSelect />
                       </Form.Item>
                       <Row gutter={16}>
                         <Col span={8}>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Select, Slider, Button, Row, Col, Typography, message, Space } from 'antd';
 import { SendOutlined, ClearOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import DatasetSelect from '@/components/rag/DatasetSelect';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -14,6 +15,7 @@ const videoModels = [
   { value: 'pika', label: 'Pika 2.0', desc: '最大8秒，1920×1080，支持图+文转视频' },
   { value: 'luma', label: 'Luma Dream Machine V1', desc: '最大5秒，1360×752，电影感风格' },
   { value: 'deepseek', label: 'DeepSeek 提示词增强', desc: 'AI 自动优化提示词质量，提升出片效果' },
+  { value: 'agnes-video', label: 'Agnes Video V2.0 (免费)', desc: 'Agnes AI，最大18秒，480p~1080p，文生视频/图生视频' },
 ];
 
 const VideoGenPage: React.FC = () => {
@@ -34,6 +36,8 @@ const VideoGenPage: React.FC = () => {
         resolution: values.resolution as string,
         style: values.style as string,
         negativePrompt: values.negativePrompt as string,
+        datasetId: values.datasetId as string | undefined,
+        ragTopK: 3,
       });
       message.success('视频生成任务提交成功');
       const taskId = res.data.data?.task?.id;
@@ -62,6 +66,13 @@ const VideoGenPage: React.FC = () => {
                   placeholder="选择视频生成模型"
                   options={videoModels.map(m => ({ value: m.value, label: m.label }))}
                 />
+              </Form.Item>
+              <Form.Item
+                name="datasetId"
+                label="知识库增强（可选）"
+                extra="选中知识库后，检索结果将自动附加到提示词，提升内容准确性"
+              >
+                <DatasetSelect />
               </Form.Item>
               <Row gutter={16}>
                 <Col span={8}>

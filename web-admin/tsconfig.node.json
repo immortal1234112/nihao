@@ -8,7 +8,7 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "composite": true,
+    "noEmit": true,
     "strict": true
   },
   "include": ["vite.config.ts"]

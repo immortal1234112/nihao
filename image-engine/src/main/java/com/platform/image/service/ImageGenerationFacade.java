@@ -111,6 +111,7 @@ public class ImageGenerationFacade {
                 .prompt((String) params.get("prompt"))
                 .modelProvider((String) params.get("modelProvider"))
                 .size((String) params.getOrDefault("size", "1024x1024"))
+                .aspectRatio((String) params.get("aspectRatio"))
                 .count(params.containsKey("count") ? ((Number) params.get("count")).intValue() : 1)
                 .style((String) params.get("style"))
                 .format((String) params.getOrDefault("format", "png"))

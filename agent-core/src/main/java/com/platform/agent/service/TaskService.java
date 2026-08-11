@@ -7,6 +7,10 @@ import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
 import com.platform.agent.mapper.AgentTaskMapper;
 import com.platform.agent.mapper.WorkflowStepMapper;
+import com.platform.agent.rag.dto.RagReference;
+import com.platform.agent.rag.dto.RagSearchRequest;
+import com.platform.agent.rag.dto.RagSearchResult;
+import com.platform.agent.rag.service.RagService;
 import com.platform.core.base.PageResult;
 import com.platform.core.exception.BizException;
 import com.platform.core.exception.ErrorCode;
@@ -38,6 +42,7 @@ public class TaskService {
     private final IntentParser intentParser;
     private final UserFeignClient userFeignClient;
     private final SecurityFeignClient securityFeignClient;
+    private final RagService ragService;
 
     // ==================== 提交任务 ====================
 
@@ -71,6 +76,23 @@ public class TaskService {
             log.warn("Prompt audit failed (degraded): {}", e.getMessage());
         }
 
+        // 3.5 RAG 知识库增强（审核后，只增强已过审 prompt；检索失败降级不影响任务）
+        String effectivePrompt = request.getPrompt();
+        List<RagReference> ragReferences = List.of();
+        if (request.getDatasetId() != null && !request.getDatasetId().isBlank()) {
+            try {
+                RagSearchRequest searchRequest = new RagSearchRequest();
+                searchRequest.setDatasetId(request.getDatasetId());
+                searchRequest.setQuery(request.getPrompt());
+                searchRequest.setTopK(request.getRagTopK() != null ? request.getRagTopK() : 3);
+                RagSearchResult searchResult = ragService.search(userId, tenantId, searchRequest);
+                ragReferences = searchResult.getChunks();
+                effectivePrompt = request.getPrompt() + ragService.buildReferencePrompt(ragReferences);
+            } catch (Exception e) {
+                log.warn("RAG prompt enhancement degraded: {}", e.getMessage());
+            }
+        }
+
         // 4. 构建任务
         AgentTask task = new AgentTask();
         task.setUserId(userId);
@@ -81,7 +103,7 @@ public class TaskService {
         task.setPriority(0);
 
         // 5. 构建请求参数
-        Map<String, Object> params = buildParams(request, intent);
+        Map<String, Object> params = buildParams(request, intent, effectivePrompt, ragReferences);
         task.setRequestParams(JsonUtils.toJson(params));
         agentTaskMapper.insert(task);
 
@@ -207,9 +229,14 @@ public class TaskService {
 
     // ========== 辅助方法 ==========
 
-    private Map<String, Object> buildParams(TaskSubmitRequest request, Map<String, String> intent) {
+    private Map<String, Object> buildParams(TaskSubmitRequest request, Map<String, String> intent,
+                                            String effectivePrompt, List<RagReference> ragReferences) {
         Map<String, Object> params = new HashMap<>();
-        params.put("prompt", request.getPrompt());
+        params.put("prompt", effectivePrompt);
+        if (!ragReferences.isEmpty()) {
+            params.put("originalPrompt", request.getPrompt());
+            params.put("ragReferences", ragReferences);
+        }
         params.put("engineType", request.getEngineType());
         params.put("workflowType", request.getWorkflowType());
         params.put("modelProvider", request.getModelProvider());

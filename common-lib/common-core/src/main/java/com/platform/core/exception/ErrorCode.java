@@ -40,6 +40,8 @@ public enum ErrorCode {
     TASK_NOT_FOUND(4001, "任务不存在"),
     FILE_NOT_FOUND(4002, "文件不存在"),
     USER_NOT_FOUND(4003, "用户不存在"),
+    DATASET_NOT_FOUND(4004, "知识库不存在"),
+    DOCUMENT_NOT_FOUND(4005, "文档不存在"),
 
     // 5xxx: 系统错误
     SERVICE_TIMEOUT(5001, "服务调用超时"),

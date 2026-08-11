@@ -107,6 +107,10 @@ export interface TaskSubmitRequest {
   resolution?: string;
   batchCount?: number;
   pipelineSteps?: Array<{ stepType: string; [key: string]: unknown }>;
+  /** RAG 知识库增强：知识库 ID（可选） */
+  datasetId?: string;
+  /** RAG 检索条数（可选） */
+  ragTopK?: number;
 }
 
 export interface AgentTask {
@@ -195,6 +199,10 @@ export interface ChatRequest {
   systemPrompt?: string;
   message: string;
   options?: Record<string, unknown>;
+  /** RAG 知识库增强：知识库 ID（可选） */
+  datasetId?: string;
+  /** RAG 检索条数（可选） */
+  topK?: number;
 }
 
 export interface ChatResult {
@@ -202,6 +210,67 @@ export interface ChatResult {
   provider: string;
   content: string;
   durationMs: number;
+  references?: RagReference[];
+}
+
+// ========== RAG 知识库 ==========
+export interface RagDataset {
+  id: string;
+  name: string;
+  description: string;
+  tenantId: string;
+  userId: string;
+  embeddingProvider: string;
+  embeddingModel: string;
+  dimension: number;
+  docCount: number;
+  chunkCount: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RagDocument {
+  id: string;
+  datasetId: string;
+  tenantId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  chunkCount: number;
+  status: 'PARSING' | 'READY' | 'FAILED';
+  errorMsg: string | null;
+  parsedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RagChunk {
+  id: string;
+  chunkIndex: number;
+  content: string;
+  documentId: string;
+  documentName: string;
+}
+
+export interface RagReference {
+  chunkId: string;
+  content: string;
+  similarity: number;
+  documentId: string;
+  documentName: string;
+}
+
+export interface RagSearchResult {
+  query: string;
+  chunks: RagReference[];
+}
+
+export interface RagEmbeddingProvider {
+  provider: string;
+  model: string;
+  dimension: number;
+  available: boolean;
 }
 
 // ========== 租户 ==========
