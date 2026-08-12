@@ -8,12 +8,13 @@ import com.platform.video.model.VideoGenerateRequest;
 import com.platform.video.model.VideoGenerationResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.*;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,12 @@ public class VideoGenerationFacade {
     private final RabbitTemplate rabbitTemplate;
     private final StorageFeignClient storageFeignClient;
 
-    public void generate(String taskId, String userId, String tenantId, Map<String, Object> params) {
+    /**
+     * 执行视频生成并上报结果。
+     *
+     * @param stepOrder 对应 agent-core 的步骤序号，回执时回填以便精确对账（BATCH 多步骤）
+     */
+    public void generate(String taskId, String userId, String tenantId, Map<String, Object> params, int stepOrder) {
         long start = System.currentTimeMillis();
         try {
             VideoGenerateRequest request = buildRequest(params);
@@ -48,9 +54,9 @@ public class VideoGenerationFacade {
             // 处理文本脚本输出（DeepSeek 等）：上传到 Storage 获得可下载 URL
             List<TaskResultMessage.FileInfo> fileInfos = new ArrayList<>();
             if (result.getScriptContent() != null && !result.getScriptContent().isEmpty()) {
-                String fileUrl = uploadScript(taskId, userId, tenantId, result.getScriptContent());
-                if (fileUrl != null) {
-                    fileInfos.add(new TaskResultMessage.FileInfo(null, fileUrl, null));
+                TaskResultMessage.FileInfo fi = uploadScript(taskId, userId, tenantId, result.getScriptContent());
+                if (fi != null) {
+                    fileInfos.add(fi);
                 }
             }
             if (result.getVideoUrl() != null && !result.getVideoUrl().startsWith("deepseek-chat://")) {
@@ -64,15 +70,15 @@ public class VideoGenerationFacade {
 
             long duration = System.currentTimeMillis() - start;
             TaskResultMessage message = new TaskResultMessage(
-                    taskId, "VIDEO", "DONE", fileInfos, null, duration);
+                    taskId, "VIDEO", "DONE", fileInfos, null, duration, stepOrder);
             rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.done", message);
-            log.info("Video task {} completed in {}ms", taskId, duration);
+            log.info("Video task {} step {} completed in {}ms", taskId, stepOrder, duration);
 
         } catch (Exception e) {
             log.error("Video task {} failed: {}", taskId, e.getMessage());
             long duration = System.currentTimeMillis() - start;
             TaskResultMessage message = new TaskResultMessage(
-                    taskId, "VIDEO", "FAILED", null, e.getMessage(), duration);
+                    taskId, "VIDEO", "FAILED", null, e.getMessage(), duration, stepOrder);
             rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.failed", message);
         }
     }
@@ -97,53 +103,40 @@ public class VideoGenerationFacade {
     }
 
     /**
-     * 将脚本文本上传到 Storage Service，返回可下载的文件 URL。
+     * 将脚本文本上传到 Storage Service（走带身份头的 Feign 内部接口，返回可下载 URL）。
      */
-    @SuppressWarnings("unchecked")
-    private String uploadScript(String taskId, String userId, String tenantId, String script) {
+    private TaskResultMessage.FileInfo uploadScript(String taskId, String userId, String tenantId, String script) {
         try {
-            OkHttpClient client = new OkHttpClient.Builder()
-                    .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                    .build();
             String filename = "deepseek-script-" + taskId + ".txt";
-
-            okhttp3.RequestBody fileBody = okhttp3.RequestBody.create(
-                    script.getBytes(StandardCharsets.UTF_8),
-                    MediaType.parse("text/plain; charset=UTF-8"));
-            okhttp3.MultipartBody multipartBody = new okhttp3.MultipartBody.Builder()
-                    .setType(okhttp3.MultipartBody.FORM)
-                    .addFormDataPart("file", filename, fileBody)
-                    .addFormDataPart("storageClass", "ASSET")
-                    .build();
-
-            Request request = new Request.Builder()
-                    .url("http://localhost:8084/api/v1/files/upload")
-                    .header("X-User-Id", userId != null ? userId : "system")
-                    .header("X-Tenant-Id", tenantId != null ? tenantId : "system")
-                    .post(multipartBody)
-                    .build();
-
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            try (Response response = client.newCall(request).execute()) {
-                String body = response.body() != null ? response.body().string() : "";
-                if (response.isSuccessful()) {
-                    Map<String, Object> respMap = mapper.readValue(body, Map.class);
-                    Map<String, Object> data = (Map<String, Object>) respMap.get("data");
-                    if (data != null && data.get("id") != null) {
-                        String fileId = (String) data.get("id");
-                        log.info("Script uploaded: taskId={}, fileId={}", taskId, fileId);
-                        return "http://localhost:8080/api/v1/files/" + fileId + "/download";
-                    }
-                    log.warn("Storage upload response missing data.id: {}", body.substring(0, Math.min(200, body.length())));
-                } else {
-                    log.warn("Storage upload failed: HTTP {} for task {}: {}", response.code(), taskId,
-                            body.substring(0, Math.min(200, body.length())));
-                }
+            MultipartFile file = createTextMultipartFile(script, filename);
+            var uploadResult = storageFeignClient.upload(file,
+                    userId != null ? userId : "system",
+                    tenantId != null ? tenantId : "system");
+            if (uploadResult != null && uploadResult.getData() != null) {
+                String fileId = uploadResult.getData().fileId();
+                log.info("Script uploaded: taskId={}, fileId={}", taskId, fileId);
+                return new TaskResultMessage.FileInfo(fileId, uploadResult.getData().url(), null);
             }
-        } catch (IOException e) {
+            log.warn("Script upload returned empty result: taskId={}", taskId);
+        } catch (Exception e) {
             log.warn("Failed to upload script to storage: {}", e.getMessage());
         }
         return null;
+    }
+
+    private MultipartFile createTextMultipartFile(String content, String filename) {
+        byte[] bytes = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return new MultipartFile() {
+            @Override public String getName() { return "file"; }
+            @Override public String getOriginalFilename() { return filename; }
+            @Override public String getContentType() { return "text/plain; charset=UTF-8"; }
+            @Override public boolean isEmpty() { return bytes.length == 0; }
+            @Override public long getSize() { return bytes.length; }
+            @Override public byte[] getBytes() { return bytes; }
+            @Override public InputStream getInputStream() { return new ByteArrayInputStream(bytes); }
+            @Override public void transferTo(java.io.File dest) throws IOException, IllegalStateException {
+                java.nio.file.Files.write(dest.toPath(), bytes);
+            }
+        };
     }
 }

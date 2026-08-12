@@ -45,4 +45,7 @@ INSERT INTO model_config (id, provider, api_key, api_secret, base_url, model, en
 ('24', 'agnes-image', '', '', 'https://apihub.agnes-ai.com', 'agnes-image-2.1-flash', 0),
 ('25', 'agnes-video', '', '', 'https://apihub.agnes-ai.com', 'agnes-video-v2.0', 0),
 -- 硅基流动 (SiliconFlow, OpenAI 兼容, bge-m3 免费)
-('26', 'siliconflow-embedding', '', '', 'https://api.siliconflow.cn/v1', 'BAAI/bge-m3', 0);
+('26', 'siliconflow-embedding', '', '', 'https://api.siliconflow.cn/v1', 'BAAI/bge-m3', 0),
+-- 视频生成（CogVideoX-Flash 免费 / 通义万相 Wan2.1）
+('27', 'cogvideo', '', '', 'https://open.bigmodel.cn', 'cogvideox-flash', 0),
+('28', 'wan21', '', '', 'https://dashscope.aliyuncs.com', 'wan2.1', 0);

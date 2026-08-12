@@ -31,7 +31,8 @@ const statusColorMap: Record<string, string> = {
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<TaskStats | null>(null);
   const [recentTasks, setRecentTasks] = useState<AgentTask[]>([]);
-  const [quota, setQuota] = useState<QuotaInfo | null>(null);
+  const [imageQuota, setImageQuota] = useState<QuotaInfo | null>(null);
+  const [videoQuota, setVideoQuota] = useState<QuotaInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -41,11 +42,14 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [quotaRes, taskRes] = await Promise.all([
+        // D5：图片/视频配额分别拉取，避免视频卡片显示图片配额
+        const [imageQuotaRes, videoQuotaRes, taskRes] = await Promise.all([
           userApi.getQuota('IMAGE').catch(() => null),
+          userApi.getQuota('VIDEO').catch(() => null),
           taskApi.list({ page: 1, size: 5 }).catch(() => null),
         ]);
-        if (quotaRes) setQuota(quotaRes.data.data);
+        if (imageQuotaRes) setImageQuota(imageQuotaRes.data.data);
+        if (videoQuotaRes) setVideoQuota(videoQuotaRes.data.data);
         if (taskRes) setRecentTasks(taskRes.data.data.records);
 
         if (isAdmin) {
@@ -96,12 +100,12 @@ const DashboardPage: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card hoverable onClick={() => navigate('/workspace/image')}>
-            <Statistic title="图片生成配额剩余" value={quota?.remaining ?? '-'} prefix={<PictureOutlined />} />
+            <Statistic title="图片生成配额剩余" value={imageQuota?.remaining ?? '-'} prefix={<PictureOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
           <Card hoverable onClick={() => navigate('/workspace/video')}>
-            <Statistic title="视频生成配额剩余" value={quota?.remaining ?? '-'} prefix={<VideoCameraOutlined />} />
+            <Statistic title="视频生成配额剩余" value={videoQuota?.remaining ?? '-'} prefix={<VideoCameraOutlined />} />
           </Card>
         </Col>
         <Col span={6}>

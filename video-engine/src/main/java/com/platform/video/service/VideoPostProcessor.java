@@ -30,7 +30,7 @@ public class VideoPostProcessor {
     @Value("${platform.video.download-dir:./videos}")
     private String downloadDir;
 
-    @Value("${platform.video.download-enabled:true}")
+    @Value("${platform.video.download-enabled:false}")
     private boolean downloadEnabled;
 
     public VideoPostProcessor() {
@@ -49,11 +49,11 @@ public class VideoPostProcessor {
             return result;
         }
 
-        // 本地下载
+        // 可选本地下载（默认关闭）。绝不把 file:// 路径写回 videoUrl —— 引擎本地磁盘客户端不可访问，
+        // 写回会导致前端拿到不可用的 file:// URL
         if (downloadEnabled) {
             Path localPath = downloadToLocal(result);
             if (localPath != null) {
-                result.setVideoUrl("file://" + localPath.toAbsolutePath().normalize().toString());
                 log.info("Video saved to local: {}", localPath.toAbsolutePath());
             }
         }

@@ -1,5 +1,6 @@
 package com.platform.agent.adapter.baidu;
 
+import com.platform.agent.adapter.ChatMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.platform.agent.adapter.LLMAdapter;
 import com.platform.core.config.ModelConfigService;
@@ -74,7 +75,7 @@ public class ErnieAdapter implements LLMAdapter {
     }
 
     @Override
-    public String chat(String systemPrompt, String userMessage, Map<String, Object> options) {
+    public String chat(String systemPrompt, List<ChatMessage> history, String userMessage, Map<String, Object> options) {
         try {
             String effectiveApiKey = configService.getApiKey(provider(), apiKey);
             String effectiveSecretKey = configService.getApiSecret(provider(), secretKey);
@@ -86,6 +87,7 @@ public class ErnieAdapter implements LLMAdapter {
             if (systemPrompt != null && !systemPrompt.isEmpty()) {
                 messages.add(Map.of("role", "system", "content", systemPrompt));
             }
+            history.forEach(h -> messages.add(Map.of("role", h.role(), "content", h.content())));
             messages.add(Map.of("role", "user", "content", userMessage));
 
             double temp = options != null && options.containsKey("temperature")

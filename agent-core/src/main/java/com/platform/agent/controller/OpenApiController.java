@@ -43,13 +43,16 @@ public class OpenApiController {
     }
 
     @GetMapping("/tasks/{id}")
-    public Result<?> getTask(@PathVariable String id) {
-        return Result.ok(taskService.getTaskDetail(id));
+    public Result<?> getTask(@PathVariable String id,
+                             @RequestHeader("X-User-Id") String userId) {
+        // 归属校验（防 IDOR）：API Key 用户只能查自己的任务
+        return Result.ok(taskService.getTaskDetail(id, userId));
     }
 
     @GetMapping("/tasks/{id}/result")
-    public Result<?> getTaskResult(@PathVariable String id) {
-        AgentTask task = taskService.getTask(id);
+    public Result<?> getTaskResult(@PathVariable String id,
+                                   @RequestHeader("X-User-Id") String userId) {
+        AgentTask task = taskService.getTask(id, userId);
         return Result.ok(java.util.Map.of(
                 "status", task.getStatus(),
                 "result", task.getResult()

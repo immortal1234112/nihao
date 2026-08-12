@@ -37,8 +37,8 @@ platform:
   video:
     # 视频本地下载目录（可通过环境变量 VIDEO_DOWNLOAD_DIR 覆盖）
     download-dir: ${VIDEO_DOWNLOAD_DIR:C:\\Users\\immortal\\Videos\\Ai视频}
-    # 是否启用本地下载（默认 true，可通过环境变量 VIDEO_DOWNLOAD_ENABLED 覆盖）
-    download-enabled: ${VIDEO_DOWNLOAD_ENABLED:true}
+    # 是否启用本地下载（默认 false —— 下载仅供引擎侧使用，绝不写回 file:// 结果 URL）
+    download-enabled: ${VIDEO_DOWNLOAD_ENABLED:false}
 
 mybatis-plus:
   global-config:

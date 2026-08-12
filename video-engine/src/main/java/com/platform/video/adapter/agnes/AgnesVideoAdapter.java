@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  * 要点（文档）:
  *   - num_frames 必须 ≤ 441 且遵循 8n+1 规则（本适配器按 duration×fps 自动折算）
  *   - 分辨率 480p/720p/1080p 三档，宽高比 16:9/9:16/1:1/4:3/3:4，超规格自动标准化
- *   - 完成后的视频 URL 位于 metadata.url
+ *   - 完成后的视频 URL 位于顶层 url 字段
  *
  * 配置示例（管理后台模型配置页或 Nacos）:
  *   agnes-video:
@@ -194,15 +194,30 @@ public class AgnesVideoAdapter implements VideoGenerationAdapter {
 
     @SuppressWarnings("unchecked")
     private VideoGenerationResult pollTask(String apiKey, String videoId, int duration, int fps) throws Exception {
-        int maxRetries = 90;  // 最长轮询 3 分钟
+        int maxRetries = 90;  // 每 10 秒一次，最长轮询 15 分钟
         for (int i = 0; i < maxRetries; i++) {
-            Thread.sleep(2000);
-            Map<String, Object> resp = queryTask(apiKey, videoId);
+            Thread.sleep(10_000);  // 状态查询限流严格（官方未公布阈值），保守每 10 秒一次
+            Map<String, Object> resp;
+            try {
+                resp = queryTask(apiKey, videoId);
+            } catch (IOException e) {
+                // 429 限流等瞬态错误：退避 15 秒后继续轮询，不直接判失败
+                if (e.getMessage() != null && e.getMessage().contains("429")) {
+                    log.warn("Agnes Video status query rate-limited, backing off: {}", e.getMessage());
+                    Thread.sleep(15_000);
+                    continue;
+                }
+                throw e;
+            }
             String status = (String) resp.get("status");
 
             if ("completed".equals(status)) {
-                Map<String, Object> metadata = (Map<String, Object>) resp.get("metadata");
-                String videoUrl = metadata != null ? (String) metadata.get("url") : null;
+                // 视频地址在响应顶层 url 字段（实际响应无 metadata；保留 metadata.url 作兜底）
+                String videoUrl = (String) resp.get("url");
+                if (videoUrl == null) {
+                    Map<String, Object> metadata = (Map<String, Object>) resp.get("metadata");
+                    videoUrl = metadata != null ? (String) metadata.get("url") : null;
+                }
                 log.info("Agnes Video task done: videoId={}, url={}", videoId, videoUrl);
                 return VideoGenerationResult.builder()
                         .videoUrl(videoUrl)

@@ -10,6 +10,7 @@ import {
   FolderOpenOutlined,
   ClusterOutlined,
   MessageOutlined,
+  BookOutlined,
   UserOutlined,
   KeyOutlined,
   TeamOutlined,
@@ -49,6 +50,7 @@ const SideMenu: React.FC = () => {
       children: [
         { key: '/llm/models', icon: <ClusterOutlined />, label: '模型广场' },
         { key: '/llm/chat', icon: <MessageOutlined />, label: 'AI 对话' },
+        { key: '/llm/memories', icon: <BookOutlined />, label: '记忆管理' },
       ],
     },
     {

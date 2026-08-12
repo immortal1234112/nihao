@@ -10,6 +10,7 @@ import com.platform.user.entity.UserAccount;
 import com.platform.user.entity.UserTenant;
 import com.platform.user.mapper.UserAccountMapper;
 import com.platform.user.mapper.UserTenantMapper;
+import com.platform.user.service.AuthService;
 import com.platform.user.service.QuotaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,19 @@ public class InternalUserController {
     private final UserAccountMapper userAccountMapper;
     private final UserTenantMapper userTenantMapper;
     private final QuotaService quotaService;
+    private final AuthService authService;
+
+    /**
+     * 校验 API Key（供网关 ApiKeyAuthFilter 调用），返回 key 对应的身份。
+     */
+    @PostMapping("/api-key/validate")
+    public Result<Map<String, String>> validateApiKey(@RequestBody Map<String, String> body) {
+        try {
+            return Result.ok(authService.validateApiKey(body.get("apiKey")));
+        } catch (BizException e) {
+            return Result.fail(e.getCode(), e.getMessage());
+        }
+    }
 
     /**
      * 获取用户信息（供 Feign 调用）。

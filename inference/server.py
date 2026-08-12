@@ -68,8 +68,15 @@ image_pipe: Optional[object] = None
 video_pipe: Optional[object] = None
 model_lock = threading.Lock()
 
+# 推理串行化锁：diffusers pipeline 非线程安全，单卡并发推理会导致崩溃/显存溢出
+generation_lock = threading.Lock()
+
 # Video task store (in-memory; use Redis in production)
 video_tasks: dict[str, dict] = {}
+
+# 视频任务保留时间：终态任务 30 分钟后清理，防止内存无限增长
+TASK_TTL_SECONDS = 30 * 60
+TERMINAL_STATUSES = {"completed", "failed"}
 
 
 # ---------------------------------------------------------------------------
@@ -210,12 +217,12 @@ def pil_to_base64(image) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def video_to_base64(frames: list) -> str:
-    """Convert list of PIL frames to base64 MP4 string."""
+def video_to_base64(frames: list, fps: int = 8) -> str:
+    """Convert list of PIL frames to base64 MP4 string (fps 来自请求参数)."""
     import imageio
 
     buf = io.BytesIO()
-    writer = imageio.get_writer(buf, format="mp4", fps=8, codec="libx264")
+    writer = imageio.get_writer(buf, format="mp4", fps=fps, codec="libx264")
     for frame in frames:
         writer.append_data(frame)
     writer.close()
@@ -282,8 +289,9 @@ def generate_image(req: ImageRequest):
     log.info("Generating %d image(s): %s (%dx%d)", req.num_images, req.prompt[:80], w, h)
 
     try:
-        with torch.inference_mode():
-            output = pipe(**{k: v for k, v in kwargs.items() if v is not None})
+        with generation_lock:
+            with torch.inference_mode():
+                output = pipe(**{k: v for k, v in kwargs.items() if v is not None})
     except torch.cuda.OutOfMemoryError:
         torch.cuda.empty_cache()
         raise HTTPException(507, "GPU out of memory. Try smaller image size or fewer images.")
@@ -316,6 +324,7 @@ def generate_video_async(req: VideoRequest):
         "error": None,
         "req": req,
         "seed": int(seed),
+        "submitted_at": time.time(),
     }
 
     # Start generation in background thread
@@ -340,6 +349,23 @@ def query_video(task_id: str):
     )
 
 
+def _sweep_video_tasks():
+    """周期清扫：终态任务超过 TTL 后移除，防止内存无限增长。"""
+    while True:
+        time.sleep(TASK_TTL_SECONDS)
+        now = time.time()
+        stale = [
+            tid for tid, t in video_tasks.items()
+            if t.get("submitted_at") and (now - t["submitted_at"]) > TASK_TTL_SECONDS
+            and t["status"] in TERMINAL_STATUSES
+        ]
+        for tid in stale:
+            video_tasks.pop(tid, None)
+            log.info("Cleaned up expired video task: %s", tid)
+        if stale:
+            log.info("Video task store: %d remaining", len(video_tasks))
+
+
 def _run_video_generation(task_id: str):
     """Background worker for video generation."""
     task = video_tasks[task_id]
@@ -359,15 +385,17 @@ def _run_video_generation(task_id: str):
     log.info("Generating video: %s (%d frames, seed=%d)", req.prompt[:80], req.num_frames, seed)
 
     try:
-        with torch.inference_mode():
-            output = pipe(
-                prompt=req.prompt,
-                negative_prompt=req.negative_prompt or None,
-                num_frames=req.num_frames,
-                num_inference_steps=req.num_inference_steps,
-                guidance_scale=req.guidance_scale,
-                generator=generator,
-            )
+        # 串行化推理：diffusers pipeline 非线程安全，多任务并发会互相踩踏
+        with generation_lock:
+            with torch.inference_mode():
+                output = pipe(
+                    prompt=req.prompt,
+                    negative_prompt=req.negative_prompt or None,
+                    num_frames=req.num_frames,
+                    num_inference_steps=req.num_inference_steps,
+                    guidance_scale=req.guidance_scale,
+                    generator=generator,
+                )
     except torch.cuda.OutOfMemoryError:
         torch.cuda.empty_cache()
         task["status"] = "failed"
@@ -391,7 +419,7 @@ def _run_video_generation(task_id: str):
         else:
             pil_frames.append(frame)  # already PIL
 
-    task["video_base64"] = video_to_base64(pil_frames)
+    task["video_base64"] = video_to_base64(pil_frames, fps=req.fps)
     task["status"] = "completed"
     task["progress"] = 100.0
     log.info("  -> Video task %s done", task_id)
@@ -402,6 +430,8 @@ def _run_video_generation(task_id: str):
 # ---------------------------------------------------------------------------
 @app.on_event("startup")
 def startup():
+    threading.Thread(target=_sweep_video_tasks, daemon=True).start()
+    log.info("Video task sweeper started (TTL=%ds)", TASK_TTL_SECONDS)
     log.info("=" * 60)
     log.info("AI Inference Server starting...")
     log.info("  Device:      %s", DEVICE)

@@ -32,9 +32,11 @@ woshijavagaoshou/
 │   └── rag/              #   RAG 检索模块（embedding 适配器 / 向量存储 / 检索服务）
 ├── user-service/         # 用户与鉴权 (8081)
 ├── security-service/     # 安全检测与水印 (8083)
-├── image-engine/         # 图片生成引擎 (8085)
+├── image-engine/         # 图片生成引擎 (8085)（含 meme 表情包接口）
 ├── video-engine/         # 视频生成引擎 (8086)
 ├── storage-service/      # 文件存储 (8084)
+├── web-admin/            # 管理后台前端 (3000, React + Vite + Ant Design)
+├── inference/            # 本地 AI 推理服务 (7860, FastAPI + diffusers)
 ├── docs/                 # 设计文档与实现计划
 ├── sql/                  # 数据库初始化脚本
 ├── docker-compose.yml    # 基础设施编排
@@ -83,9 +85,10 @@ docker-compose ps
 docker exec -i mysql mysql -uroot -p123456 < sql/init.sql
 docker exec -i mysql mysql -uroot -p123456 < sql/rag.sql
 docker exec -i mysql mysql -uroot -p123456 < sql/model_config.sql
+docker exec -i mysql mysql -uroot -p123456 < sql/chat.sql
 ```
 
-> `rag.sql`（RAG 知识库三张表）与 `model_config.sql`（embedding 模型配置行）仅在全新数据库首次初始化时自动执行；已有数据库升级需手动执行上面两行。
+> `rag.sql`（RAG 知识库三张表）、`model_config.sql`（embedding 模型配置行）与 `chat.sql`（多轮对话 + 长期记忆三张表）仅在全新数据库首次初始化时自动执行；已有数据库升级需手动执行上面四行。
 
 ### 3. 编译项目
 
@@ -121,6 +124,8 @@ mvn spring-boot:run -pl video-engine &
 | Storage-Service | 8084 | 文件存储 |
 | Image-Engine | 8085 | 图片生成 |
 | Video-Engine | 8086 | 视频生成 |
+| WebAdmin | 3000 | 管理后台前端（React + Vite） |
+| Inference | 7860 | 本地 AI 推理服务（SDXL / CogVideoX，FastAPI） |
 
 ## 数据库实例（重要：机器上有两台 MySQL，勿混淆）
 
@@ -142,11 +147,13 @@ mvn spring-boot:run -pl video-engine &
 | `/api/v1/auth/**` | user-service | 白名单（login/register/refresh 跳过） |
 | `/api/v1/users/**` | user-service | JWT |
 | `/api/v1/tenants/**` | user-service | JWT + 角色 |
-| `/api/v1/tasks/**` | agent-core | JWT |
-| `/api/v1/files/**` | storage-service | JWT |
-| `/api/v1/admin/**` | agent-core | JWT + ADMIN 角色 |
+| `/api/v1/tasks/**` | agent-core | JWT（任务归属校验） |
+| `/api/v1/files/**` | storage-service | JWT（文件归属校验） |
+| `/api/v1/admin/**` | agent-core | JWT + 租户管理角色（租户隔离，模型配置仅 SUPER_ADMIN 可写） |
 | `/api/v1/rag/**` | agent-core | JWT |
-| `/api/v1/open/**` | agent-core | API Key |
+| `/api/v1/llm/**` | agent-core | JWT（AI 对话 + 会话/记忆管理） |
+| `/api/v1/meme/**` | image-engine | JWT（表情包生成，登录后可用） |
+| `/api/v1/open/**` | agent-core | API Key（`X-Api-Key` 请求头） |
 
 ## 核心特性
 
@@ -154,10 +161,48 @@ mvn spring-boot:run -pl video-engine &
 - **任务状态机**: CREATED → VALIDATING → PENDING → PROCESSING → DONE
 - **JWT 双 Token**: Access Token (2h) + Refresh Token (7d)，轮转刷新
 - **RBAC 五角色**: SUPER_ADMIN > TENANT_ADMIN > DEVELOPER > CONTENT_CREATOR > VIEWER
-- **安全流水线**: Prompt 审核 → 生成 → 内容安全检测 → 水印注入 → 审计日志
+- **安全流水线**: 提交即审核（内容安全检测，先审核后扣配额）→ 生成 → 结果落库 → 全链路审计日志（网关 + @AuditLog）
 - **存储抽象层**: MinIO 默认实现，可切换云 OSS
 - **大模型适配器模式**: 仅定义接口不实现，后续模型只需实现接口即可接入
 - **轻量 RAG 知识库**: 自建 embedding 适配器（OpenAI / 通义 compatible-mode）+ MySQL 向量检索，无需外部向量数据库；检索结果可注入 LLM 对话、生成提示词与流水线步骤
+- **多轮对话 + 长期记忆**: 会话/消息持久化（`chat.sql` 三张表），历史截断最近 N 轮（token 预算可配）；每轮对话异步提取用户事实/偏好为长期记忆（BGE-M3 向量去重），跨会话自动检索注入 AI 系统提示，前端「AI 对话」会话侧栏 + 「记忆管理」页
+
+## 核心链路
+
+### 1. 图片/视频任务生成链路
+
+```
+前端 → Gateway(JWT 校验 + 身份头注入) → agent-core TaskService
+  → 创建任务与步骤（SINGLE / PIPELINE / BATCH）
+  → 内容审核（security-service，先审核后扣配额）
+  → 事务提交后(afterCommit)发送 RabbitMQ 任务消息
+  → 引擎消费：本地推理 / 第三方 API → 结果上传 storage-service（Feign 带身份头）
+  → 回执(含 stepOrder)发回 agent-core → TaskResultConsumer 按 taskId+stepOrder 对账
+  → 步骤 DONE → advanceStep 推进下一 PENDING 步骤（CAS 防重复分发）
+  → 全部完成 → 任务 DONE
+```
+
+- **失败重试**: 任务级 `retry_count` 最多 3 次，终失败后本步骤 FAILED、其余 PENDING 步骤 SKIPPED、任务 FAILED；引擎消费侧按 MQ `x-death` 计数，防止无限 requeue
+- **结果落库**: 生成结果（图片/视频/脚本）统一上传 storage-service，前端经 `/api/v1/files/{id}/download` 访问，文件归属校验防越权
+
+### 2. AI 对话 + 长期记忆链路
+
+前端 AI 对话 → `/api/v1/llm/chat` → ChatService 多轮编排（会话持久化、历史截断、知识库可选注入）→ 每轮异步提取事实/偏好写入长期记忆（向量去重）→ 下次对话自动检索相关记忆注入系统提示。会话与记忆归属校验（用户 + 租户）防止越权。
+
+### 3. 认证鉴权链路
+
+登录（用户名密码）→ 签发双 Token（Access 2h / Refresh 7d，均带 `type` claim）→ 后续请求携带 Access Token → Gateway JwtAuthFilter 校验签名 + `type=access`（refresh token 不可当 access 用）→ 注入 `X-User-Id` / `X-Tenant-Id` / `X-User-Roles` 请求头 → 服务内 UserContext / TenantContext → `@RequireRole` 角色校验 + 资源归属校验（任务/文件/会话/记忆/租户）。
+
+### 4. OpenAPI 外部调用链路
+
+控制台创建 API Key（`ak_` 前缀，仅展示一次；服务端存 bcrypt 哈希 + 前 12 位索引）→ 调用 `/api/v1/open/**` 带 `X-Api-Key` 头 → Gateway ApiKeyAuthFilter 调 user-service 校验（状态/过期/归属）→ 注入身份头 → agent-core 按 API Key 身份执行任务，配额与审计归属对应真实用户。
+
+### JWT_SECRET 配置（重要）
+
+- 所有服务启动时校验 JWT 密钥（≥32 字符），缺失或弱密钥**拒绝启动**
+- `start.bat` 首次启动自动生成 48 位随机密钥并持久化到根目录 `.jwt-secret`（已 gitignore，请勿提交）
+- 手动启动服务时设置环境变量 `JWT_SECRET=<密钥>`（与 `.jwt-secret` 内容一致）
+- ⚠️ 更换密钥会使所有存量 Token 失效，用户需重新登录；生产环境请妥善保管密钥
 
 ## RAG 知识库（辅助能力）
 

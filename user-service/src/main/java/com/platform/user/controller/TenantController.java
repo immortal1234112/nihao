@@ -5,12 +5,14 @@ import com.platform.core.base.Result;
 import com.platform.core.exception.BizException;
 import com.platform.core.exception.ErrorCode;
 import com.platform.user.entity.Tenant;
+import com.platform.user.entity.UserAccount;
 import com.platform.user.entity.UserTenant;
 import com.platform.user.mapper.TenantMapper;
+import com.platform.user.mapper.UserAccountMapper;
 import com.platform.user.mapper.UserTenantMapper;
 import com.platform.web.annotation.AuditLog;
 import com.platform.web.annotation.RequireRole;
-import com.platform.web.context.TenantContext;
+import com.platform.web.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,14 +29,30 @@ public class TenantController {
 
     private final TenantMapper tenantMapper;
     private final UserTenantMapper userTenantMapper;
+    private final UserAccountMapper userAccountMapper;
 
     @GetMapping("/{id}")
     public Result<Tenant> getTenant(@PathVariable String id) {
+        assertMemberOrSuperAdmin(id);
         Tenant tenant = tenantMapper.selectById(id);
         if (tenant == null) {
             throw new BizException(ErrorCode.TASK_NOT_FOUND, "租户不存在");
         }
         return Result.ok(tenant);
+    }
+
+    /** 租户成员资格校验（防 IDOR）：租户成员或 SUPER_ADMIN 可访问 */
+    private void assertMemberOrSuperAdmin(String tenantId) {
+        if (UserContext.getRoles().contains(UserTenant.ROLE_SUPER_ADMIN)) {
+            return;
+        }
+        Long count = userTenantMapper.selectCount(
+                new LambdaQueryWrapper<UserTenant>()
+                        .eq(UserTenant::getTenantId, tenantId)
+                        .eq(UserTenant::getUserId, UserContext.getUserId()));
+        if (count == null || count == 0) {
+            throw new BizException(ErrorCode.NO_PERMISSION);
+        }
     }
 
     @AuditLog(action = "UPDATE_TENANT")
@@ -57,6 +75,7 @@ public class TenantController {
 
     @GetMapping("/{id}/members")
     public Result<List<Map<String, Object>>> getMembers(@PathVariable String id) {
+        assertMemberOrSuperAdmin(id);
         List<UserTenant> userTenants = userTenantMapper.selectList(
                 new LambdaQueryWrapper<UserTenant>().eq(UserTenant::getTenantId, id)
         );
@@ -66,6 +85,10 @@ public class TenantController {
             m.put("userId", ut.getUserId());
             m.put("tenantId", ut.getTenantId());
             m.put("roleCode", ut.getRoleCode());
+            // 联查用户信息（前端成员表格需要展示用户名/邮箱）
+            UserAccount account = userAccountMapper.selectById(ut.getUserId());
+            m.put("username", account != null ? account.getUsername() : "");
+            m.put("email", account != null ? account.getEmail() : "");
             return m;
         }).toList();
         return Result.ok(members);

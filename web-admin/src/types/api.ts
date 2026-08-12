@@ -203,6 +203,8 @@ export interface ChatRequest {
   datasetId?: string;
   /** RAG 检索条数（可选） */
   topK?: number;
+  /** 会话 ID（续聊）；缺省自动创建新会话 */
+  conversationId?: string;
 }
 
 export interface ChatResult {
@@ -211,6 +213,41 @@ export interface ChatResult {
   content: string;
   durationMs: number;
   references?: RagReference[];
+  /** 会话 ID（服务端为准） */
+  conversationId?: string;
+  /** 会话标题 */
+  title?: string;
+  /** assistant 消息 ID */
+  messageId?: string;
+}
+
+// ========== 对话会话 ==========
+export interface Conversation {
+  id: string;
+  title: string;
+  provider: string;
+  datasetId: string | null;
+  systemPrompt: string | null;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessageItem {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  references?: RagReference[];
+  createdAt: string;
+}
+
+// ========== 长期记忆 ==========
+export interface MemoryItem {
+  id: string;
+  content: string;
+  memoryType: 'FACT' | 'PREFERENCE';
+  sourceConversationId: string;
+  createdAt: string;
 }
 
 // ========== RAG 知识库 ==========

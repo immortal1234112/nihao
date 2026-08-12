@@ -45,6 +45,10 @@ minio:
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket: ${MINIO_BUCKET:agent-platform}
 
+# 网关地址：拼装对外可访问的文件下载 URL（客户端经网关下载，鉴权由网关 JWT 完成）
+storage:
+  public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:8080}
+
 logging:
   level:
     com.platform.storagesvc: DEBUG

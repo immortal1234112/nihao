@@ -33,6 +33,17 @@ $env:MYSQL_PORT      = '3307'
 $env:MYSQL_PASS      = '123456'
 $env:REQUIRE_API_KEY = 'false'
 
+# ---- JWT 密钥 (服务拒绝弱/默认密钥启动, 必须显式配置) ----
+# 首次运行自动生成 ≥32 位随机串并持久化到 .jwt-secret (已 gitignore),
+# 之后重启复用同一密钥, 避免存量 token 全部失效。
+$jwtSecretFile = Join-Path $PROJ_DIR '.jwt-secret'
+if (Test-Path $jwtSecretFile) {
+    $env:JWT_SECRET = (Get-Content $jwtSecretFile -Raw).Trim()
+} else {
+    $env:JWT_SECRET = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | ForEach-Object { [char]$_ })
+    Set-Content -Path $jwtSecretFile -Value $env:JWT_SECRET -NoNewline
+}
+
 # mvn 不在 PATH 时补充 (本机 Maven 安装路径)
 if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
     $mavenBin = 'C:\Users\immortal\tools\apache-maven-3.9.16\bin'

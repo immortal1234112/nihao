@@ -36,7 +36,8 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 
 jwt:
-  secret: ${JWT_SECRET:change-me-in-production-min-32-chars}
+  # 必须通过环境变量 JWT_SECRET 配置 ≥32 字符强密钥（缺失或弱密钥时 JwtUtils 拒绝启动）
+  secret: ${JWT_SECRET:}
   access-token-ttl: 7200
   refresh-token-ttl: 604800
 

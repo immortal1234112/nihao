@@ -1,5 +1,6 @@
 package com.platform.agent.consumer;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
 import com.platform.agent.mapper.AgentTaskMapper;
@@ -56,38 +57,59 @@ public class TaskResultConsumer {
     }
 
     private void updateStep(TaskResultMessage message) {
-        // 查找任务当前 PROCESSING 的步骤（同 taskId + status=PROCESSING）
-        List<WorkflowStep> processingSteps = workflowStepMapper.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WorkflowStep>()
-                        .eq(WorkflowStep::getTaskId, message.taskId())
-                        .eq(WorkflowStep::getStatus, WorkflowStep.STATUS_PROCESSING)
-                        .orderByAsc(WorkflowStep::getStepOrder)
-        );
-
-        for (WorkflowStep step : processingSteps) {
-            // 检查 engineType 是否匹配
-            if (message.engineType() != null && !message.engineType().equals(step.getStepType())) {
-                continue;
-            }
-
-            if ("DONE".equals(message.status())) {
-                step.setStatus(WorkflowStep.STATUS_DONE);
-                step.setOutput(JsonUtils.toJson(message));
-                step.setFinishedAt(LocalDateTime.now());
-            } else if ("FAILED".equals(message.status())) {
-                workflowEngine.handleStepFailure(message.taskId(), step.getStepOrder(), message.errorInfo());
-                return;
-            }
-            workflowStepMapper.updateById(step);
+        WorkflowStep step = resolveStep(message);
+        if (step == null) {
+            log.warn("No matching step for result: taskId={}, stepOrder={}, engineType={}",
+                    message.taskId(), message.stepOrder(), message.engineType());
+            return;
         }
 
-        // 2. 检查是否还有 PENDING 步骤，有则推进
-        workflowEngine.advanceStep(message.taskId());
+        if ("DONE".equals(message.status())) {
+            step.setStatus(WorkflowStep.STATUS_DONE);
+            step.setOutput(JsonUtils.toJson(message));
+            step.setFinishedAt(LocalDateTime.now());
+            workflowStepMapper.updateById(step);
+            // 检查是否还有 PENDING 步骤，有则推进
+            workflowEngine.advanceStep(message.taskId());
+        } else if ("FAILED".equals(message.status())) {
+            // 重试 / 终失败均由 handleStepFailure 闭环（内部 advanceStep 或置任务 FAILED）。
+            // 不再 return 跳过 updateTask —— 原实现导致终失败后任务永远卡 PROCESSING。
+            workflowEngine.handleStepFailure(message.taskId(), step.getStepOrder(), message.errorInfo());
+        }
+    }
+
+    /**
+     * 优先按 taskId+stepOrder 精确匹配回执目标步骤；
+     * 无 stepOrder 的积压旧消息回退到 engineType 匹配的 PROCESSING 步骤（只取第一个，避免 BATCH 错配）。
+     */
+    private WorkflowStep resolveStep(TaskResultMessage message) {
+        if (message.stepOrder() != null) {
+            List<WorkflowStep> exact = workflowStepMapper.selectList(
+                    new LambdaQueryWrapper<WorkflowStep>()
+                            .eq(WorkflowStep::getTaskId, message.taskId())
+                            .eq(WorkflowStep::getStepOrder, message.stepOrder())
+                            .last("LIMIT 1"));
+            if (!exact.isEmpty()) return exact.get(0);
+        }
+        List<WorkflowStep> processingSteps = workflowStepMapper.selectList(
+                new LambdaQueryWrapper<WorkflowStep>()
+                        .eq(WorkflowStep::getTaskId, message.taskId())
+                        .eq(WorkflowStep::getStatus, WorkflowStep.STATUS_PROCESSING)
+                        .orderByAsc(WorkflowStep::getStepOrder));
+        return processingSteps.stream()
+                .filter(s -> message.engineType() == null || message.engineType().equals(s.getStepType()))
+                .findFirst()
+                .orElse(null);
     }
 
     private void updateTask(TaskResultMessage message) {
         AgentTask task = agentTaskMapper.selectById(message.taskId());
         if (task == null) return;
+        // 已取消的任务忽略一切回执，防止取消后仍被复活为 DONE/FAILED
+        if (AgentTask.STATUS_CANCELLED.equals(task.getStatus())) {
+            log.info("Task cancelled, ignore result: taskId={}", task.getId());
+            return;
+        }
 
         // 检查所有步骤是否完成
         List<WorkflowStep> allSteps = workflowStepMapper.selectList(

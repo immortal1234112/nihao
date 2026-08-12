@@ -16,7 +16,9 @@ public interface StorageFeignClient {
     Result<FileDTO> getFile(@PathVariable("fileId") String fileId);
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    Result<UploadResult> upload(@RequestPart("file") MultipartFile file);
+    Result<UploadResult> upload(@RequestPart("file") MultipartFile file,
+                                @RequestHeader("X-User-Id") String userId,
+                                @RequestHeader("X-Tenant-Id") String tenantId);
 
     @DeleteMapping("/{fileId}")
     Result<Void> delete(@PathVariable("fileId") String fileId);

@@ -42,6 +42,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(4003, "用户不存在"),
     DATASET_NOT_FOUND(4004, "知识库不存在"),
     DOCUMENT_NOT_FOUND(4005, "文档不存在"),
+    MEMORY_NOT_FOUND(4006, "记忆不存在"),
 
     // 5xxx: 系统错误
     SERVICE_TIMEOUT(5001, "服务调用超时"),

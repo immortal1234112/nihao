@@ -2,6 +2,8 @@ package com.platform.storagesvc.controller;
 
 import com.platform.core.base.PageResult;
 import com.platform.core.base.Result;
+import com.platform.core.exception.BizException;
+import com.platform.core.exception.ErrorCode;
 import com.platform.storagesvc.entity.StorageFile;
 import com.platform.storagesvc.service.FileService;
 import com.platform.web.annotation.AuditLog;
@@ -87,13 +89,12 @@ public class FileController {
 
     @GetMapping("/{id}")
     public Result<StorageFile> getById(@PathVariable String id) {
-        StorageFile sf = fileService.getById(id);
-        return Result.ok(sf);
+        return Result.ok(getOwned(id));
     }
 
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> download(@PathVariable String id) {
-        StorageFile sf = fileService.getById(id);
+        StorageFile sf = getOwned(id);
         Resource resource = fileService.download(id);
 
         return ResponseEntity.ok()
@@ -107,7 +108,18 @@ public class FileController {
     @AuditLog(action = "DELETE_FILE")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable String id) {
+        getOwned(id);
         fileService.delete(id);
         return Result.ok();
+    }
+
+    /** 文件归属校验（防 IDOR）：只能操作自己的文件 */
+    private StorageFile getOwned(String id) {
+        StorageFile sf = fileService.getById(id);
+        String userId = UserContext.getUserId();
+        if (userId != null && !sf.getUserId().equals(userId)) {
+            throw new BizException(ErrorCode.NO_PERMISSION);
+        }
+        return sf;
     }
 }

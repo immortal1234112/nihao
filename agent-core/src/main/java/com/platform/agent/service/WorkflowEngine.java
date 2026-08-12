@@ -1,8 +1,7 @@
 package com.platform.agent.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
 import com.platform.agent.mapper.AgentTaskMapper;
@@ -37,6 +36,9 @@ public class WorkflowEngine {
     private final AgentTaskMapper agentTaskMapper;
     private final RabbitTemplate rabbitTemplate;
     private final RagService ragService;
+
+    /** 步骤失败最大重试次数（任务级 retry_count 计数） */
+    private static final int MAX_RETRIES = 3;
 
     // ==================== 构建工作流 ====================
 
@@ -75,15 +77,13 @@ public class WorkflowEngine {
                         steps.add(step);
                     }
                 }
-                // 最后加审核步骤
-                steps.add(createStep(task.getId(), steps.size(), WorkflowStep.TYPE_AUDIT, "{}"));
+                // 无 AUDIT 步骤：全库无 REVIEWING 产生路径、无 UI 消费，创建后任务必卡 PROCESSING
             }
 
             case AgentTask.WF_BATCH -> {
-                // N 个并行生成步骤 + 1 个汇总步骤
-                int batchCount = params.containsKey("batchCount")
-                        ? ((Number) params.get("batchCount")).intValue()
-                        : 2;
+                // N 个并行生成步骤（无 POST_PROCESS/AUDIT，同 SINGLE 原因）
+                Object batchCountObj = params.get("batchCount");
+                int batchCount = batchCountObj instanceof Number n ? n.intValue() : 2;
                 for (int i = 0; i < batchCount; i++) {
                     WorkflowStep step = createStep(
                             task.getId(), i,
@@ -92,8 +92,6 @@ public class WorkflowEngine {
                     );
                     steps.add(step);
                 }
-                steps.add(createStep(task.getId(), batchCount, WorkflowStep.TYPE_POST_PROCESS, "{}"));
-                steps.add(createStep(task.getId(), batchCount + 1, WorkflowStep.TYPE_AUDIT, "{}"));
             }
         }
 
@@ -130,12 +128,9 @@ public class WorkflowEngine {
         WorkflowStep firstPending = pendingSteps.get(0);
 
         if (AgentTask.WF_BATCH.equals(getTaskWorkflowType(taskId))) {
-            // BATCH: 推进所有非 AUDIT/POST_PROCESS 的 PENDING 步骤
+            // BATCH: 全部步骤均为生成步骤，一次性推进所有 PENDING（CAS 保证不重复分发）
             for (WorkflowStep step : pendingSteps) {
-                if (!WorkflowStep.TYPE_AUDIT.equals(step.getStepType())
-                        && !WorkflowStep.TYPE_POST_PROCESS.equals(step.getStepType())) {
-                    dispatchStep(step);
-                }
+                dispatchStep(step);
             }
         } else {
             // SINGLE / PIPELINE: 只推进第一个
@@ -147,11 +142,18 @@ public class WorkflowEngine {
      * 分发单个步骤到 MQ。
      */
     private void dispatchStep(WorkflowStep step) {
-        step.setStatus(WorkflowStep.STATUS_PROCESSING);
-        step.setStartedAt(LocalDateTime.now());
-        workflowStepMapper.updateById(step);
+        // CAS：仅当步骤仍为 PENDING 才置 PROCESSING，防止并发回执触发的重复分发（重复扣费）
+        boolean dispatched = workflowStepMapper.update(null, new LambdaUpdateWrapper<WorkflowStep>()
+                .eq(WorkflowStep::getId, step.getId())
+                .eq(WorkflowStep::getStatus, WorkflowStep.STATUS_PENDING)
+                .set(WorkflowStep::getStatus, WorkflowStep.STATUS_PROCESSING)
+                .set(WorkflowStep::getStartedAt, LocalDateTime.now())) > 0;
+        if (!dispatched) {
+            log.warn("Step dispatch raced, skip: taskId={}, step={}", step.getTaskId(), step.getStepOrder());
+            return;
+        }
 
-        // RAG_RETRIEVE 在本服务同步执行（本服务已标记 PROCESSING，见上方 updateById）
+        // RAG_RETRIEVE 在本服务同步执行（本服务已标记 PROCESSING，见上方 CAS 更新）
         if (WorkflowStep.TYPE_RAG_RETRIEVE.equals(step.getStepType())) {
             handleRagRetrieve(step);
             return;
@@ -170,9 +172,16 @@ public class WorkflowEngine {
             return;
         }
 
+        // 从任务补齐身份信息：引擎侧结果落库需要 userId/tenantId（结果文件归属），workflowType 供引擎侧幂等
+        AgentTask task = agentTaskMapper.selectById(step.getTaskId());
+        if (task == null) {
+            log.error("Task not found for dispatch: taskId={}", step.getTaskId());
+            return;
+        }
+
         TaskMessage message = new TaskMessage(
                 step.getTaskId(),
-                null, null, null, // userId/tenantId/workflowType 从 task 获取
+                task.getUserId(), task.getTenantId(), task.getWorkflowType(),
                 engineType,
                 parseParams(step.getInput()),
                 step.getStepOrder(),
@@ -235,7 +244,7 @@ public class WorkflowEngine {
             // RAG 是增强不是阻塞：标记 FAILED 但不阻止流水线继续
             log.error("RAG_RETRIEVE step failed: taskId={}, step={}", taskId, step.getStepOrder(), e);
             step.setStatus(WorkflowStep.STATUS_FAILED);
-            step.setOutput("{\"error\": \"" + escapeJson(e.getMessage()) + "\"}");
+            step.setOutput(JsonUtils.toJson(Map.of("error", e.getMessage())));
             step.setFinishedAt(LocalDateTime.now());
             workflowStepMapper.updateById(step);
         }
@@ -276,38 +285,50 @@ public class WorkflowEngine {
     // ==================== 处理失败 ====================
 
     /**
-     * 处理步骤失败：重试 ≤ 3 次，否则标记 FAILED。
+     * 处理步骤失败：任务级重试计数（agent_task.retry_count，原子自增）≤ MAX_RETRIES 则重试，
+     * 否则终失败（步骤 FAILED、其余 PENDING 步骤 SKIPPED、任务 FAILED）。
+     * 计数不再写回 step.input —— 原实现 JSON 解析失败被空 catch 吞掉，计数丢失导致无限重试。
      */
     public void handleStepFailure(String taskId, int stepOrder, String errorMsg) {
         WorkflowStep step = findStep(taskId, stepOrder);
         if (step == null) return;
 
-        // 从 task 获取重试次数（通过 AgentTaskMapper）
-        // 简化设计：在当前失败的步骤上递增重试
-        int currentRetries = step.getInput() != null && step.getInput().contains("\"retryCount\"")
-                ? extractRetryCount(step.getInput())
-                : 0;
+        // 原子自增，避免并发回执重复计数
+        agentTaskMapper.update(null, new LambdaUpdateWrapper<AgentTask>()
+                .eq(AgentTask::getId, taskId)
+                .setSql("retry_count = IFNULL(retry_count, 0) + 1"));
+        AgentTask task = agentTaskMapper.selectById(taskId);
+        int attempt = task != null && task.getRetryCount() != null ? task.getRetryCount() : 1;
 
-        if (currentRetries < 3) {
-            // 重试
+        if (attempt <= MAX_RETRIES) {
+            // 重试：步骤回到 PENDING，重新分发
             step.setStatus(WorkflowStep.STATUS_PENDING);
-            // 增加重试计数到 input
-            try {
-                Map<String, Object> inputMap = parseParams(step.getInput());
-                inputMap.put("retryCount", currentRetries + 1);
-                step.setInput(JsonUtils.toJson(inputMap));
-            } catch (Exception ignored) {}
             workflowStepMapper.updateById(step);
-
-            // 通过 advanceStep 重新分发
             advanceStep(taskId);
-            log.info("Step retry: taskId={}, step={}, retry={}", taskId, stepOrder, currentRetries + 1);
+            log.info("Step retry: taskId={}, step={}, attempt={}", taskId, stepOrder, attempt);
         } else {
+            // 终失败：流水线闭环，不再停滞
             step.setStatus(WorkflowStep.STATUS_FAILED);
-            step.setOutput("{\"error\": \"" + escapeJson(errorMsg) + "\"}");
+            step.setOutput(JsonUtils.toJson(Map.of("error", errorMsg)));
             step.setFinishedAt(LocalDateTime.now());
             workflowStepMapper.updateById(step);
+            failTask(taskId, errorMsg);
             log.warn("Step failed after retries: taskId={}, step={}", taskId, stepOrder);
+        }
+    }
+
+    /** 终失败流程：其余 PENDING 步骤置 SKIPPED，任务置 FAILED（已取消的任务不覆盖） */
+    private void failTask(String taskId, String errorMsg) {
+        workflowStepMapper.update(null, new LambdaUpdateWrapper<WorkflowStep>()
+                .eq(WorkflowStep::getTaskId, taskId)
+                .eq(WorkflowStep::getStatus, WorkflowStep.STATUS_PENDING)
+                .set(WorkflowStep::getStatus, WorkflowStep.STATUS_SKIPPED));
+        AgentTask task = agentTaskMapper.selectById(taskId);
+        if (task != null && !AgentTask.STATUS_CANCELLED.equals(task.getStatus())) {
+            task.setStatus(AgentTask.STATUS_FAILED);
+            task.setErrorMsg(errorMsg);
+            task.setCompletedAt(LocalDateTime.now());
+            agentTaskMapper.updateById(task);
         }
     }
 
@@ -354,19 +375,5 @@ public class WorkflowEngine {
     private String getTaskWorkflowType(String taskId) {
         AgentTask task = agentTaskMapper.selectById(taskId);
         return task != null ? task.getWorkflowType() : AgentTask.WF_SINGLE;
-    }
-
-    private int extractRetryCount(String input) {
-        try {
-            Map<String, Object> map = JsonUtils.fromJson(input, Map.class);
-            Object count = map.get("retryCount");
-            return count instanceof Number ? ((Number) count).intValue() : 0;
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private String escapeJson(String s) {
-        return s == null ? "" : s.replace("\"", "\\\"");
     }
 }

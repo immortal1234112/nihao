@@ -1,10 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, Select, Typography, Space, Spin, Empty, Collapse } from 'antd';
-import { SendOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Card, Input, Button, Select, Typography, Space, Spin, Empty, Collapse, List, Modal, App,
+} from 'antd';
+import {
+  SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, MessageOutlined,
+} from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { llmApi } from '@/api/llm';
 import DatasetSelect from '@/components/rag/DatasetSelect';
-import { LlmModel, RagReference } from '@/types/api';
+import { LlmModel, RagReference, Conversation, ChatMessageItem } from '@/types/api';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -16,14 +20,31 @@ interface Message {
   references?: RagReference[];
 }
 
+const PROVIDER_NAMES: Record<string, string> = {
+  openai: 'OpenAI', anthropic: 'Claude', deepseek: 'DeepSeek',
+  qwen: '通义千问', baidu: '文心一言', spark: '讯飞星火',
+  zhipu: '智谱GLM', moonshot: 'Kimi', google: 'Gemini', agnes: 'Agnes',
+};
+
 const ChatPage: React.FC = () => {
+  const { message } = App.useApp();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [models, setModels] = useState<LlmModel[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [selectedDataset, setSelectedDataset] = useState<string | undefined>(undefined);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<Conversation | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const loadConversations = useCallback(() => {
+    llmApi.listConversations().then((res) => {
+      setConversations(res.data.data.records);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     llmApi.listModels().then((res) => {
@@ -31,9 +52,59 @@ const ChatPage: React.FC = () => {
       setModels(available);
       if (available.length > 0) setSelectedProvider(available[0].provider);
     }).catch(() => {});
-  }, []);
+    loadConversations();
+  }, [loadConversations]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  // 选中会话 → 拉历史消息回填（以服务端为准）
+  const selectConversation = async (conv: Conversation) => {
+    setCurrentId(conv.id);
+    setLoading(true);
+    try {
+      const res = await llmApi.listMessages(conv.id);
+      const records = res.data.data.records;
+      setMessages(records.map((m: ChatMessageItem) => ({
+        role: m.role,
+        content: m.content,
+        time: m.createdAt ? m.createdAt.slice(11, 16) : '',
+        references: m.references,
+      })));
+    } catch {
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    setCurrentId(null);
+    setMessages([]);
+    setSelectedDataset(undefined);
+  };
+
+  const handleDeleteConversation = async (conv: Conversation) => {
+    try {
+      await llmApi.deleteConversation(conv.id);
+      message.success('会话已删除');
+      loadConversations();
+      if (currentId === conv.id) handleNewChat();
+    } catch {
+      message.error('删除失败');
+    }
+  };
+
+  const handleRename = async () => {
+    if (!renaming || !renameTitle.trim()) return;
+    try {
+      await llmApi.renameConversation(renaming.id, renameTitle.trim());
+      message.success('已重命名');
+      setRenaming(null);
+      loadConversations();
+    } catch {
+      message.error('重命名失败');
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -48,14 +119,26 @@ const ChatPage: React.FC = () => {
         message: userMsg.content,
         datasetId: selectedDataset,
         topK: 3,
+        conversationId: currentId ?? undefined,
       });
+      const data = res.data.data;
       const assistantMsg: Message = {
         role: 'assistant',
-        content: res.data.data.content,
+        content: data.content,
         time: new Date().toLocaleTimeString(),
-        references: res.data.data.references,
+        references: data.references,
       };
+      // 以服务端返回为准：新会话用返回的 conversationId，并刷新会话列表
+      if (currentId !== data.conversationId) {
+        setCurrentId(data.conversationId ?? null);
+        loadConversations();
+      } else {
+        loadConversations();
+      }
       setMessages((prev) => [...prev, assistantMsg]);
+    } catch (e) {
+      message.error('对话失败，请重试');
+      setMessages((prev) => prev.filter((m) => m !== userMsg));
     } finally {
       setLoading(false);
     }
@@ -63,6 +146,47 @@ const ChatPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 200px)', gap: 16 }}>
+      {/* 左侧会话列表 */}
+      <Card style={{ width: 240, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        styles={{ body: { padding: 8, flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' } }}>
+        <Button type="primary" icon={<PlusOutlined />} block onClick={handleNewChat} style={{ marginBottom: 8 }}>
+          新建对话
+        </Button>
+        <List
+          dataSource={conversations}
+          size="small"
+          locale={{ emptyText: <Empty description="暂无会话" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          renderItem={(conv) => (
+            <div
+              key={conv.id}
+              onClick={() => selectConversation(conv)}
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                marginBottom: 4,
+                background: currentId === conv.id ? '#e6f4ff' : 'transparent',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                <MessageOutlined style={{ marginRight: 6, color: '#999' }} />
+                {conv.title}
+              </span>
+              <Space size={2} onClick={(e) => e.stopPropagation()}>
+                <Button type="text" size="small" icon={<EditOutlined />}
+                  onClick={() => { setRenaming(conv); setRenameTitle(conv.title); }} />
+                <Button type="text" size="small" danger icon={<DeleteOutlined />}
+                  onClick={() => handleDeleteConversation(conv)} />
+              </Space>
+            </div>
+          )}
+        />
+      </Card>
+
+      {/* 右侧聊天区 */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
           <Space>
@@ -70,14 +194,10 @@ const ChatPage: React.FC = () => {
               value={selectedProvider}
               onChange={setSelectedProvider}
               style={{ width: 220 }}
-              options={models.map((m) => {
-                const names: Record<string, string> = {
-                  openai:'OpenAI', anthropic:'Claude', deepseek:'DeepSeek',
-                  qwen:'通义千问', baidu:'文心一言', spark:'讯飞星火',
-                  zhipu:'智谱GLM', moonshot:'Kimi', google:'Gemini', agnes:'Agnes'
-                };
-                return { value: m.provider, label: `${names[m.provider] || m.provider} — ${m.model}` };
-              })}
+              options={models.map((m) => ({
+                value: m.provider,
+                label: `${PROVIDER_NAMES[m.provider] || m.provider} — ${m.model}`,
+              }))}
             />
             <DatasetSelect
               value={selectedDataset}
@@ -86,9 +206,6 @@ const ChatPage: React.FC = () => {
               placeholder="知识库（可选，RAG 增强）"
             />
           </Space>
-          <Button icon={<DeleteOutlined />} onClick={() => setMessages([])} disabled={messages.length === 0}>
-            清空对话
-          </Button>
         </div>
 
         <Card
@@ -158,6 +275,17 @@ const ChatPage: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <Modal
+        title="重命名会话"
+        open={renaming !== null}
+        onOk={handleRename}
+        onCancel={() => setRenaming(null)}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Input value={renameTitle} onChange={(e) => setRenameTitle(e.target.value)} placeholder="输入新标题" />
+      </Modal>
     </div>
   );
 };

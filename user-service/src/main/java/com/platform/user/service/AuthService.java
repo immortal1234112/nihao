@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -148,15 +149,18 @@ public class AuthService {
      * 刷新 Access Token（Refresh Token 轮转）。
      */
     public TokenPair refresh(String refreshToken) {
-        // 1. 校验 Refresh Token
+        // 1. 校验 Refresh Token（必须为 type=refresh，access token 不可当 refresh 用）
         if (!jwtUtils.validateToken(refreshToken)) {
             throw new BizException(ErrorCode.TOKEN_EXPIRED);
+        }
+        if (!"refresh".equals(jwtUtils.parseClaims(refreshToken).get("type", String.class))) {
+            throw new BizException(ErrorCode.TOKEN_INVALID);
         }
 
         String userId = jwtUtils.getUserId(refreshToken);
 
-        // 2. 检查黑名单
-        String blacklistKey = REFRESH_BLACKLIST_PREFIX + userId;
+        // 2. 检查黑名单（按 jti 维度：只撤销被轮转/登出的那一个 token，不影响该用户其他会话）
+        String blacklistKey = REFRESH_BLACKLIST_PREFIX + jwtUtils.getJti(refreshToken);
         if (Boolean.TRUE.equals(stringRedisTemplate.hasKey(blacklistKey))) {
             throw new BizException(ErrorCode.TOKEN_INVALID, "Refresh Token 已被撤销");
         }
@@ -177,7 +181,7 @@ public class AuthService {
         String newAccessToken = jwtUtils.generateAccessToken(userId, user.getUsername(), tenantId, roles);
         String newRefreshToken = jwtUtils.generateRefreshToken(userId);
 
-        // 5. 旧 Refresh Token 加入黑名单
+        // 5. 当前 Refresh Token 加入黑名单（按 jti 维度，新 token 不受影响）
         stringRedisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofSeconds(jwtProperties.getRefreshTokenTtl()));
 
         return new TokenPair(newAccessToken, newRefreshToken, jwtProperties.getAccessTokenTtl());
@@ -186,19 +190,22 @@ public class AuthService {
     // ==================== 登出 ====================
 
     /**
-     * 登出，将 Refresh Token 加入黑名单。
+     * 登出，将当前 Refresh Token（按 jti）加入黑名单。
      */
     public void logout(String refreshToken) {
         if (refreshToken == null || refreshToken.isEmpty()) {
             return;
         }
-        String userId;
+        String jti;
         try {
-            userId = jwtUtils.getUserId(refreshToken);
+            jti = jwtUtils.getJti(refreshToken);
         } catch (Exception e) {
             return;
         }
-        String blacklistKey = REFRESH_BLACKLIST_PREFIX + userId;
+        if (jti == null || jti.isBlank()) {
+            return;
+        }
+        String blacklistKey = REFRESH_BLACKLIST_PREFIX + jti;
         stringRedisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofSeconds(jwtProperties.getRefreshTokenTtl()));
     }
 
@@ -237,6 +244,32 @@ public class AuthService {
                         .eq(ApiKey::getUserId, userId)
                         .eq(ApiKey::getTenantId, tenantId)
         );
+    }
+
+    /**
+     * 校验 API Key（供网关调用）：按前缀定位候选行，bcrypt 比对，检查状态与过期。
+     * 返回 key 对应的 userId/tenantId（网关据此注入身份头）。
+     */
+    public Map<String, String> validateApiKey(String rawKey) {
+        if (rawKey == null || rawKey.length() < 12) {
+            throw new BizException(ErrorCode.API_KEY_INVALID);
+        }
+        String prefix = rawKey.substring(0, 12);
+        List<ApiKey> candidates = apiKeyMapper.selectList(
+                new LambdaQueryWrapper<ApiKey>()
+                        .eq(ApiKey::getKeyPrefix, prefix)
+                        .eq(ApiKey::getStatus, ApiKey.STATUS_ACTIVE));
+        for (ApiKey candidate : candidates) {
+            if (bcryptUtils.matches(rawKey, candidate.getKeyHash())) {
+                if (candidate.getExpiresAt() != null && candidate.getExpiresAt().isBefore(LocalDateTime.now())) {
+                    throw new BizException(ErrorCode.API_KEY_EXPIRED);
+                }
+                candidate.setLastUsedAt(LocalDateTime.now());
+                apiKeyMapper.updateById(candidate);
+                return Map.of("userId", candidate.getUserId(), "tenantId", candidate.getTenantId());
+            }
+        }
+        throw new BizException(ErrorCode.API_KEY_INVALID);
     }
 
     /**

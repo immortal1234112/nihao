@@ -34,8 +34,10 @@ public class ImageGenerationFacade {
 
     /**
      * 执行图片生成并上报结果。
+     *
+     * @param stepOrder 对应 agent-core 的步骤序号，回执时回填以便精确对账（BATCH 多步骤）
      */
-    public void generate(String taskId, String userId, String tenantId, Map<String, Object> params) {
+    public void generate(String taskId, String userId, String tenantId, Map<String, Object> params, int stepOrder) {
         long start = System.currentTimeMillis();
         try {
             // 1. 构建请求
@@ -61,16 +63,16 @@ public class ImageGenerationFacade {
             // 6. 发送成功结果
             long duration = System.currentTimeMillis() - start;
             TaskResultMessage message = new TaskResultMessage(
-                    taskId, "IMAGE", "DONE", fileInfos, null, duration
+                    taskId, "IMAGE", "DONE", fileInfos, null, duration, stepOrder
             );
             rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.done", message);
-            log.info("Task {} completed: {} results in {}ms", taskId, fileInfos.size(), duration);
+            log.info("Task {} step {} completed: {} results in {}ms", taskId, stepOrder, fileInfos.size(), duration);
 
         } catch (Exception e) {
             log.error("Task {} failed: {}", taskId, e.getMessage());
             long duration = System.currentTimeMillis() - start;
             TaskResultMessage message = new TaskResultMessage(
-                    taskId, "IMAGE", "FAILED", null, e.getMessage(), duration
+                    taskId, "IMAGE", "FAILED", null, e.getMessage(), duration, stepOrder
             );
             rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.failed", message);
         }
@@ -78,32 +80,58 @@ public class ImageGenerationFacade {
 
     private TaskResultMessage.FileInfo uploadResult(GenerationResult result, String userId, String tenantId) {
         try {
+            byte[] bytes;
             if (result.getBase64Data() != null && !result.getBase64Data().isEmpty()) {
-                byte[] bytes = Base64.getDecoder().decode(result.getBase64Data());
-                // 通过 Storage Feign 上传
-                var uploadResult = storageFeignClient.upload(createMultipartFile(bytes, "png"));
-                if (uploadResult != null && uploadResult.getData() != null) {
-                    String fileId = uploadResult.getData().fileId();
-                    String url = uploadResult.getData().url();
-
-                    // 生成缩略图
-                    String thumbnailUrl = null;
-                    String thumbBase64 = postProcessor.generateThumbnail(result);
-                    if (thumbBase64 != null) {
-                        byte[] thumbBytes = Base64.getDecoder().decode(thumbBase64);
-                        var thumbUpload = storageFeignClient.upload(createMultipartFile(thumbBytes, "png"));
-                        if (thumbUpload != null && thumbUpload.getData() != null) {
-                            thumbnailUrl = thumbUpload.getData().url();
-                        }
-                    }
-
-                    return new TaskResultMessage.FileInfo(fileId, url, thumbnailUrl);
-                }
+                bytes = Base64.getDecoder().decode(result.getBase64Data());
+            } else if (result.getUrl() != null && !result.getUrl().isBlank()) {
+                // 适配器只返回 URL（如 agnes/本地直链）→ 下载字节后上传，保证结果真正落库
+                bytes = downloadBytes(result.getUrl());
+            } else {
+                return new TaskResultMessage.FileInfo(null, null, null);
             }
+            if (bytes == null || bytes.length == 0) {
+                throw new IOException("result bytes empty");
+            }
+
+            // 通过 Storage Feign 上传（消费线程无 ThreadLocal，身份必须显式传参）
+            var uploadResult = storageFeignClient.upload(createMultipartFile(bytes, "png"), userId, tenantId);
+            if (uploadResult != null && uploadResult.getData() != null) {
+                String fileId = uploadResult.getData().fileId();
+                String url = uploadResult.getData().url();
+
+                // 生成缩略图
+                String thumbnailUrl = null;
+                String thumbBase64 = postProcessor.generateThumbnail(result);
+                if (thumbBase64 != null) {
+                    byte[] thumbBytes = Base64.getDecoder().decode(thumbBase64);
+                    var thumbUpload = storageFeignClient.upload(createMultipartFile(thumbBytes, "png"), userId, tenantId);
+                    if (thumbUpload != null && thumbUpload.getData() != null) {
+                        thumbnailUrl = thumbUpload.getData().url();
+                    }
+                }
+
+                return new TaskResultMessage.FileInfo(fileId, url, thumbnailUrl);
+            }
+            throw new IOException("storage upload returned empty result");
         } catch (Exception e) {
             log.warn("Failed to upload result: {}", e.getMessage());
         }
+        // 降级：上传失败回退 provider 直链（与系统 fail-open 策略一致）
         return new TaskResultMessage.FileInfo(null, result.getUrl(), null);
+    }
+
+    /** 从 provider 直链下载图片字节（agnes 等只返回 URL 的适配器用） */
+    private byte[] downloadBytes(String url) throws IOException {
+        okhttp3.Request request = new okhttp3.Request.Builder().url(url).get().build();
+        try (okhttp3.Response response = new okhttp3.OkHttpClient.Builder()
+                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                .build().newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                throw new IOException("download failed: HTTP " + response.code());
+            }
+            return response.body().bytes();
+        }
     }
 
     private GenerateRequest buildRequest(Map<String, Object> params) {

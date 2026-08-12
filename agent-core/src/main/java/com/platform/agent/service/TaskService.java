@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -51,7 +53,18 @@ public class TaskService {
         // 1. 意图解析
         Map<String, String> intent = intentParser.parse(request.getPrompt());
 
-        // 2. 配额检查（通过 Feign）
+        // 2. Prompt 审核（通过 Feign）—— 先审核后扣配额：审核失败不产生扣费
+        try {
+            var auditResult = securityFeignClient.auditPrompt(Map.of("prompt", request.getPrompt()));
+            if (auditResult != null && auditResult.getData() != null && !auditResult.getData().passed()) {
+                throw new BizException(ErrorCode.SENSITIVE_PROMPT, auditResult.getData().reason());
+            }
+        } catch (BizException e) { throw e; }
+        catch (Exception e) {
+            log.warn("Prompt audit failed (degraded): {}", e.getMessage());
+        }
+
+        // 3. 配额检查（通过 Feign）—— 审核通过后才扣减
         try {
             var quotaResult = userFeignClient.consumeQuota(userId, Map.of(
                     "type", request.getEngineType(),
@@ -63,17 +76,6 @@ public class TaskService {
         } catch (BizException e) { throw e; }
         catch (Exception e) {
             log.warn("Quota check failed (degraded): {}", e.getMessage());
-        }
-
-        // 3. Prompt 审核（通过 Feign）
-        try {
-            var auditResult = securityFeignClient.auditPrompt(Map.of("prompt", request.getPrompt()));
-            if (auditResult != null && auditResult.getData() != null && !auditResult.getData().passed()) {
-                throw new BizException(ErrorCode.SENSITIVE_PROMPT, auditResult.getData().reason());
-            }
-        } catch (BizException e) { throw e; }
-        catch (Exception e) {
-            log.warn("Prompt audit failed (degraded): {}", e.getMessage());
         }
 
         // 3.5 RAG 知识库增强（审核后，只增强已过审 prompt；检索失败降级不影响任务）
@@ -110,11 +112,17 @@ public class TaskService {
         // 6. 构建工作流
         workflowEngine.buildWorkflow(task, params);
 
-        // 7. 更新状态为 PENDING 并启动第一步
+        // 7. 更新状态为 PENDING
         task.setStatus(AgentTask.STATUS_PENDING);
         agentTaskMapper.updateById(task);
 
-        workflowEngine.advanceStep(task.getId());
+        // 8. 事务提交后再分发第一步：防止事务回滚后 MQ 消息成为孤儿（步骤已建但任务/步骤不可见）
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                workflowEngine.advanceStep(task.getId());
+            }
+        });
 
         log.info("Task submitted: id={}, workflowType={}, engineType={}", task.getId(), task.getWorkflowType(), request.getEngineType());
         return task;
@@ -128,6 +136,21 @@ public class TaskService {
             throw new BizException(ErrorCode.TASK_NOT_FOUND);
         }
         return task;
+    }
+
+    /** 校验任务归属后返回（防 IDOR 越权：他人任务 → NO_PERMISSION） */
+    public AgentTask getTask(String taskId, String userId) {
+        AgentTask task = getTask(taskId);
+        if (!task.getUserId().equals(userId)) {
+            throw new BizException(ErrorCode.NO_PERMISSION);
+        }
+        return task;
+    }
+
+    /** 校验任务归属后返回详情（防 IDOR 越权） */
+    public Map<String, Object> getTaskDetail(String taskId, String userId) {
+        getTask(taskId, userId);
+        return getTaskDetail(taskId);
     }
 
     public List<WorkflowStep> getTaskSteps(String taskId) {

@@ -11,7 +11,8 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            # 仅放行受信任的前端来源（多来源逗号分隔，如 http://localhost:3000,https://admin.example.com）
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
             allowedMethods: "*"
             allowedHeaders: "*"
             maxAge: 3600
@@ -83,7 +84,8 @@ server:
   port: 8080
 
 jwt:
-  secret: ${JWT_SECRET:change-me-in-production-min-32-chars}
+  # 必须通过环境变量 JWT_SECRET 配置 ≥32 字符强密钥（缺失或弱密钥时 JwtUtils 拒绝启动）
+  secret: ${JWT_SECRET:}
   access-token-ttl: 7200
   refresh-token-ttl: 604800
 

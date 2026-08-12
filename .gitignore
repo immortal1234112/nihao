@@ -47,3 +47,6 @@ inference/models/
 
 ### Tools ###
 .playwright-mcp/
+
+### Secrets ###
+.jwt-secret

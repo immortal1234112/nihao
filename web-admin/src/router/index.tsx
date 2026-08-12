@@ -23,6 +23,7 @@ const TaskDetailPage = lazy(() => import('@/pages/tasks/TaskDetailPage'));
 const FileListPage = lazy(() => import('@/pages/files/FileListPage'));
 const ModelListPage = lazy(() => import('@/pages/llm/ModelListPage'));
 const ChatPage = lazy(() => import('@/pages/llm/ChatPage'));
+const MemoryPage = lazy(() => import('@/pages/llm/MemoryPage'));
 const ProfilePage = lazy(() => import('@/pages/user/ProfilePage'));
 const QuotaPage = lazy(() => import('@/pages/user/QuotaPage'));
 const ApiKeyPage = lazy(() => import('@/pages/user/ApiKeyPage'));
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
       { path: 'files', element: LazyLoad(FileListPage) },
       { path: 'llm/models', element: LazyLoad(ModelListPage) },
       { path: 'llm/chat', element: LazyLoad(ChatPage) },
+      { path: 'llm/memories', element: LazyLoad(MemoryPage) },
       { path: 'rag/datasets', element: LazyLoad(DatasetsPage) },
       { path: 'rag/datasets/:id', element: LazyLoad(DatasetDetailPage) },
       { path: 'user/profile', element: LazyLoad(ProfilePage) },

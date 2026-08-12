@@ -1,5 +1,6 @@
 package com.platform.agent.adapter.google;
 
+import com.platform.agent.adapter.ChatMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.platform.agent.adapter.LLMAdapter;
 import com.platform.core.config.ModelConfigService;
@@ -71,7 +72,7 @@ public class GeminiAdapter implements LLMAdapter {
     }
 
     @Override
-    public String chat(String systemPrompt, String userMessage, Map<String, Object> options) {
+    public String chat(String systemPrompt, List<ChatMessage> history, String userMessage, Map<String, Object> options) {
         try {
             String effectiveApiKey = configService.getApiKey(provider(), apiKey);
             String effectiveBaseUrl = configService.getBaseUrl(provider(), baseUrl);
@@ -83,15 +84,21 @@ public class GeminiAdapter implements LLMAdapter {
                     ? ((Number) options.get("maxTokens")).intValue()
                     : maxTokens;
 
-            // 构建 Gemini generateContent 请求体
-            Map<String, Object> userPart = Map.of("text", userMessage);
-            Map<String, Object> userContent = Map.of(
+            // 构建 Gemini generateContent 请求体（assistant 角色需映射为 "model"）
+            List<Map<String, Object>> contents = new java.util.ArrayList<>();
+            for (ChatMessage h : history) {
+                contents.add(Map.of(
+                        "role", "model".equals(h.role()) ? "model" : "user",
+                        "parts", List.of(Map.of("text", h.content()))
+                ));
+            }
+            contents.add(Map.of(
                     "role", "user",
-                    "parts", List.of(userPart)
-            );
+                    "parts", List.of(Map.of("text", userMessage))
+            ));
 
             Map<String, Object> body = new java.util.LinkedHashMap<>();
-            body.put("contents", List.of(userContent));
+            body.put("contents", contents);
 
             if (systemPrompt != null && !systemPrompt.isEmpty()) {
                 Map<String, Object> systemPart = Map.of("text", systemPrompt);

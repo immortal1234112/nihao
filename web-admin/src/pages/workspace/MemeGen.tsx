@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Card, Form, Input, Button, Typography, Image, Spin, Result, Space, Tag } from 'antd';
 import { SendOutlined, ClearOutlined, ReloadOutlined } from '@ant-design/icons';
 import { memeApi, MemeResultRes } from '@/api/meme';
@@ -26,6 +26,9 @@ const MemeGen: React.FC = () => {
       pollRef.current = null;
     }
   }, []);
+
+  // D4：组件卸载时清理轮询，避免卸载后继续 setState 造成内存泄漏
+  useEffect(() => stopPolling, [stopPolling]);
 
   const startPolling = useCallback((id: string) => {
     stopPolling();

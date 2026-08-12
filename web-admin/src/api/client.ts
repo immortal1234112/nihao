@@ -9,16 +9,14 @@ const http = axios.create({
 });
 
 let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
 
-function subscribeTokenRefresh(cb: (token: string) => void) {
-  refreshSubscribers.push(cb);
+/** 刷新期间挂起的请求：记录原请求，刷新成功后重放，失败时 reject（避免 Promise 泄漏） */
+interface PendingRequest {
+  config: InternalAxiosRequestConfig;
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
 }
-
-function onTokenRefreshed(newToken: string) {
-  refreshSubscribers.forEach((cb) => cb(newToken));
-  refreshSubscribers = [];
-}
+let refreshSubscribers: PendingRequest[] = [];
 
 // 请求拦截器：附加 Token
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -58,29 +56,32 @@ http.interceptors.response.use(
       }
 
       if (isRefreshing) {
-        return new Promise((resolve) => {
-          subscribeTokenRefresh((newToken: string) => {
-            if (error.config) {
-              error.config.headers.Authorization = `Bearer ${newToken}`;
-              resolve(http(error.config));
-            }
-          });
+        // 已有刷新在途：挂起本请求，等待刷新结果后重放或拒绝
+        return new Promise((resolve, reject) => {
+          refreshSubscribers.push({ config: error.config!, resolve, reject });
         });
       }
 
       isRefreshing = true;
       try {
-        const res = await axios.post<TokenPair>('/api/v1/auth/refresh', { refreshToken });
-        const tokens = res.data;
+        // D1：refresh 返回 Result 包装，Token 在 res.data.data
+        const res = await axios.post<ApiResult<TokenPair>>('/api/v1/auth/refresh', { refreshToken });
+        const tokens = res.data.data;
         tokenStorage.setTokens(tokens.accessToken, tokens.refreshToken, tokens.expiresIn);
         isRefreshing = false;
-        onTokenRefreshed(tokens.accessToken);
+        refreshSubscribers.forEach((p) => {
+          p.config.headers!.Authorization = `Bearer ${tokens.accessToken}`;
+          p.resolve(http(p.config));
+        });
+        refreshSubscribers = [];
         if (error.config) {
           error.config.headers.Authorization = `Bearer ${tokens.accessToken}`;
           return http(error.config);
         }
-      } catch {
+      } catch (refreshError) {
         isRefreshing = false;
+        // D2：刷新失败，所有挂起请求一并拒绝，清理 Token 并跳登录
+        refreshSubscribers.forEach((p) => p.reject(refreshError));
         refreshSubscribers = [];
         tokenStorage.clearTokens();
         window.location.href = '/login';

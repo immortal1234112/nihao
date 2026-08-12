@@ -16,7 +16,7 @@ public class StorageFeignFallback implements StorageFeignClient {
     }
 
     @Override
-    public Result<UploadResult> upload(MultipartFile file) {
+    public Result<UploadResult> upload(MultipartFile file, String userId, String tenantId) {
         return Result.fail(ErrorCode.SERVICE_TIMEOUT);
     }
 

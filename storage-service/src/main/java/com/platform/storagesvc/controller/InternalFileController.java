@@ -6,6 +6,7 @@ import com.platform.storage.UploadResult;
 import com.platform.storagesvc.entity.StorageFile;
 import com.platform.storagesvc.service.FileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +21,10 @@ public class InternalFileController {
 
     private final FileService fileService;
 
+    /** 网关地址：拼装对外可访问的下载 URL（客户端经网关下载，鉴权由网关 JWT 完成） */
+    @Value("${storage.public-base-url:http://localhost:8080}")
+    private String publicBaseUrl;
+
     /**
      * 获取文件信息。
      */
@@ -29,7 +34,7 @@ public class InternalFileController {
         FileDTO dto = new FileDTO(
                 sf.getId(),
                 sf.getObjectKey(),
-                null, // URL 按需生成
+                publicFileUrl(sf.getId()),
                 sf.getContentType(),
                 sf.getFileSize()
         );
@@ -37,7 +42,7 @@ public class InternalFileController {
     }
 
     /**
-     * 内部上传（Engine 使用）。
+     * 内部上传（Engine 使用）—— 返回真实下载 URL（此前为 null，导致前端拿不到文件）。
      */
     @PostMapping(value = "/upload")
     public Result<UploadResult> upload(
@@ -50,10 +55,14 @@ public class InternalFileController {
         UploadResult uploadResult = new UploadResult(
                 sf.getId(),
                 sf.getObjectKey(),
-                null,
+                publicFileUrl(sf.getId()),
                 sf.getFileSize()
         );
         return Result.ok(uploadResult);
+    }
+
+    private String publicFileUrl(String fileId) {
+        return publicBaseUrl + "/api/v1/files/" + fileId + "/download";
     }
 
     /**

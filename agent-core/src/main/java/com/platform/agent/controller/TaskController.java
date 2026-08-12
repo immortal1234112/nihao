@@ -76,12 +76,13 @@ public class TaskController {
 
     @GetMapping("/{id}")
     public Result<Map<String, Object>> getById(@PathVariable String id) {
-        return Result.ok(taskService.getTaskDetail(id));
+        // 归属校验（防 IDOR）：只能查看自己的任务
+        return Result.ok(taskService.getTaskDetail(id, UserContext.getUserId()));
     }
 
     @GetMapping("/{id}/result")
     public Result<Map<String, Object>> getResult(@PathVariable String id) {
-        AgentTask task = taskService.getTask(id);
+        AgentTask task = taskService.getTask(id, UserContext.getUserId());
         Map<String, Object> data = new java.util.HashMap<>();
         data.put("status", task.getStatus());
         data.put("result", task.getResult());
