@@ -14,6 +14,8 @@
         <dependency><groupId>com.platform</groupId><artifactId>common-core</artifactId></dependency>
         <dependency><groupId>com.platform</groupId><artifactId>common-mq</artifactId></dependency>
         <dependency><groupId>com.platform</groupId><artifactId>common-storage</artifactId></dependency>
+        <dependency><groupId>com.platform</groupId><artifactId>common-engine</artifactId></dependency>
+        <dependency><groupId>com.platform</groupId><artifactId>common-web</artifactId></dependency>
         <dependency><groupId>com.platform</groupId><artifactId>common-feign</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
         <dependency><groupId>com.alibaba.cloud</groupId><artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId></dependency>

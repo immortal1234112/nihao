@@ -28,6 +28,11 @@ spring:
 server:
   port: 8083
 
+internal:
+  # 服务间内部接口鉴权令牌：/api/v1/internal/** 校验 X-Internal-Token（start.ps1 自动生成）
+  # 未配置时不启用校验（本地模式），生产环境必须通过 INTERNAL_AUTH_TOKEN 配置
+  auth-token: ${INTERNAL_AUTH_TOKEN:}
+
 mybatis-plus:
   global-config:
     db-config:

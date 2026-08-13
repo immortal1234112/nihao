@@ -44,6 +44,26 @@ if (Test-Path $jwtSecretFile) {
     Set-Content -Path $jwtSecretFile -Value $env:JWT_SECRET -NoNewline
 }
 
+# ---- 服务间内部接口鉴权令牌 (与 JWT 密钥同理: 首次运行自动生成并持久化到 .internal-token, 已 gitignore) ----
+# 各服务 internal.auth-token 统一读取该值; 未配置时内部接口不启用校验 (本地模式), 生产必须配置
+$internalTokenFile = Join-Path $PROJ_DIR '.internal-token'
+if (Test-Path $internalTokenFile) {
+    $env:INTERNAL_AUTH_TOKEN = (Get-Content $internalTokenFile -Raw).Trim()
+} else {
+    $env:INTERNAL_AUTH_TOKEN = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
+    Set-Content -Path $internalTokenFile -Value $env:INTERNAL_AUTH_TOKEN -NoNewline
+}
+
+# ---- model_config API key 加密密钥 (首次运行自动生成并持久化到 .crypto-key, 已 gitignore) ----
+# agent-core model-config.crypto-key 读取该值; 未配置时 API key 明文落库 (兼容存量部署)
+$cryptoKeyFile = Join-Path $PROJ_DIR '.crypto-key'
+if (Test-Path $cryptoKeyFile) {
+    $env:MODEL_CONFIG_CRYPTO_KEY = (Get-Content $cryptoKeyFile -Raw).Trim()
+} else {
+    $env:MODEL_CONFIG_CRYPTO_KEY = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object { [char]$_ })
+    Set-Content -Path $cryptoKeyFile -Value $env:MODEL_CONFIG_CRYPTO_KEY -NoNewline
+}
+
 # mvn 不在 PATH 时补充 (本机 Maven 安装路径)
 if (-not (Get-Command mvn -ErrorAction SilentlyContinue)) {
     $mavenBin = 'C:\Users\immortal\tools\apache-maven-3.9.16\bin'

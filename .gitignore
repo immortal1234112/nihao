@@ -50,3 +50,5 @@ inference/models/
 
 ### Secrets ###
 .jwt-secret
+.internal-token
+.crypto-key

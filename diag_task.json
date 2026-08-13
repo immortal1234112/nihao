@@ -1,0 +1,8 @@
+{
+  "prompt": "a red apple on a table",
+  "engineType": "IMAGE",
+  "workflowType": "SINGLE",
+  "modelProvider": "agnes-image",
+  "style": "realistic",
+  "aspectRatio": "1:1"
+}

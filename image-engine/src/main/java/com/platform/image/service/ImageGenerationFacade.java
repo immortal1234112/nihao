@@ -1,36 +1,38 @@
 package com.platform.image.service;
 
+import com.platform.engine.facade.AbstractGenerationFacade;
 import com.platform.feign.StorageFeignClient;
 import com.platform.image.adapter.ImageGenerationAdapter;
 import com.platform.image.model.GenerateRequest;
 import com.platform.image.model.GenerationResult;
-import com.platform.mq.exchange.ExchangeConstants;
 import com.platform.mq.message.TaskResultMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.io.InputStream;
-import java.io.IOException;
 
 /**
  * 图片生成门面 —— 编排模型选择、API 调用、后处理、结果上报。
+ * 回执发送与 Storage 上传辅助见 {@link AbstractGenerationFacade}。
  */
-@Slf4j
 @Service
-@RequiredArgsConstructor
-public class ImageGenerationFacade {
+@Slf4j
+public class ImageGenerationFacade extends AbstractGenerationFacade {
 
     private final ModelRegistry modelRegistry;
     private final PostProcessor postProcessor;
-    private final RabbitTemplate rabbitTemplate;
-    private final StorageFeignClient storageFeignClient;
+
+    public ImageGenerationFacade(ModelRegistry modelRegistry, PostProcessor postProcessor,
+                                 RabbitTemplate rabbitTemplate, StorageFeignClient storageFeignClient) {
+        super(rabbitTemplate, storageFeignClient);
+        this.modelRegistry = modelRegistry;
+        this.postProcessor = postProcessor;
+    }
 
     /**
      * 执行图片生成并上报结果。
@@ -62,19 +64,11 @@ public class ImageGenerationFacade {
 
             // 6. 发送成功结果
             long duration = System.currentTimeMillis() - start;
-            TaskResultMessage message = new TaskResultMessage(
-                    taskId, "IMAGE", "DONE", fileInfos, null, duration, stepOrder
-            );
-            rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.done", message);
+            reportDone(taskId, "IMAGE", fileInfos, duration, stepOrder);
             log.info("Task {} step {} completed: {} results in {}ms", taskId, stepOrder, fileInfos.size(), duration);
 
         } catch (Exception e) {
-            log.error("Task {} failed: {}", taskId, e.getMessage());
-            long duration = System.currentTimeMillis() - start;
-            TaskResultMessage message = new TaskResultMessage(
-                    taskId, "IMAGE", "FAILED", null, e.getMessage(), duration, stepOrder
-            );
-            rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.failed", message);
+            reportFailed(taskId, "IMAGE", e.getMessage(), System.currentTimeMillis() - start, stepOrder);
         }
     }
 
@@ -94,7 +88,8 @@ public class ImageGenerationFacade {
             }
 
             // 通过 Storage Feign 上传（消费线程无 ThreadLocal，身份必须显式传参）
-            var uploadResult = storageFeignClient.upload(createMultipartFile(bytes, "png"), userId, tenantId);
+            var uploadResult = storageFeignClient.upload(
+                    createMultipartFile(bytes, "generated.png", "image/png"), userId, tenantId);
             if (uploadResult != null && uploadResult.getData() != null) {
                 String fileId = uploadResult.getData().fileId();
                 String url = uploadResult.getData().url();
@@ -104,7 +99,8 @@ public class ImageGenerationFacade {
                 String thumbBase64 = postProcessor.generateThumbnail(result);
                 if (thumbBase64 != null) {
                     byte[] thumbBytes = Base64.getDecoder().decode(thumbBase64);
-                    var thumbUpload = storageFeignClient.upload(createMultipartFile(thumbBytes, "png"), userId, tenantId);
+                    var thumbUpload = storageFeignClient.upload(
+                            createMultipartFile(thumbBytes, "thumbnail.png", "image/png"), userId, tenantId);
                     if (thumbUpload != null && thumbUpload.getData() != null) {
                         thumbnailUrl = thumbUpload.getData().url();
                     }
@@ -146,20 +142,5 @@ public class ImageGenerationFacade {
                 .quality((String) params.getOrDefault("quality", "standard"))
                 .negativePrompt((String) params.get("negativePrompt"))
                 .build();
-    }
-
-    private MultipartFile createMultipartFile(byte[] bytes, String format) {
-        return new MultipartFile() {
-            @Override public String getName() { return "file"; }
-            @Override public String getOriginalFilename() { return "generated." + format; }
-            @Override public String getContentType() { return "image/" + format; }
-            @Override public boolean isEmpty() { return bytes.length == 0; }
-            @Override public long getSize() { return bytes.length; }
-            @Override public byte[] getBytes() { return bytes; }
-            @Override public InputStream getInputStream() { return new java.io.ByteArrayInputStream(bytes); }
-            @Override public void transferTo(java.io.File dest) throws IOException, IllegalStateException {
-                java.nio.file.Files.write(dest.toPath(), bytes);
-            }
-        };
     }
 }

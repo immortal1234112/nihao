@@ -1,4 +1,4 @@
-package com.platform.security.crypto;
+package com.platform.core.crypto;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -9,6 +9,7 @@ import java.util.Base64;
 
 /**
  * AES 加解密工具，使用 AES/GCM/NoPadding 模式。
+ * （从 common-security 移至 common-core：供 ModelConfigService 加密落库使用，避免 core→security 循环依赖）
  */
 public final class AesUtils {
 

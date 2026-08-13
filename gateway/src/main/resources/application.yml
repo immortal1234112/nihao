@@ -89,6 +89,11 @@ jwt:
   access-token-ttl: 7200
   refresh-token-ttl: 604800
 
+internal:
+  # 服务间内部接口鉴权令牌（start.ps1 自动生成到 .internal-token 并注入 INTERNAL_AUTH_TOKEN）
+  # 网关作为调用方在调 user-service 内部接口时携带该令牌；未配置则不附加
+  auth-token: ${INTERNAL_AUTH_TOKEN:}
+
 gateway:
   rate-limit:
     capacity: ${RATE_LIMIT_CAPACITY:100}

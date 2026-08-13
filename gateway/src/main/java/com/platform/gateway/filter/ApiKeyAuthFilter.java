@@ -5,6 +5,7 @@ import com.platform.core.exception.ErrorCode;
 import com.platform.core.util.JsonUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -36,6 +37,10 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
 
     private final WebClient.Builder webClientBuilder;
 
+    /** 服务间内部接口鉴权令牌（与 user-service 的 internal.auth-token 一致） */
+    @Value("${internal.auth-token:}")
+    private String internalToken;
+
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
     private static final List<String> API_KEY_PATHS = Arrays.asList("/api/v1/open/**");
     private static final String VALIDATE_URL = "lb://user-service/api/v1/internal/users/api-key/validate";
@@ -55,6 +60,11 @@ public class ApiKeyAuthFilter implements GlobalFilter, Ordered {
         return webClientBuilder.build().post()
                 .uri(VALIDATE_URL)
                 .contentType(MediaType.APPLICATION_JSON)
+                .headers(headers -> {
+                    if (internalToken != null && !internalToken.isBlank()) {
+                        headers.set("X-Internal-Token", internalToken);
+                    }
+                })
                 .bodyValue(Map.of("apiKey", apiKey))
                 .retrieve()
                 .bodyToMono(String.class)

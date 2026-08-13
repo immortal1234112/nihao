@@ -73,7 +73,16 @@ public class WorkflowEngine {
                         Map<String, Object> stepDef = pipelineSteps.get(i);
                         // 前端提交字段为 stepType，兼容旧数据/API 的 type（默认为 IMAGE）
                         String type = (String) stepDef.getOrDefault("stepType", stepDef.getOrDefault("type", WorkflowStep.TYPE_IMAGE));
-                        WorkflowStep step = createStep(task.getId(), i, type, JsonUtils.toJson(stepDef));
+                        // 步骤参数 = 主请求参数（prompt/size/format 等）+ 步骤 params 覆盖（扁平化）。
+                        // 引擎消费端按扁平顶层 key 解析（如 params.get("prompt")），
+                        // 直接存 stepDef 会导致 prompt/modelProvider 全为 null → 上游 API 422。
+                        Map<String, Object> stepParams = new HashMap<>(params);
+                        Object sp = stepDef.get("params");
+                        if (sp instanceof Map<?, ?> m) {
+                            m.forEach((k, v) -> stepParams.put((String) k, v));
+                        }
+                        stepParams.remove("pipelineSteps");
+                        WorkflowStep step = createStep(task.getId(), i, type, JsonUtils.toJson(stepParams));
                         steps.add(step);
                     }
                 }

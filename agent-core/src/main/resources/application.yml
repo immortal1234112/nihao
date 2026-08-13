@@ -32,6 +32,15 @@ spring:
 server:
   port: 8082
 
+internal:
+  # 服务间内部接口鉴权令牌：调用 /api/v1/internal/** 时附加 X-Internal-Token（start.ps1 自动生成）
+  auth-token: ${INTERNAL_AUTH_TOKEN:}
+
+model-config:
+  # model_config API key 加密密钥（AES-256，需 32 字符；start.ps1 自动生成并持久化到 .crypto-key）
+  # 未配置时保持明文模式（存量部署兼容）
+  crypto-key: ${MODEL_CONFIG_CRYPTO_KEY:}
+
 platform:
   require-api-key: ${REQUIRE_API_KEY:true}
 

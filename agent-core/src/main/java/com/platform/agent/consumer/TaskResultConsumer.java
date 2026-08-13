@@ -10,6 +10,8 @@ import com.platform.core.util.JsonUtils;
 import com.platform.mq.exchange.QueueConstants;
 import com.platform.mq.message.TaskResultMessage;
 import com.rabbitmq.client.Channel;
+import java.util.ArrayList;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -129,7 +131,8 @@ public class TaskResultConsumer {
             task.setCompletedAt(LocalDateTime.now());
         } else if (allDone) {
             task.setStatus(AgentTask.STATUS_DONE);
-            task.setResult(JsonUtils.toJson(message));
+            // BATCH/PIPELINE 多步骤任务聚合所有步骤输出，避免后到回执覆盖先到结果（仅剩最后一步文件）
+            task.setResult(buildMergedResult(task, allSteps));
             task.setCompletedAt(LocalDateTime.now());
         } else {
             task.setStatus(AgentTask.STATUS_PROCESSING);
@@ -137,5 +140,30 @@ public class TaskResultConsumer {
 
         agentTaskMapper.updateById(task);
         log.info("Task updated: id={}, status={}", task.getId(), task.getStatus());
+    }
+
+    /** 聚合所有 DONE 步骤的 outputFiles 为任务级 result（SINGLE 单步骤时与原行为等价） */
+    @SuppressWarnings("unchecked")
+    private String buildMergedResult(AgentTask task, List<WorkflowStep> allSteps) {
+        Map<String, Object> merged = new java.util.LinkedHashMap<>();
+        merged.put("status", AgentTask.STATUS_DONE);
+        merged.put("taskId", task.getId());
+        List<Object> files = new ArrayList<>();
+        for (WorkflowStep s : allSteps) {
+            if (!WorkflowStep.STATUS_DONE.equals(s.getStatus()) || s.getOutput() == null) continue;
+            try {
+                Map<String, Object> o = JsonUtils.fromJson(s.getOutput(), Map.class);
+                Object of = o.get("outputFiles");
+                if (of instanceof List<?> list) {
+                    for (Object f : list) {
+                        if (f != null) files.add(f);
+                    }
+                }
+            } catch (Exception ignore) {
+                // 单步骤输出解析失败不阻断任务完成
+            }
+        }
+        merged.put("outputFiles", files);
+        return JsonUtils.toJson(merged);
     }
 }

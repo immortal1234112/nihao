@@ -34,6 +34,10 @@ spring:
 server:
   port: 8085
 
+internal:
+  # 服务间内部接口鉴权令牌：调用 /api/v1/internal/** 时附加 X-Internal-Token（start.ps1 自动生成）
+  auth-token: ${INTERNAL_AUTH_TOKEN:}
+
 platform:
   require-api-key: ${REQUIRE_API_KEY:true}
 
