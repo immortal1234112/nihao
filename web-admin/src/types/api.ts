@@ -40,6 +40,8 @@ export interface TokenPair {
 
 export interface RefreshTokenRequest {
   refreshToken: string;
+  /** 可选：登出时一并拉黑 access token */
+  accessToken?: string;
 }
 
 // ========== 用户 ==========

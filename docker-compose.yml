@@ -1,10 +1,13 @@
+# 基础设施编排（开发环境）
+# 凭据从根目录 .env 注入（docker compose 自动加载），首次运行请复制 .env.example 或使用 start.ps1 自动生成。
+# 全部管理端口绑定 127.0.0.1，仅本机可访问；生产部署请另行维护独立编排文件。
 services:
   nacos:
     image: nacos/nacos-server:v2.3.0
     container_name: nacos
     ports:
-      - "8848:8848"
-      - "9848:9848"
+      - "127.0.0.1:8848:8848"
+      - "127.0.0.1:9848:9848"
     environment:
       MODE: standalone
     volumes:
@@ -14,9 +17,9 @@ services:
     image: mysql:8.0
     container_name: mysql
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 必须在 .env 中设置 (复制 .env.example 或运行 start.ps1 自动生成)}
     volumes:
       - ./sql:/docker-entrypoint-initdb.d
       - mysql_data:/var/lib/mysql
@@ -25,7 +28,8 @@ services:
     image: redis:7-alpine
     container_name: redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD 必须在 .env 中设置 (复制 .env.example 或运行 start.ps1 自动生成)}
     volumes:
       - redis_data:/data
 
@@ -33,11 +37,11 @@ services:
     image: rabbitmq:3.12-management-alpine
     container_name: rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER 必须在 .env 中设置}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD 必须在 .env 中设置}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
@@ -45,12 +49,12 @@ services:
     image: minio/minio:latest
     container_name: minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER 必须在 .env 中设置}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD 必须在 .env 中设置}
     volumes:
       - minio_data:/data
 

@@ -49,7 +49,8 @@ public class AuthController {
     @PostMapping("/logout")
     public Result<Void> logout(@RequestBody RefreshTokenRequest request) {
         String refreshToken = request != null ? request.getRefreshToken() : null;
-        authService.logout(refreshToken);
+        String accessToken = request != null ? request.getAccessToken() : null;
+        authService.logout(refreshToken, accessToken);
         return Result.ok();
     }
 

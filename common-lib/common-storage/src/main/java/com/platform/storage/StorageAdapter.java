@@ -16,6 +16,8 @@ public interface StorageAdapter {
     void abortMultipart(String uploadId) throws Exception;
     InputStream download(String objectKey) throws Exception;
     String presignedUrl(String objectKey, Duration ttl) throws Exception;
+    /** 预签名上传 URL（PUT 方法；presignedUrl 为 GET，用于下载） */
+    String presignedUploadUrl(String objectKey, Duration ttl) throws Exception;
     boolean exists(String objectKey) throws Exception;
     FileMetadata metadata(String objectKey) throws Exception;
     void delete(String objectKey) throws Exception;

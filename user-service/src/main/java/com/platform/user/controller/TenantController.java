@@ -59,6 +59,8 @@ public class TenantController {
     @RequireRole({UserTenant.ROLE_TENANT_ADMIN, UserTenant.ROLE_SUPER_ADMIN})
     @PutMapping("/{id}")
     public Result<Void> updateTenant(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        // 角色校验只证明「是管理员」，此处还需证明「是该租户的管理员」（防跨租户管理）
+        assertMemberOrSuperAdmin(id);
         Tenant tenant = tenantMapper.selectById(id);
         if (tenant == null) {
             throw new BizException(ErrorCode.TASK_NOT_FOUND, "租户不存在");
@@ -98,8 +100,15 @@ public class TenantController {
     @RequireRole({UserTenant.ROLE_TENANT_ADMIN, UserTenant.ROLE_SUPER_ADMIN})
     @PostMapping("/{id}/members")
     public Result<Map<String, Object>> addMember(@PathVariable String id, @RequestBody Map<String, String> body) {
+        assertMemberOrSuperAdmin(id);
         String userId = body.get("userId");
         String roleCode = body.getOrDefault("roleCode", UserTenant.ROLE_VIEWER);
+
+        // 提权保护：仅平台超级管理员可授予管理员角色（防止租户管理员把自己人提权）
+        if (!UserContext.getRoles().contains(UserTenant.ROLE_SUPER_ADMIN)
+                && (UserTenant.ROLE_TENANT_ADMIN.equals(roleCode) || UserTenant.ROLE_SUPER_ADMIN.equals(roleCode))) {
+            throw new BizException(ErrorCode.NO_PERMISSION, "仅平台超级管理员可授予管理员角色");
+        }
 
         // 检查是否已存在
         Long count = userTenantMapper.selectCount(
@@ -129,11 +138,35 @@ public class TenantController {
     @RequireRole({UserTenant.ROLE_TENANT_ADMIN, UserTenant.ROLE_SUPER_ADMIN})
     @DeleteMapping("/{id}/members/{userId}")
     public Result<Void> removeMember(@PathVariable String id, @PathVariable String userId) {
-        userTenantMapper.delete(
+        assertMemberOrSuperAdmin(id);
+
+        UserTenant target = userTenantMapper.selectOne(
                 new LambdaQueryWrapper<UserTenant>()
                         .eq(UserTenant::getTenantId, id)
-                        .eq(UserTenant::getUserId, userId)
-        );
+                        .eq(UserTenant::getUserId, userId));
+        if (target == null) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "用户不是该租户成员");
+        }
+
+        // 不能移除自己：管理员移除自己后租户将无人管理
+        if (target.getUserId().equals(UserContext.getUserId())) {
+            throw new BizException(ErrorCode.NO_PERMISSION, "不能移除自己，请由其他管理员操作");
+        }
+
+        // 保护最后一个管理员：被移除者是管理员且该租户已无其他管理员时拒绝
+        boolean isAdmin = UserTenant.ROLE_TENANT_ADMIN.equals(target.getRoleCode())
+                || UserTenant.ROLE_SUPER_ADMIN.equals(target.getRoleCode());
+        if (isAdmin) {
+            Long adminCount = userTenantMapper.selectCount(
+                    new LambdaQueryWrapper<UserTenant>()
+                            .eq(UserTenant::getTenantId, id)
+                            .in(UserTenant::getRoleCode, UserTenant.ROLE_TENANT_ADMIN, UserTenant.ROLE_SUPER_ADMIN));
+            if (adminCount != null && adminCount <= 1) {
+                throw new BizException(ErrorCode.NO_PERMISSION, "不能移除租户最后一个管理员");
+            }
+        }
+
+        userTenantMapper.deleteById(target.getId());
         return Result.ok();
     }
 }

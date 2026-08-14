@@ -25,4 +25,9 @@ public class UserFeignFallback implements UserFeignClient {
     public Result<Boolean> consumeQuota(String userId, Map<String, Object> body) {
         return Result.fail(ErrorCode.SERVICE_TIMEOUT);
     }
+
+    @Override
+    public Result<Boolean> compensateQuota(String userId, Map<String, Object> body) {
+        return Result.fail(ErrorCode.SERVICE_TIMEOUT);
+    }
 }

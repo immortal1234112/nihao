@@ -1,6 +1,7 @@
 package com.platform.agent.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.platform.agent.dto.TaskSubmitRequest;
 import com.platform.agent.entity.AgentTask;
@@ -20,6 +21,7 @@ import com.platform.feign.UserFeignClient;
 import com.platform.feign.dto.AuditResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -46,36 +48,75 @@ public class TaskService {
     private final SecurityFeignClient securityFeignClient;
     private final RagService ragService;
 
+    /** 审核服务异常时的降级开关：默认失败关闭（false），本地开发可显式开启降级 */
+    @Value("${platform.audit.degrade-allowed:false}")
+    private boolean auditDegradeAllowed;
+
+    /** 配额服务异常时的降级开关：默认失败关闭（false），本地开发可显式开启降级 */
+    @Value("${platform.quota.degrade-allowed:false}")
+    private boolean quotaDegradeAllowed;
+
     // ==================== 提交任务 ====================
 
     @Transactional
     public AgentTask submitTask(String userId, String tenantId, TaskSubmitRequest request) {
+        // 0. 预生成任务 ID：作为配额消费的幂等键（重试/重复投递不重复扣费），并作为任务主键
+        String taskId = IdWorker.getIdStr();
+
         // 1. 意图解析
         Map<String, String> intent = intentParser.parse(request.getPrompt());
 
         // 2. Prompt 审核（通过 Feign）—— 先审核后扣配额：审核失败不产生扣费
+        // 失败关闭：审核服务不可用（异常 / Result 失败但 data==null，含 Feign 兜底路径）默认拒绝创建任务；
+        // 显式配置 platform.audit.degrade-allowed=true 才降级放行（仅本地/受控环境）
         try {
             var auditResult = securityFeignClient.auditPrompt(Map.of("prompt", request.getPrompt()));
-            if (auditResult != null && auditResult.getData() != null && !auditResult.getData().passed()) {
+            if (auditResult == null || auditResult.getCode() != 0 || auditResult.getData() == null) {
+                if (auditDegradeAllowed) {
+                    log.warn("Prompt audit degraded: audit service unavailable");
+                } else {
+                    throw new BizException(ErrorCode.AUDIT_UNAVAILABLE);
+                }
+            } else if (!auditResult.getData().passed()) {
                 throw new BizException(ErrorCode.SENSITIVE_PROMPT, auditResult.getData().reason());
             }
         } catch (BizException e) { throw e; }
         catch (Exception e) {
-            log.warn("Prompt audit failed (degraded): {}", e.getMessage());
+            if (auditDegradeAllowed) {
+                log.warn("Prompt audit degraded: {}", e.getMessage());
+            } else {
+                throw new BizException(ErrorCode.AUDIT_UNAVAILABLE, "审核服务调用失败: " + e.getMessage());
+            }
         }
 
-        // 3. 配额检查（通过 Feign）—— 审核通过后才扣减
+        // 3. 配额检查（通过 Feign）—— 审核通过后才扣减；幂等键 = 任务 ID（重试不重复扣）
+        // 失败关闭：配额服务不可用（异常 / Result 失败但 data==null，含 Feign 兜底路径）默认拒绝创建任务；
+        // 显式配置 platform.quota.degrade-allowed=true 才降级放行（降级路径未实际扣配额，无需补偿）
+        final boolean[] quotaConsumed = {false};
         try {
             var quotaResult = userFeignClient.consumeQuota(userId, Map.of(
                     "type", request.getEngineType(),
-                    "amount", request.getCount() != null ? request.getCount() : 1
+                    "amount", request.getCount() != null ? request.getCount() : 1,
+                    "taskId", taskId
             ));
-            if (quotaResult != null && quotaResult.getData() != null && !quotaResult.getData()) {
+            if (quotaResult == null || quotaResult.getCode() != 0 || quotaResult.getData() == null) {
+                if (quotaDegradeAllowed) {
+                    log.warn("Quota check degraded: quota service unavailable");
+                } else {
+                    throw new BizException(ErrorCode.QUOTA_UNAVAILABLE);
+                }
+            } else if (Boolean.FALSE.equals(quotaResult.getData())) {
                 throw new BizException(ErrorCode.QUOTA_EXCEEDED);
+            } else {
+                quotaConsumed[0] = true;
             }
         } catch (BizException e) { throw e; }
         catch (Exception e) {
-            log.warn("Quota check failed (degraded): {}", e.getMessage());
+            if (quotaDegradeAllowed) {
+                log.warn("Quota check degraded: {}", e.getMessage());
+            } else {
+                throw new BizException(ErrorCode.QUOTA_UNAVAILABLE, "配额服务调用失败: " + e.getMessage());
+            }
         }
 
         // 3.5 RAG 知识库增强（审核后，只增强已过审 prompt；检索失败降级不影响任务）
@@ -97,6 +138,7 @@ public class TaskService {
 
         // 4. 构建任务
         AgentTask task = new AgentTask();
+        task.setId(taskId);
         task.setUserId(userId);
         task.setTenantId(tenantId);
         task.setWorkflowType(request.getWorkflowType() != null ? request.getWorkflowType() : AgentTask.WF_SINGLE);
@@ -116,11 +158,28 @@ public class TaskService {
         task.setStatus(AgentTask.STATUS_PENDING);
         agentTaskMapper.updateById(task);
 
-        // 8. 事务提交后再分发第一步：防止事务回滚后 MQ 消息成为孤儿（步骤已建但任务/步骤不可见）
+        // 8. 事务提交后再分发第一步：防止事务回滚后 MQ 消息成为孤儿（步骤已建但任务/步骤不可见）；
+        //    事务回滚时补偿已扣配额（幂等，只退一次；补偿失败仅记日志，幂等标记 7 天过期兜底）
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 workflowEngine.advanceStep(task.getId());
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_ROLLED_BACK && quotaConsumed[0]) {
+                    try {
+                        userFeignClient.compensateQuota(userId, Map.of(
+                                "type", request.getEngineType(),
+                                "amount", request.getCount() != null ? request.getCount() : 1,
+                                "taskId", taskId
+                        ));
+                        log.info("Quota compensated after rollback: taskId={}", taskId);
+                    } catch (Exception e) {
+                        log.error("Quota compensation failed, manual check required: taskId={}", taskId, e);
+                    }
+                }
             }
         });
 

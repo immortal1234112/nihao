@@ -13,6 +13,9 @@ import java.util.List;
 @Component
 public class JwtUtils {
 
+    /** Access Token 撤销黑名单前缀（Redis key：auth:access:blacklist:{jti}），user-service 写、网关校验 */
+    public static final String ACCESS_BLACKLIST_PREFIX = "auth:access:blacklist:";
+
     private final JwtProperties jwtProperties;
 
     public JwtUtils(JwtProperties jwtProperties) {
@@ -36,6 +39,8 @@ public class JwtUtils {
         return Jwts.builder()
                 .subject(userId)
                 .claim("type", "access")
+                // jti 唯一标识：登出时按 token 维度拉黑（网关每请求校验黑名单）
+                .claim("jti", java.util.UUID.randomUUID().toString())
                 .claim("username", username)
                 .claim("tenantId", tenantId)
                 .claim("roles", String.join(",", roles))

@@ -19,6 +19,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -43,6 +44,17 @@ model-config:
 
 platform:
   require-api-key: ${REQUIRE_API_KEY:true}
+  # 审核/配额服务异常时的降级开关：默认失败关闭（false）；本地开发可用环境变量显式开启降级
+  audit:
+    degrade-allowed: ${PROMPT_AUDIT_DEGRADE_ALLOWED:false}
+  quota:
+    degrade-allowed: ${QUOTA_DEGRADE_ALLOWED:false}
+  # 卡死任务恢复扫描（StuckTaskRecoveryJob）：
+  # PROCESSING 超时（分钟，默认 120 = 视频引擎幂等锁 TTL 7200s）→ 置 FAILED；PENDING 超时（分钟，默认 30）→ 重新分发
+  recovery:
+    interval-ms: ${RECOVERY_INTERVAL_MS:300000}
+    processing-timeout-minutes: ${RECOVERY_PROCESSING_TIMEOUT_MIN:120}
+    pending-timeout-minutes: ${RECOVERY_PENDING_TIMEOUT_MIN:30}
 
 rag:
   chunk-size: 500

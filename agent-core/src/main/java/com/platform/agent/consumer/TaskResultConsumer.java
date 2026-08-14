@@ -36,7 +36,8 @@ public class TaskResultConsumer {
 
     @RabbitListener(queues = QueueConstants.TASK_RESULT_QUEUE, concurrency = "3-5")
     public void onMessage(TaskResultMessage message, Channel channel,
-                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
+                          @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag,
+                          @Header(value = "x-death", required = false) List<Map<String, Object>> xDeath) {
         try {
             log.info("Task result received: taskId={}, status={}, duration={}ms",
                     message.taskId(), message.status(), message.durationMs());
@@ -53,9 +54,27 @@ public class TaskResultConsumer {
         } catch (Exception e) {
             log.error("Failed to process task result: taskId={}", message.taskId(), e);
             try {
-                channel.basicNack(deliveryTag, false, true); // requeue
+                // 重试计数用 x-death（消息已重投次数），≤3 次 requeue，否则弃投进结果死信队列
+                // （原实现无限 requeue 且结果队列无死信，毒消息会占死全部消费线程）
+                if (getXDeathCount(xDeath) < 3) {
+                    channel.basicNack(deliveryTag, false, true);
+                } else {
+                    channel.basicNack(deliveryTag, false, false);
+                    log.warn("Task result {} exceeded max retries, sent to DLQ", message.taskId());
+                }
             } catch (Exception ignored) {}
         }
+    }
+
+    /** RabbitMQ x-death 计数（消息被拒绝重投的次数），无则返回 0 */
+    private int getXDeathCount(List<Map<String, Object>> xDeath) {
+        if (xDeath == null || xDeath.isEmpty()) return 0;
+        for (Map<String, Object> entry : xDeath) {
+            if (entry.get("count") instanceof Number n) {
+                return n.intValue();
+            }
+        }
+        return 0;
     }
 
     private void updateStep(TaskResultMessage message) {

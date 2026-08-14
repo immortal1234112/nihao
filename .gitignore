@@ -36,6 +36,7 @@ target/
 *.war
 *.ear
 *.log
+*.hprof
 !.mvn/wrapper/maven-wrapper.jar
 
 ### Python ###
@@ -52,3 +53,4 @@ inference/models/
 .jwt-secret
 .internal-token
 .crypto-key
+.env

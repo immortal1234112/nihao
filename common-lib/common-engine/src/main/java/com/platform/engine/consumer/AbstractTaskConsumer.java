@@ -1,14 +1,18 @@
 package com.platform.engine.consumer;
 
+import com.platform.mq.exchange.ExchangeConstants;
 import com.platform.mq.message.TaskMessage;
+import com.platform.mq.message.TaskResultMessage;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * 引擎任务消费者抽象基类 —— 收敛 image/video 两引擎消费逻辑。
@@ -16,10 +20,10 @@ import java.util.Map;
  * 两种处理模式：
  * <ul>
  *   <li>同步（image-engine）：消费线程内执行，失败按 RabbitMQ x-death 计数重试（≤3 次后进 DLQ）</li>
- *   <li>异步（video-engine）：立即 ACK + 提交异步执行器（适配器长轮询最长 600s，不占消费线程）</li>
+ *   <li>异步（video-engine）：提交执行器成功后才 ACK（适配器长轮询最长 600s，不占消费线程）</li>
  * </ul>
- * Redis 幂等锁（task:lock:*）防重复消息导致的重复生成；异步模式下立即 ACK 后
- * MQ 不再重投，任务级重试由 agent-core 的 retry_count 机制（FAILED 回执后重新分发）兜底。
+ * Redis 幂等锁（task:lock:*）防重复消息导致的重复生成；异步模式提交执行器成功后才 ACK，
+ * 提交失败（执行器拒绝）重新入队并按 x-death 封顶后发 FAILED 回执，避免消息丢失/任务卡 PROCESSING。
  * <p>
  * 子类职责：声明 @RabbitListener（各自队列常量，方法体内委托 handle()）+
  * 实现 lockPrefix / lockTtlSeconds / asyncProcessing / processTask 钩子。
@@ -32,9 +36,14 @@ public abstract class AbstractTaskConsumer {
     /** 异步模式执行器；同步模式传 null */
     private final ThreadPoolTaskExecutor asyncExecutor;
 
-    protected AbstractTaskConsumer(StringRedisTemplate stringRedisTemplate, ThreadPoolTaskExecutor asyncExecutor) {
+    /** 结果回执发送（同步模式传 null；异步模式提交失败时补发 FAILED 回执） */
+    private final RabbitTemplate rabbitTemplate;
+
+    protected AbstractTaskConsumer(StringRedisTemplate stringRedisTemplate, ThreadPoolTaskExecutor asyncExecutor,
+                                   RabbitTemplate rabbitTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.asyncExecutor = asyncExecutor;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     // ==================== 子类钩子 ====================
@@ -45,7 +54,7 @@ public abstract class AbstractTaskConsumer {
     /** 幂等锁 TTL（秒） */
     protected abstract long lockTtlSeconds();
 
-    /** 是否异步处理（异步 = 立即 ACK + 执行器；同步 = x-death 重试） */
+    /** 是否异步处理（异步 = 提交执行器后 ACK + 执行器；同步 = x-death 重试） */
     protected abstract boolean asyncProcessing();
 
     /** 执行任务（子类调 facade.generate；勿在此 catch —— 基类统一处理） */
@@ -56,7 +65,7 @@ public abstract class AbstractTaskConsumer {
     /** 子类 @RabbitListener 方法委托调用 */
     protected void handle(TaskMessage message, Channel channel, long deliveryTag, List<Map<String, Object>> xDeath) {
         if (asyncProcessing()) {
-            handleAsync(message, channel, deliveryTag);
+            handleAsync(message, channel, deliveryTag, xDeath);
         } else {
             handleSync(message, channel, deliveryTag, xDeath);
         }
@@ -104,15 +113,12 @@ public abstract class AbstractTaskConsumer {
         }
     }
 
-    /** 异步模式：立即 ACK，长轮询/生成在独立执行器中（不占 RabbitMQ 消费线程） */
-    private void handleAsync(TaskMessage message, Channel channel, long deliveryTag) {
+    /** 异步模式：提交执行器成功后才 ACK，长轮询/生成在独立执行器中（不占 RabbitMQ 消费线程） */
+    private void handleAsync(TaskMessage message, Channel channel, long deliveryTag, List<Map<String, Object>> xDeath) {
         String taskId = message.taskId();
         try {
-            channel.basicAck(deliveryTag, false);
-        } catch (Exception e) {
-            log.warn("Task {} basicAck failed: {}", taskId, e.getMessage());
-        }
-        try {
+            // 关键顺序：先提交执行器，成功返回后才 ACK。
+            // 原实现先 ACK 后提交，ACK 后提交失败/进程崩溃会丢消息且无恢复机制 → 任务永久卡 PROCESSING。
             asyncExecutor.execute(() -> {
                 // 锁 key 含 stepOrder，理由同 handleSync：BATCH 各步骤独立加锁并行处理
                 String lockKey = lockPrefix() + taskId + ":" + message.stepOrder();
@@ -135,13 +141,40 @@ public abstract class AbstractTaskConsumer {
                     }
                 }
             });
+            channel.basicAck(deliveryTag, false);
+        } catch (RejectedExecutionException e) {
+            // 执行器已 shutdown（服务关闭中）：任务从未运行 → 重新入队；
+            // 按 x-death 封顶（≤3 次）后发 FAILED 回执并弃投进 DLQ，避免无限重投
+            log.warn("Task {} executor rejected (service shutting down?): {}", taskId, e.getMessage());
+            if (getXDeathCount(xDeath) < 3) {
+                try { channel.basicNack(deliveryTag, false, true); } catch (Exception ignored) {}
+            } else {
+                sendFailedReceipt(message, "executor rejected after retries");
+                try { channel.basicNack(deliveryTag, false, false); } catch (Exception ignored) {}
+            }
         } catch (Exception e) {
-            // 执行器极端异常（如队列满且拒绝策略失败）：直接报 FAILED 回执，避免任务卡 PROCESSING
+            // 其他异常（如 CallerRunsPolicy 内联执行时 finally 异常冒出、channel 异常）：
+            // 任务可能已执行 → 补发 FAILED 回执（重复回执由 agent-core 按 retry_count 封顶对账）并 ACK
             log.error("Task {} submit to executor failed: {}", taskId, e.getMessage());
+            sendFailedReceipt(message, e.getMessage());
+            try { channel.basicAck(deliveryTag, false); } catch (Exception ignored) {}
         }
     }
 
     // ==================== 内部方法 ====================
+
+    /** 发送 FAILED 回执（发送形态与 AbstractGenerationFacade.reportFailed 一致）；同步模式 rabbitTemplate 为 null 时跳过 */
+    private void sendFailedReceipt(TaskMessage message, String error) {
+        if (rabbitTemplate == null) return;
+        try {
+            TaskResultMessage receipt = new TaskResultMessage(
+                    message.taskId(), message.engineType(), "FAILED", null,
+                    error, 0L, message.stepOrder());
+            rabbitTemplate.convertAndSend(ExchangeConstants.TASK_EXCHANGE, "task.result.failed", receipt);
+        } catch (Exception e) {
+            log.error("Failed to send FAILED receipt for task {}: {}", message.taskId(), e.getMessage());
+        }
+    }
 
     private Boolean acquireLock(String lockKey) {
         return stringRedisTemplate.opsForValue().setIfAbsent(lockKey, "1", Duration.ofSeconds(lockTtlSeconds()));

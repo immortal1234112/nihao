@@ -131,6 +131,17 @@ public class MinioStorageAdapter implements StorageAdapter {
     }
 
     @Override
+    public String presignedUploadUrl(String objectKey, Duration ttl) throws Exception {
+        // 预签名上传必须签 PUT 方法（原实现误签 GET，客户端直传会被 MinIO 拒绝）
+        return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                .bucket(bucketName)
+                .object(objectKey)
+                .method(Method.PUT)
+                .expiry((int) ttl.toSeconds())
+                .build());
+    }
+
+    @Override
     public boolean exists(String objectKey) throws Exception {
         try {
             minioClient.statObject(StatObjectArgs.builder()

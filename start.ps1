@@ -30,8 +30,33 @@ $LOG_DIR  = Join-Path $PROJ_DIR 'logs'
 
 # ---- 可调参数 (与旧 start.bat 保持一致) ----
 $env:MYSQL_PORT      = '3307'
-$env:MYSQL_PASS      = '123456'
 $env:REQUIRE_API_KEY = 'false'
+
+# ---- 基础设施凭据 (.env, 已 gitignore; 与 .jwt-secret 同理: 首次运行自动生成随机凭据) ----
+# docker compose 与 Java 服务统一读取 .env 中的值; 已存在时复用, 避免与已初始化数据卷密码不一致。
+$envFile = Join-Path $PROJ_DIR '.env'
+if (-not (Test-Path $envFile)) {
+    $rand32 = { -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object { [char]$_ }) }
+    $lines = @(
+        'MYSQL_ROOT_PASSWORD=' + (& $rand32),
+        'RABBITMQ_USER=agent-mq',
+        'RABBITMQ_PASSWORD=' + (& $rand32),
+        'MINIO_ROOT_USER=agent-minio',
+        'MINIO_ROOT_PASSWORD=' + (& $rand32),
+        'REDIS_PASSWORD=' + (& $rand32)
+    )
+    [System.IO.File]::WriteAllLines($envFile, $lines)   # UTF-8 无 BOM, docker compose 可正常解析
+    Write-Host '已生成基础设施凭据文件 .env (随机凭据)'
+}
+Get-Content $envFile | Where-Object { $_ -match '^[A-Z_][A-Z0-9_]*=' } | ForEach-Object {
+    $kv = $_ -split '=', 2
+    if ($kv[0] -and $kv[1]) { Set-Item -Path "Env:$($kv[0])" -Value $kv[1] }
+}
+# Java 侧沿用各自变量名 (8 个服务 application.yml 占位符已覆盖, 无需改 yml)
+$env:MYSQL_PASS       = $env:MYSQL_ROOT_PASSWORD
+$env:RABBITMQ_PASS    = $env:RABBITMQ_PASSWORD
+$env:MINIO_ACCESS_KEY = $env:MINIO_ROOT_USER
+$env:MINIO_SECRET_KEY = $env:MINIO_ROOT_PASSWORD
 
 # ---- JWT 密钥 (服务拒绝弱/默认密钥启动, 必须显式配置) ----
 # 首次运行自动生成 ≥32 位随机串并持久化到 .jwt-secret (已 gitignore),

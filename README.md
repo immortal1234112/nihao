@@ -65,15 +65,24 @@ AI 推理服务需单独启动：`inference\start.bat`（端口 7860）。
 
 ### 1. 启动基础设施
 
+基础设施凭据全部从根目录 `.env` 读取（docker compose 自动加载，`.env` 已 gitignore），不再有内置默认密码：
+
 ```bash
-docker-compose up -d
+# 首次运行二选一：
+#   方式 A：直接用 start.bat（自动生成随机凭据写入 .env）
+#   方式 B：手动复制示例并填写真实值
+copy .env.example .env     # Windows
+# cp .env.example .env     # Linux
+docker compose up -d
 ```
 
 等待所有服务健康：
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
+
+> ⚠️ 已有 `mysql_data` 卷升级时：若卷内 MySQL 密码与新 `.env` 不一致，服务将连不上库。请把旧密码写入 `.env`（保持卷不变），或先 `docker exec mysql mysqldump -uroot -p<旧密码> --all-databases > backup.sql` 备份后 `docker compose down -v` 重建（会清空全部数据卷）。
 
 ### 2. 初始化数据库
 
@@ -82,10 +91,11 @@ docker-compose ps
 如有需要手动执行：
 
 ```bash
-docker exec -i mysql mysql -uroot -p123456 < sql/init.sql
-docker exec -i mysql mysql -uroot -p123456 < sql/rag.sql
-docker exec -i mysql mysql -uroot -p123456 < sql/model_config.sql
-docker exec -i mysql mysql -uroot -p123456 < sql/chat.sql
+# <MYSQL_ROOT_PASSWORD> 替换为 .env 中的值
+docker exec -i mysql mysql -uroot -p<MYSQL_ROOT_PASSWORD> < sql/init.sql
+docker exec -i mysql mysql -uroot -p<MYSQL_ROOT_PASSWORD> < sql/rag.sql
+docker exec -i mysql mysql -uroot -p<MYSQL_ROOT_PASSWORD> < sql/model_config.sql
+docker exec -i mysql mysql -uroot -p<MYSQL_ROOT_PASSWORD> < sql/chat.sql
 ```
 
 > `rag.sql`（RAG 知识库三张表）、`model_config.sql`（embedding 模型配置行）与 `chat.sql`（多轮对话 + 长期记忆三张表）仅在全新数据库首次初始化时自动执行；已有数据库升级需手动执行上面四行。
@@ -135,9 +145,9 @@ mvn spring-boot:run -pl video-engine &
 | 本机 MySQL | Windows 本机 `mysqld.exe`（独立安装） | 3306 | **与本项目无关**（`vehicle_mes` 等其他项目数据）；IDE 的 MCP MySQL 工具连接的是这台 |
 
 - 所有微服务经 `jdbc:mysql://localhost:3307/...` 连接**项目实例**；SQL 脚本（`init.sql` / `rag.sql` / `model_config.sql`）也一律执行在 **3307 项目实例**
-- 访问项目库：`docker exec -it mysql mysql -uroot -p123456`，或 Navicat 等工具连 `127.0.0.1:3307`
+- 访问项目库：`docker exec -it mysql mysql -uroot -p<MYSQL_ROOT_PASSWORD>`（密码见 .env），或 Navicat 等工具连 `127.0.0.1:3307`
 - ⚠️ **不要在  本机实例上执行本项目任何 SQL**；使用 MCP 工具前必须确认连接实例（`SHOW VARIABLES LIKE 'port'` / `SELECT DATABASE()`），或直接用 `docker exec`
-- 备份：`docker exec mysql mysqldump -uroot -p123456 --all-databases > backup.sql`
+- 备份：`docker exec mysql mysqldump -uroot -p<MYSQL_ROOT_PASSWORD> --all-databases > backup.sql`
 - 风险：Docker Desktop 执行「Reset / Clean data」会清空 `mysql_data` 卷，重要数据请定期 dump
 
 ## API 路由

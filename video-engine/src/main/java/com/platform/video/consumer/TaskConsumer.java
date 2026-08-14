@@ -6,6 +6,7 @@ import com.platform.mq.message.TaskMessage;
 import com.platform.video.service.VideoGenerationFacade;
 import com.rabbitmq.client.Channel;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.Header;
@@ -24,8 +25,9 @@ public class TaskConsumer extends AbstractTaskConsumer {
 
     private final VideoGenerationFacade facade;
 
-    public TaskConsumer(StringRedisTemplate stringRedisTemplate, ThreadPoolTaskExecutor videoTaskExecutor, VideoGenerationFacade facade) {
-        super(stringRedisTemplate, videoTaskExecutor);
+    public TaskConsumer(StringRedisTemplate stringRedisTemplate, ThreadPoolTaskExecutor videoTaskExecutor,
+                        VideoGenerationFacade facade, RabbitTemplate rabbitTemplate) {
+        super(stringRedisTemplate, videoTaskExecutor, rabbitTemplate);
         this.facade = facade;
     }
 

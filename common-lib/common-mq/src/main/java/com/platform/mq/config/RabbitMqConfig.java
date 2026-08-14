@@ -57,7 +57,11 @@ public class RabbitMqConfig {
 
     @Bean
     public Queue taskResultQueue() {
-        return QueueBuilder.durable(QueueConstants.TASK_RESULT_QUEUE).build();
+        // 结果队列配死信：消费失败重试 ≤3 次后进结果死信队列（原实现无上限 requeue 会形成毒消息热循环）
+        return QueueBuilder.durable(QueueConstants.TASK_RESULT_QUEUE)
+                .deadLetterExchange(ExchangeConstants.TASK_DLX_EXCHANGE)
+                .deadLetterRoutingKey("task.dead.result")
+                .build();
     }
 
     @Bean
@@ -68,6 +72,12 @@ public class RabbitMqConfig {
     @Bean
     public Queue taskDeadLetterQueue() {
         return QueueBuilder.durable(QueueConstants.TASK_DLQ).build();
+    }
+
+    /** 结果死信队列：无消费者，仅供人工排查/告警 */
+    @Bean
+    public Queue taskResultDeadLetterQueue() {
+        return QueueBuilder.durable(QueueConstants.TASK_RESULT_DLQ).build();
     }
 
     // ========== Bindings ==========
@@ -95,5 +105,10 @@ public class RabbitMqConfig {
     @Bean
     public Binding taskDlqBinding() {
         return BindingBuilder.bind(taskDeadLetterQueue()).to(taskDlxExchange()).with("task.dead.#");
+    }
+
+    @Bean
+    public Binding taskResultDlqBinding() {
+        return BindingBuilder.bind(taskResultDeadLetterQueue()).to(taskDlxExchange()).with("task.dead.result");
     }
 }

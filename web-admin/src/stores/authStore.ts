@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { authApi } from '@/api/auth';
 import { UserInfo, TokenPair } from '@/types/api';
 import { tokenStorage } from '@/utils/token';
 
@@ -38,6 +39,12 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user: UserInfo) => set({ user }),
 
       logout: () => {
+        // 通知服务端撤销 token（先发起请求，确保请求拦截器能带上 Authorization；网络失败不阻塞本地登出）
+        const accessToken = tokenStorage.getAccessToken();
+        const refreshToken = tokenStorage.getRefreshToken();
+        if (accessToken || refreshToken) {
+          authApi.logout({ refreshToken: refreshToken || '', accessToken: accessToken || '' }).catch(() => {});
+        }
         tokenStorage.clearTokens();
         set({
           accessToken: null,

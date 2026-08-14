@@ -77,15 +77,14 @@ public class AuthService {
             throw new BizException(ErrorCode.TOKEN_INVALID, "用户名或密码错误");
         }
 
-        // 4. 查找用户-租户关联，取第一个
+        // 4. 解析当前租户与角色：选择角色等级最高的租户作为当前租户，
+        //    角色只取该租户下的（禁止把其他租户的角色合并进 token，防止跨租户越权）
         List<UserTenant> userTenants = userTenantMapper.selectList(
                 new LambdaQueryWrapper<UserTenant>().eq(UserTenant::getUserId, user.getId())
         );
-        String tenantId = userTenants.isEmpty() ? "" : userTenants.get(0).getTenantId();
-        List<String> roles = userTenants.stream()
-                .map(UserTenant::getRoleCode)
-                .distinct()
-                .toList();
+        TenantContextInfo ctx = resolveTenantContext(userTenants);
+        String tenantId = ctx.tenantId();
+        List<String> roles = ctx.roles();
 
         // 5. 生成 Token
         String accessToken = jwtUtils.generateAccessToken(user.getId(), user.getUsername(), tenantId, roles);
@@ -98,6 +97,48 @@ public class AuthService {
 
         return new TokenPair(accessToken, refreshToken, jwtProperties.getAccessTokenTtl());
     }
+
+    // ==================== 当前租户解析 ====================
+
+    /**
+     * 从用户-租户关联中解析当前租户与角色。
+     * 选择角色等级最高的租户作为当前租户；角色只取该租户下的，
+     * 禁止把其他租户的角色合并进 token（跨租户越权）。
+     * 无任何关联时返回空租户 + 空角色（所有 @RequireRole 都会拒绝）。
+     */
+    private TenantContextInfo resolveTenantContext(List<UserTenant> userTenants) {
+        if (userTenants.isEmpty()) {
+            return new TenantContextInfo("", List.of());
+        }
+        UserTenant best = userTenants.get(0);
+        int bestLevel = roleLevel(best.getRoleCode());
+        for (UserTenant ut : userTenants) {
+            int level = roleLevel(ut.getRoleCode());
+            if (level > bestLevel) {
+                best = ut;
+                bestLevel = level;
+            }
+        }
+        final String tenantId = best.getTenantId();
+        List<String> roles = userTenants.stream()
+                .filter(ut -> ut.getTenantId().equals(tenantId))
+                .map(UserTenant::getRoleCode)
+                .distinct()
+                .toList();
+        return new TenantContextInfo(tenantId, roles);
+    }
+
+    private int roleLevel(String roleCode) {
+        return switch (roleCode == null ? "" : roleCode) {
+            case UserTenant.ROLE_SUPER_ADMIN -> 4;
+            case UserTenant.ROLE_TENANT_ADMIN -> 3;
+            case UserTenant.ROLE_DEVELOPER -> 2;
+            case UserTenant.ROLE_CONTENT_CREATOR -> 1;
+            default -> 0;
+        };
+    }
+
+    private record TenantContextInfo(String tenantId, List<String> roles) {}
 
     // ==================== 注册 ====================
 
@@ -174,8 +215,10 @@ public class AuthService {
         List<UserTenant> userTenants = userTenantMapper.selectList(
                 new LambdaQueryWrapper<UserTenant>().eq(UserTenant::getUserId, userId)
         );
-        String tenantId = userTenants.isEmpty() ? "" : userTenants.get(0).getTenantId();
-        List<String> roles = userTenants.stream().map(UserTenant::getRoleCode).distinct().toList();
+        // 与登录一致：角色只签当前租户（角色等级最高者）
+        TenantContextInfo ctx = resolveTenantContext(userTenants);
+        String tenantId = ctx.tenantId();
+        List<String> roles = ctx.roles();
 
         // 4. 生成新 Token 对
         String newAccessToken = jwtUtils.generateAccessToken(userId, user.getUsername(), tenantId, roles);
@@ -190,23 +233,34 @@ public class AuthService {
     // ==================== 登出 ====================
 
     /**
-     * 登出，将当前 Refresh Token（按 jti）加入黑名单。
+     * 登出：
+     * 1. 将 Refresh Token（按 jti）加入黑名单（撤销后续轮转）；
+     * 2. 将 Access Token（按 jti）加入黑名单（网关每请求校验，立即失效）。
+     * 失效 Token 解析失败（如已过期）静默跳过，不影响另一条。
      */
-    public void logout(String refreshToken) {
-        if (refreshToken == null || refreshToken.isEmpty()) {
-            return;
+    public void logout(String refreshToken, String accessToken) {
+        if (refreshToken != null && !refreshToken.isEmpty()) {
+            try {
+                String jti = jwtUtils.getJti(refreshToken);
+                if (jti != null && !jti.isBlank()) {
+                    String blacklistKey = REFRESH_BLACKLIST_PREFIX + jti;
+                    stringRedisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofSeconds(jwtProperties.getRefreshTokenTtl()));
+                }
+            } catch (Exception e) {
+                log.debug("Refresh token blacklist skipped: {}", e.getMessage());
+            }
         }
-        String jti;
-        try {
-            jti = jwtUtils.getJti(refreshToken);
-        } catch (Exception e) {
-            return;
+        if (accessToken != null && !accessToken.isEmpty()) {
+            try {
+                String jti = jwtUtils.getJti(accessToken);
+                if (jti != null && !jti.isBlank()) {
+                    String blacklistKey = JwtUtils.ACCESS_BLACKLIST_PREFIX + jti;
+                    stringRedisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofSeconds(jwtProperties.getAccessTokenTtl()));
+                }
+            } catch (Exception e) {
+                log.debug("Access token blacklist skipped: {}", e.getMessage());
+            }
         }
-        if (jti == null || jti.isBlank()) {
-            return;
-        }
-        String blacklistKey = REFRESH_BLACKLIST_PREFIX + jti;
-        stringRedisTemplate.opsForValue().set(blacklistKey, "1", Duration.ofSeconds(jwtProperties.getRefreshTokenTtl()));
     }
 
     // ==================== API Key 管理 ====================

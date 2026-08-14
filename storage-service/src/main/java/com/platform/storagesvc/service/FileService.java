@@ -109,10 +109,12 @@ public class FileService {
             sf.setStorageClass(StorageFile.CLASS_TEMP);
             sf.setVisibility(StorageFile.VISIBILITY_PRIVATE);
             sf.setSourceType(StorageFile.SOURCE_UPLOAD);
+            // 预签名 TEMP 记录必须设过期时间，否则 cleanupExpiredTempFiles 永不清理（与 upload() 一致）
+            sf.setExpireAt(LocalDateTime.now().plusHours(24));
             storageFileMapper.insert(sf);
 
-            // 生成预签名 PUT URL
-            String presignedUrl = storageAdapter.presignedUrl(objectKey, Duration.ofMinutes(15));
+            // 生成预签名 PUT URL（上传用 PUT 签名；GET 签名仅用于下载）
+            String presignedUrl = storageAdapter.presignedUploadUrl(objectKey, Duration.ofMinutes(15));
 
             return Map.of(
                     "fileId", sf.getId(),
@@ -127,14 +129,11 @@ public class FileService {
     }
 
     /**
-     * 确认预签名上传完成。
+     * 确认预签名上传完成（带归属校验，防 IDOR：只能确认自己的文件）。
      */
     @Transactional
-    public void confirmUpload(String fileId) {
-        StorageFile sf = storageFileMapper.selectById(fileId);
-        if (sf == null) {
-            throw new BizException(ErrorCode.FILE_NOT_FOUND);
-        }
+    public void confirmUpload(String fileId, String userId, String tenantId) {
+        StorageFile sf = getOwned(fileId, userId, tenantId);
         try {
             // 获取实际文件信息
             com.platform.storage.FileMetadata meta = storageAdapter.metadata(sf.getObjectKey());
@@ -197,6 +196,24 @@ public class FileService {
         StorageFile sf = storageFileMapper.selectById(fileId);
         if (sf == null) {
             throw new BizException(ErrorCode.FILE_NOT_FOUND);
+        }
+        return sf;
+    }
+
+    /**
+     * 归属校验后返回文件（防 IDOR：只能操作自己的文件）。
+     * userId 缺失/不匹配 → NO_PERMISSION（网关恒注入 X-User-Id，缺失只可能来自绕过网关的直连，失败关闭）；
+     * tenantId 仅在双方都非空时比对（兼容存量 tenantId 为 null 的旧数据）。
+     */
+    public StorageFile getOwned(String fileId, String userId, String tenantId) {
+        StorageFile sf = getById(fileId);
+        if (userId == null || userId.isBlank() || !userId.equals(sf.getUserId())) {
+            throw new BizException(ErrorCode.NO_PERMISSION);
+        }
+        if (tenantId != null && !tenantId.isBlank()
+                && sf.getTenantId() != null && !sf.getTenantId().isBlank()
+                && !tenantId.equals(sf.getTenantId())) {
+            throw new BizException(ErrorCode.NO_PERMISSION);
         }
         return sf;
     }

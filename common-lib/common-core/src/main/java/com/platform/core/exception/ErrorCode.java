@@ -48,6 +48,8 @@ public enum ErrorCode {
     SERVICE_TIMEOUT(5001, "服务调用超时"),
     MODEL_UNAVAILABLE(5002, "模型暂不可用"),
     STORAGE_ERROR(5003, "存储服务异常"),
+    AUDIT_UNAVAILABLE(5004, "审核服务暂不可用，请稍后重试"),
+    QUOTA_UNAVAILABLE(5005, "配额服务暂不可用，请稍后重试"),
     INTERNAL_ERROR(5099, "系统内部错误"),
 
     // 9xxx: 安全拦截

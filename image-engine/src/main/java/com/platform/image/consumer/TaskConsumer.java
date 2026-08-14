@@ -24,7 +24,7 @@ public class TaskConsumer extends AbstractTaskConsumer {
     private final ImageGenerationFacade facade;
 
     public TaskConsumer(StringRedisTemplate stringRedisTemplate, ImageGenerationFacade facade) {
-        super(stringRedisTemplate, null);
+        super(stringRedisTemplate, null, null);
         this.facade = facade;
     }
 

@@ -5,10 +5,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = "com.platform")
 @EnableDiscoveryClient
 @EnableFeignClients(basePackages = "com.platform.feign")
+@EnableScheduling
 @MapperScan({"com.platform.agent.mapper", "com.platform.agent.rag.mapper", "com.platform.agent.chat.mapper", "com.platform.core.config"})
 public class AgentCoreApplication {
 

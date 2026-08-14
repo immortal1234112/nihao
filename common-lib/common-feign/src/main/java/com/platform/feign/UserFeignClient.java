@@ -20,4 +20,7 @@ public interface UserFeignClient {
 
     @PostMapping("/{userId}/quota/consume")
     Result<Boolean> consumeQuota(@PathVariable("userId") String userId, @RequestBody Map<String, Object> body);
+
+    @PostMapping("/{userId}/quota/compensate")
+    Result<Boolean> compensateQuota(@PathVariable("userId") String userId, @RequestBody Map<String, Object> body);
 }

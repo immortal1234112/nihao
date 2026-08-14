@@ -11,6 +11,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -35,6 +36,7 @@ import java.util.List;
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private final JwtUtils jwtUtils;
+    private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
 
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
@@ -89,7 +91,25 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return respondUnauthorized(exchange, ErrorCode.TOKEN_INVALID);
         }
 
-        // 5. 注入请求头
+        // 5. 登出撤销校验：access token 的 jti 在黑名单 → 立即失效
+        //    （旧 token 无 jti 时跳过检查，兼容存量）
+        String jti = claims.get("jti", String.class);
+        if (jti != null && !jti.isBlank()) {
+            return reactiveRedisTemplate.hasKey(JwtUtils.ACCESS_BLACKLIST_PREFIX + jti)
+                    .flatMap(blacklisted -> {
+                        if (Boolean.TRUE.equals(blacklisted)) {
+                            return respondUnauthorized(exchange, ErrorCode.TOKEN_INVALID);
+                        }
+                        return forwardWithIdentity(exchange, chain, claims);
+                    });
+        }
+
+        // 6. 注入请求头
+        return forwardWithIdentity(exchange, chain, claims);
+    }
+
+    /** 注入身份请求头后放行 */
+    private Mono<Void> forwardWithIdentity(ServerWebExchange exchange, GatewayFilterChain chain, Claims claims) {
         String userId = claims.getSubject();
         String username = claims.get("username", String.class);
         String tenantId = claims.get("tenantId", String.class);

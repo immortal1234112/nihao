@@ -84,12 +84,16 @@ public class InternalUserController {
     }
 
     /**
-     * 消费配额（供 Feign 调用）。
+     * 消费配额（供 Feign 调用，幂等：taskId 必填，重复调用不重复扣减）。
      */
     @PostMapping("/{userId}/quota/consume")
     public Result<Boolean> consumeQuota(@PathVariable String userId, @RequestBody Map<String, Object> body) {
         String type = (String) body.getOrDefault("type", "IMAGE");
         int amount = body.containsKey("amount") ? ((Number) body.get("amount")).intValue() : 1;
+        String taskId = (String) body.get("taskId");
+        if (taskId == null || taskId.isBlank()) {
+            return Result.fail(ErrorCode.PARAM_INVALID);
+        }
 
         List<UserTenant> userTenants = userTenantMapper.selectList(
                 new LambdaQueryWrapper<UserTenant>().eq(UserTenant::getUserId, userId)
@@ -99,9 +103,29 @@ public class InternalUserController {
         long limit = getDefaultLimit(type);
         long windowSeconds = 86400;
 
-        long remaining = quotaService.checkAndConsume(tenantId, userId, type, amount, limit, windowSeconds);
+        long remaining = quotaService.checkAndConsume(tenantId, userId, type, amount, limit, windowSeconds, taskId);
         boolean success = remaining >= 0;
         return Result.ok(success);
+    }
+
+    /**
+     * 补偿（退还）配额（供 Feign 调用；幂等，只退一次）。
+     */
+    @PostMapping("/{userId}/quota/compensate")
+    public Result<Boolean> compensateQuota(@PathVariable String userId, @RequestBody Map<String, Object> body) {
+        int amount = body.containsKey("amount") ? ((Number) body.get("amount")).intValue() : 1;
+        String taskId = (String) body.get("taskId");
+        if (taskId == null || taskId.isBlank()) {
+            return Result.fail(ErrorCode.PARAM_INVALID);
+        }
+
+        List<UserTenant> userTenants = userTenantMapper.selectList(
+                new LambdaQueryWrapper<UserTenant>().eq(UserTenant::getUserId, userId)
+        );
+        String tenantId = userTenants.isEmpty() ? "default" : userTenants.get(0).getTenantId();
+
+        boolean refunded = quotaService.compensate(tenantId, userId, amount, taskId);
+        return Result.ok(refunded);
     }
 
     private long getDefaultLimit(String type) {
