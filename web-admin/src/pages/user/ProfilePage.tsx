@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Form, Input, Button, Descriptions, Typography, message, Tag, Space, Spin } from 'antd';
+import { Card, Row, Col, Form, Input, Button, Descriptions, Typography, Tag, Space, Spin } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 import { userApi } from '@/api/user';
+import { useAppFeedback } from '@/utils/feedback';
 
 const { Title } = Typography;
 
@@ -11,12 +12,13 @@ const ProfilePage: React.FC = () => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+  const { message } = useAppFeedback();
 
   useEffect(() => {
     if (user) {
       form.setFieldsValue({ email: user.email, phone: user.phone });
     }
-  }, [user]);
+  }, [user, form]);
 
   const handleSave = async (values: { email: string; phone: string }) => {
     setLoading(true);

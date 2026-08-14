@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Table,
   Button,
@@ -11,36 +11,30 @@ import {
   Space,
   Popconfirm,
   Typography,
-  message,
   Alert,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 import { userApi } from '@/api/user';
 import { ApiKey } from '@/types/api';
+import { useRequest } from '@/hooks/useRequest';
+import { useAppFeedback } from '@/utils/feedback';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const ApiKeyPage: React.FC = () => {
-  const [keys, setKeys] = useState<ApiKey[]>([]);
-  const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [newKey, setNewKey] = useState<{ apiKey: string; hint: string } | null>(null);
   const [form] = Form.useForm();
+  const { message } = useAppFeedback();
 
-  const loadKeys = async () => {
-    setLoading(true);
-    try {
+  const { data: keys, loading, refresh: loadKeys } = useRequest<ApiKey[]>(
+    async () => {
       const res = await userApi.listApiKeys();
-      setKeys(res.data.data);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadKeys();
-  }, []);
+      return res.data.data;
+    },
+    []
+  );
 
   const handleCreate = async (values: {
     name: string;
@@ -173,7 +167,7 @@ const ApiKeyPage: React.FC = () => {
         </Button>
       </div>
 
-      <Table dataSource={keys} columns={columns} rowKey="id" loading={loading} />
+      <Table dataSource={keys ?? []} columns={columns} rowKey="id" loading={loading} />
 
       <Modal
         title="创建 API Key"

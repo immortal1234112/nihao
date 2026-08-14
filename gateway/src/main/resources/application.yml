@@ -32,10 +32,23 @@ spring:
           uri: lb://user-service
           predicates:
             - Path=/api/v1/tenants/**
+        # WebSocket 升级路由必须排在 tasks 之前（lb:ws:// 用 WS 协议转发，不受 30s response-timeout 影响）
+        # RewritePath：agent-core 注册的端点是 /ws/task-progress，网关路径 /api/v1/tasks/ws 必须重写后转发，否则返回 200 而非 101 升级
+        # $\{suffix} 转义引用命名组：不转义会被 Spring 占位符解析吞掉/启动失败（Spring Cloud Gateway 官方推荐写法）
+        - id: task-ws
+          uri: lb:ws://agent-core
+          predicates:
+            - Path=/api/v1/tasks/ws/**
+          filters:
+            - RewritePath=/api/v1/tasks/ws(?<suffix>.*), /ws/task-progress$\{suffix}
         - id: tasks
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/tasks/**
+        - id: templates
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/templates/**
         - id: admin
           uri: lb://agent-core
           predicates:
@@ -52,6 +65,10 @@ spring:
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/rag/**
+        - id: audit
+          uri: lb://security-service
+          predicates:
+            - Path=/api/v1/audit/**
         - id: files
           uri: lb://storage-service
           predicates:
@@ -103,4 +120,5 @@ gateway:
 
 logging:
   level:
-    com.platform.gateway: DEBUG
+    # 保持 INFO：DEBUG 会把含 query token 的完整 URI（WS 升级路径）写入日志
+    com.platform.gateway: INFO

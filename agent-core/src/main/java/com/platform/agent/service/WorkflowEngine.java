@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
+import com.platform.agent.event.TaskStatusChangedEvent;
 import com.platform.agent.mapper.AgentTaskMapper;
 import com.platform.agent.mapper.WorkflowStepMapper;
 import com.platform.agent.rag.dto.RagReference;
@@ -16,6 +17,7 @@ import com.platform.mq.message.TaskMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -36,6 +38,7 @@ public class WorkflowEngine {
     private final AgentTaskMapper agentTaskMapper;
     private final RabbitTemplate rabbitTemplate;
     private final RagService ragService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 步骤失败最大重试次数（任务级 retry_count 计数） */
     private static final int MAX_RETRIES = 3;
@@ -161,6 +164,9 @@ public class WorkflowEngine {
             log.warn("Step dispatch raced, skip: taskId={}, step={}", step.getTaskId(), step.getStepOrder());
             return;
         }
+        // 实时进度推送：CAS 分发成功才发（BATCH 并行推进的每一步都推送）
+        eventPublisher.publishEvent(new TaskStatusChangedEvent(
+                step.getTaskId(), AgentTask.STATUS_PROCESSING, step.getStepOrder()));
 
         // RAG_RETRIEVE 在本服务同步执行（本服务已标记 PROCESSING，见上方 CAS 更新）
         if (WorkflowStep.TYPE_RAG_RETRIEVE.equals(step.getStepType())) {
@@ -326,6 +332,11 @@ public class WorkflowEngine {
         }
     }
 
+    /** 供外部终态路径（如卡死任务恢复扫描）补发任务状态事件 */
+    public void publishTaskEvent(String taskId, String status) {
+        eventPublisher.publishEvent(new TaskStatusChangedEvent(taskId, status));
+    }
+
     /** 终失败流程：其余 PENDING 步骤置 SKIPPED，任务置 FAILED（已取消的任务不覆盖） */
     private void failTask(String taskId, String errorMsg) {
         workflowStepMapper.update(null, new LambdaUpdateWrapper<WorkflowStep>()
@@ -338,6 +349,8 @@ public class WorkflowEngine {
             task.setErrorMsg(errorMsg);
             task.setCompletedAt(LocalDateTime.now());
             agentTaskMapper.updateById(task);
+            // 终失败事件（重试耗尽路径）：TaskResultConsumer 的回执路径另有 updateTask 兜底，这里覆盖引擎侧终失败
+            eventPublisher.publishEvent(new TaskStatusChangedEvent(taskId, AgentTask.STATUS_FAILED));
         }
     }
 

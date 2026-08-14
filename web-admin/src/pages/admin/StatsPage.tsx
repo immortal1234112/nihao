@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Typography, Spin, Table } from 'antd';
+import { Card, Row, Col, Statistic, Typography, Spin } from 'antd';
 import { adminApi } from '@/api/admin';
 import { TaskStats } from '@/types/api';
 

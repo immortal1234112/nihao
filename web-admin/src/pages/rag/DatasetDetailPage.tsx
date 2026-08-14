@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Table, Button, Upload, Typography, message, Popconfirm, Space,
+  Card, Table, Button, Upload, Typography, Popconfirm, Space,
   Tag, Drawer, Input, Slider, Alert, Spin, Progress, Row,
 } from 'antd';
 import {
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { ragApi } from '@/api/rag';
 import { RagDataset, RagDocument, RagChunk, RagSearchResult } from '@/types/api';
+import { useAppFeedback } from '@/utils/feedback';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -34,15 +35,16 @@ const DatasetDetailPage: React.FC = () => {
   const [searchResult, setSearchResult] = useState<RagSearchResult | null>(null);
   const [searching, setSearching] = useState(false);
   const hasParsingRef = useRef(false);
+  const { message } = useAppFeedback();
 
-  const loadDataset = async () => {
+  const loadDataset = useCallback(async () => {
     try {
       const res = await ragApi.getDataset(id);
       setDataset(res.data.data);
     } catch { /* 拦截器已提示 */ }
-  };
+  }, [id]);
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     setLoading(true);
     try {
       const res = await ragApi.listDocuments(id, { page: 1, size: 100 });
@@ -51,19 +53,20 @@ const DatasetDetailPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { loadDataset(); loadDocuments(); }, [id]);
+  useEffect(() => { loadDataset(); loadDocuments(); }, [loadDataset, loadDocuments]);
 
   // PARSING 文档存在时轮询状态
+  const hasParsing = documents.some((d) => d.status === 'PARSING');
   useEffect(() => {
-    if (!hasParsingRef.current) return;
+    if (!hasParsing) return;
     const timer = setInterval(() => {
       loadDocuments();
       if (!hasParsingRef.current) clearInterval(timer);
     }, 3000);
     return () => clearInterval(timer);
-  }, [documents.some((d) => d.status === 'PARSING')]);
+  }, [hasParsing, loadDocuments]);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -126,7 +129,7 @@ const DatasetDetailPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 110,
-      render: (status: string, record: RagDocument) => (
+      render: (status: string) => (
         <Space>
           <Tag color={statusMap[status]?.color || 'default'}>{statusMap[status]?.label || status}</Tag>
           {status === 'PARSING' && <Progress type="circle" size={16} percent={100} format={() => ''} />}
@@ -215,7 +218,7 @@ const DatasetDetailPage: React.FC = () => {
               {searchResult.chunks.length === 0 && (
                 <Text type="secondary"> 未找到相关内容（知识库可能为空）</Text>
               )}
-              {searchResult.chunks.map((ref, i) => (
+              {searchResult.chunks.map((ref) => (
                 <Card key={ref.chunkId} size="small" style={{ marginTop: 8 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     [{ref.documentName}] 相似度 {(ref.similarity * 100).toFixed(1)}%

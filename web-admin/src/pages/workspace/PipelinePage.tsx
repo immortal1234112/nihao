@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Select, Button, Row, Col, Typography, message, Space, Steps, InputNumber } from 'antd';
+import { Card, Form, Input, Select, Button, Row, Col, Typography, Space, Steps, InputNumber } from 'antd';
 import { SendOutlined, ClearOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import { useAppFeedback } from '@/utils/feedback';
 import DatasetSelect from '@/components/rag/DatasetSelect';
 
 const { Title } = Typography;
@@ -20,6 +21,7 @@ const PipelinePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { message } = useAppFeedback();
   const [steps, setSteps] = useState<PipelineStep[]>([
     { stepType: 'IMAGE' },
     { stepType: 'VIDEO' },

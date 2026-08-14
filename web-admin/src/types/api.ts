@@ -115,6 +115,31 @@ export interface TaskSubmitRequest {
   ragTopK?: number;
 }
 
+// ========== 提示词模板 ==========
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  category: string;
+  engineType: 'IMAGE' | 'VIDEO' | 'ALL';
+  prompt: string;
+  negativePrompt: string | null;
+  scope: 'PUBLIC' | 'TENANT' | 'PRIVATE';
+  userId: string | null;
+  tenantId: string | null;
+  usageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptTemplateForm {
+  name: string;
+  category: string;
+  engineType: 'IMAGE' | 'VIDEO' | 'ALL';
+  prompt: string;
+  negativePrompt?: string;
+  scope: 'PUBLIC' | 'TENANT' | 'PRIVATE';
+}
+
 export interface AgentTask {
   id: string;
   userId: string;
@@ -154,6 +179,18 @@ export interface TaskResult {
   result: unknown;
   errorMsg: string | null;
   steps: WorkflowStep[];
+}
+
+// ========== 审计日志 ==========
+export interface AuditLog {
+  id: string;
+  userId: string;
+  tenantId: string;
+  action: string;
+  detail: string | null;
+  ip: string | null;
+  actionTime: string;
+  result: 'SUCCESS' | 'FAIL';
 }
 
 // ========== 文件 ==========

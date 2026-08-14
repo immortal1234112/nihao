@@ -1,9 +1,11 @@
 import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Select, Slider, Button, Row, Col, Typography, message, Space, Tabs, Spin } from 'antd';
-import { SendOutlined, ClearOutlined, PictureOutlined, SmileOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Select, Slider, Button, Row, Col, Typography, Space, Tabs, Spin } from 'antd';
+import { SendOutlined, ClearOutlined, PictureOutlined, SmileOutlined, CopyOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import { useAppFeedback } from '@/utils/feedback';
 import DatasetSelect from '@/components/rag/DatasetSelect';
+import PromptTemplateModal from '@/components/workspace/PromptTemplateModal';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -21,8 +23,10 @@ const imageModels = [
 
 const ImageGenPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { message } = useAppFeedback();
 
   const onFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
@@ -66,7 +70,18 @@ const ImageGenPage: React.FC = () => {
                   <Card>
                     <Form form={form} layout="vertical" onFinish={onFinish}
                       initialValues={{ count: 1, size: '1024x1024', format: 'png', quality: 'standard', aspectRatio: '1:1' }}>
-                      <Form.Item name="prompt" label="提示词" rules={[{ required: true, message: '请输入提示词' }]}>
+                      <Form.Item
+                        name="prompt"
+                        label={
+                          <Space size={8}>
+                            <span>提示词</span>
+                            <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => setTemplateOpen(true)} style={{ padding: 0, height: 'auto' }}>
+                              模板
+                            </Button>
+                          </Space>
+                        }
+                        rules={[{ required: true, message: '请输入提示词' }]}
+                      >
                         <TextArea rows={4} placeholder="描述你想要生成的图片内容..." maxLength={2000} showCount />
                       </Form.Item>
                       <Form.Item name="negativePrompt" label="负面提示词">
@@ -179,6 +194,15 @@ const ImageGenPage: React.FC = () => {
             </Suspense>,
           },
         ]}
+      />
+      <PromptTemplateModal
+        open={templateOpen}
+        engineType="IMAGE"
+        onClose={() => setTemplateOpen(false)}
+        onSelect={(t) => {
+          form.setFieldsValue({ prompt: t.prompt, negativePrompt: t.negativePrompt ?? '' });
+          message.success(`已应用模板：${t.name}`);
+        }}
       />
     </div>
   );

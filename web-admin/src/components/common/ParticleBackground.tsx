@@ -15,7 +15,7 @@ const ParticleBackground: React.FC = () => {
     if (!ctx) return;
 
     let animId: number;
-    let particles: Particle[] = [];
+    const particles: Particle[] = [];
     const PARTICLE_COUNT = 80;
 
     const resize = () => {

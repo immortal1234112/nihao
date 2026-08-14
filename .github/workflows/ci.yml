@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  backend-test:
+    name: Backend (unit tests + compile)
+    runs-on: ubuntu-latest
+    env:
+      # 测试容器物理隔离：禁止任何测试读取宿主 MYSQL_HOST 类环境变量
+      JWT_SECRET: ci-test-secret-key-0123456789abcdefghijklmnopqrstuv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Maven test (unit) + compile (gateway/security-service)
+        # -am 自动带出依赖模块（common-* 等）；test 不依赖 Docker；
+        # gateway/security-service 纳入编译（本批改动最高风险的模块：路由/过滤器/审计接口）
+        run: mvn -B -ntp test -pl common-lib/common-core,common-lib/common-security,user-service,agent-core,gateway,security-service -am
+
+  frontend-test:
+    name: Frontend (vitest + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web-admin/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test
+      - name: Type check + build
+        run: npm run build

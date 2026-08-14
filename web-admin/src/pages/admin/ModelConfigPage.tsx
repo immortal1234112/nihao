@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Switch, Tag, Space, Typography, message, Popconfirm, Tooltip } from 'antd';
+import { Table, Button, Modal, Form, Input, Switch, Tag, Space, Typography } from 'antd';
 import { SettingOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import http from '@/api/client';
 import { ApiResult } from '@/types/api';
+import { useAppFeedback } from '@/utils/feedback';
 
 const { Title, Text } = Typography;
 
@@ -56,6 +57,7 @@ const ModelConfigPage: React.FC = () => {
   const [editModal, setEditModal] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<string>('');
   const [form] = Form.useForm();
+  const { message } = useAppFeedback();
 
   const loadConfigs = async () => {
     setLoading(true);

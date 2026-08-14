@@ -54,3 +54,5 @@ inference/models/
 .internal-token
 .crypto-key
 .env
+### Visual Studio ###
+.vs/

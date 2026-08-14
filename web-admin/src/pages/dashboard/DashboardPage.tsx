@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Statistic, Typography, Table, Tag, Button, Space } from 'antd';
+import { Row, Col, Card, Statistic, Typography, Table, Button } from 'antd';
 import {
   PictureOutlined,
   VideoCameraOutlined,
@@ -12,21 +12,11 @@ import { taskApi } from '@/api/task';
 import { adminApi } from '@/api/admin';
 import { userApi } from '@/api/user';
 import { AgentTask, TaskStats, QuotaInfo } from '@/types/api';
+import StatusTag from '@/components/common/StatusTag';
 import { useAuthStore } from '@/stores/authStore';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
-
-const statusColorMap: Record<string, string> = {
-  CREATED: 'default',
-  VALIDATING: 'processing',
-  PENDING: 'warning',
-  PROCESSING: 'processing',
-  DONE: 'success',
-  FAILED: 'error',
-  CANCELLED: 'default',
-  REVIEWING: 'warning',
-};
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<TaskStats | null>(null);
@@ -61,7 +51,7 @@ const DashboardPage: React.FC = () => {
       }
     };
     load();
-  }, []);
+  }, [isAdmin]);
 
   const columns = [
     { title: '任务ID', dataIndex: 'id', key: 'id', width: 200, render: (v: string) => v.slice(0, 12) + '...' },
@@ -71,7 +61,7 @@ const DashboardPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (s: string) => <Tag color={statusColorMap[s] || 'default'}>{s}</Tag>,
+      render: (s: string) => <StatusTag status={s} />,
     },
     {
       title: '创建时间',

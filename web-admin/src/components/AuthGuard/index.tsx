@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Spin } from 'antd';
 import { useAuthStore } from '@/stores/authStore';
@@ -16,6 +16,13 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRoles }) => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(true);
+
+  const checkRole = useCallback((roles: string[]) => {
+    if (requiredRoles && requiredRoles.length > 0) {
+      const hasRole = requiredRoles.some((r) => roles.includes(r));
+      setAuthorized(hasRole);
+    }
+  }, [requiredRoles]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -60,19 +67,15 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRoles }) => {
     };
 
     checkAuth();
-  }, [location.pathname]);
-
-  const checkRole = (roles: string[]) => {
-    if (requiredRoles && requiredRoles.length > 0) {
-      const hasRole = requiredRoles.some((r) => roles.includes(r));
-      setAuthorized(hasRole);
-    }
-  };
+  }, [location.pathname, isAuthenticated, user, setUser, logout, checkRole]);
 
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin size="large" tip="加载中..." />
+        {/* tip 需配合嵌套子元素使用（antd 嵌套模式），避免无 children 警告 */}
+        <Spin size="large" tip="加载中...">
+          <div style={{ height: 160 }} />
+        </Spin>
       </div>
     );
   }

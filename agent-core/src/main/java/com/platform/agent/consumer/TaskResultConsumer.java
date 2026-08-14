@@ -1,5 +1,7 @@
 package com.platform.agent.consumer;
 
+import com.platform.agent.event.TaskStatusChangedEvent;
+
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
@@ -33,6 +35,12 @@ public class TaskResultConsumer {
     private final WorkflowStepMapper workflowStepMapper;
     private final AgentTaskMapper agentTaskMapper;
     private final WorkflowEngine workflowEngine;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+
+    /** 写库成功后推送任务状态变更（快照事件，前端收到后拉全量详情） */
+    private void publishEvent(String taskId, String status, Integer stepOrder) {
+        eventPublisher.publishEvent(new TaskStatusChangedEvent(taskId, status, stepOrder));
+    }
 
     @RabbitListener(queues = QueueConstants.TASK_RESULT_QUEUE, concurrency = "3-5")
     public void onMessage(TaskResultMessage message, Channel channel,
@@ -78,6 +86,18 @@ public class TaskResultConsumer {
     }
 
     private void updateStep(TaskResultMessage message) {
+        // 任务已终态（FAILED/CANCELLED）：忽略迟到回执，防止 SKIPPED→DONE 翻转或对终态任务继续推进
+        AgentTask task = agentTaskMapper.selectById(message.taskId());
+        if (task == null) {
+            log.warn("Task not found for step result: taskId={}", message.taskId());
+            return;
+        }
+        if (AgentTask.STATUS_FAILED.equals(task.getStatus())
+                || AgentTask.STATUS_CANCELLED.equals(task.getStatus())) {
+            log.info("Task terminal, ignore step result: taskId={}, taskStatus={}",
+                    message.taskId(), task.getStatus());
+            return;
+        }
         WorkflowStep step = resolveStep(message);
         if (step == null) {
             log.warn("No matching step for result: taskId={}, stepOrder={}, engineType={}",
@@ -86,10 +106,15 @@ public class TaskResultConsumer {
         }
 
         if ("DONE".equals(message.status())) {
+            boolean alreadyDone = WorkflowStep.STATUS_DONE.equals(step.getStatus());
             step.setStatus(WorkflowStep.STATUS_DONE);
             step.setOutput(JsonUtils.toJson(message));
             step.setFinishedAt(LocalDateTime.now());
             workflowStepMapper.updateById(step);
+            // 重复回执（x-death 重投）不重复推送
+            if (!alreadyDone) {
+                publishEvent(message.taskId(), WorkflowStep.STATUS_DONE, step.getStepOrder());
+            }
             // 检查是否还有 PENDING 步骤，有则推进
             workflowEngine.advanceStep(message.taskId());
         } else if ("FAILED".equals(message.status())) {
@@ -126,9 +151,11 @@ public class TaskResultConsumer {
     private void updateTask(TaskResultMessage message) {
         AgentTask task = agentTaskMapper.selectById(message.taskId());
         if (task == null) return;
-        // 已取消的任务忽略一切回执，防止取消后仍被复活为 DONE/FAILED
-        if (AgentTask.STATUS_CANCELLED.equals(task.getStatus())) {
-            log.info("Task cancelled, ignore result: taskId={}", task.getId());
+        // 已取消/已失败的任务忽略一切回执，防止终态被迟到回执复活为 DONE/FAILED
+        if (AgentTask.STATUS_CANCELLED.equals(task.getStatus())
+                || AgentTask.STATUS_FAILED.equals(task.getStatus())) {
+            log.info("Task terminal, ignore result: taskId={}, taskStatus={}",
+                    task.getId(), task.getStatus());
             return;
         }
 
@@ -138,6 +165,7 @@ public class TaskResultConsumer {
                         .eq(WorkflowStep::getTaskId, message.taskId())
         );
 
+        String oldStatus = task.getStatus();
         boolean allDone = allSteps.stream().allMatch(s ->
                 WorkflowStep.STATUS_DONE.equals(s.getStatus())
                         || WorkflowStep.STATUS_SKIPPED.equals(s.getStatus()));
@@ -158,6 +186,10 @@ public class TaskResultConsumer {
         }
 
         agentTaskMapper.updateById(task);
+        // 状态未变化（重复回执/x-death 重投）不重复推送，避免无意义的前端刷新
+        if (!oldStatus.equals(task.getStatus())) {
+            publishEvent(task.getId(), task.getStatus(), null);
+        }
         log.info("Task updated: id={}, status={}", task.getId(), task.getStatus());
     }
 

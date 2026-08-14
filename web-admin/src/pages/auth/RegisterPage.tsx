@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Input, Button, Typography, message } from 'antd';
+import { Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, RocketOutlined } from '@ant-design/icons';
 import { authApi } from '@/api/auth';
+import { useAppFeedback } from '@/utils/feedback';
 import ParticleBackground from '@/components/common/ParticleBackground';
 
 const { Title, Text } = Typography;
@@ -28,6 +29,7 @@ const inputStyle: React.CSSProperties = {
 const RegisterPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { message } = useAppFeedback();
 
   const onFinish = async (values: { username: string; password: string; email: string; phone?: string }) => {
     setLoading(true);

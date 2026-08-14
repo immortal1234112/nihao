@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Card, Input, Button, Select, Typography, Space, Spin, Empty, Collapse, List, Modal, App,
+  Card, Input, Button, Select, Space, Spin, Empty, Collapse, List, Modal, App,
 } from 'antd';
 import {
   SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, MessageOutlined,
@@ -10,7 +10,6 @@ import { llmApi } from '@/api/llm';
 import DatasetSelect from '@/components/rag/DatasetSelect';
 import { LlmModel, RagReference, Conversation, ChatMessageItem } from '@/types/api';
 
-const { Title } = Typography;
 const { TextArea } = Input;
 
 interface Message {
@@ -90,7 +89,7 @@ const ChatPage: React.FC = () => {
       loadConversations();
       if (currentId === conv.id) handleNewChat();
     } catch {
-      message.error('删除失败');
+      // 失败原因已由拦截器提示
     }
   };
 
@@ -102,7 +101,7 @@ const ChatPage: React.FC = () => {
       setRenaming(null);
       loadConversations();
     } catch {
-      message.error('重命名失败');
+      // 失败原因已由拦截器提示
     }
   };
 
@@ -136,8 +135,8 @@ const ChatPage: React.FC = () => {
         loadConversations();
       }
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch (e) {
-      message.error('对话失败，请重试');
+    } catch {
+      // 失败原因已由拦截器提示（如「配额不足」），这里只回滚本地消息不重复弹
       setMessages((prev) => prev.filter((m) => m !== userMsg));
     } finally {
       setLoading(false);

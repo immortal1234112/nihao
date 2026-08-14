@@ -86,6 +86,8 @@ public class StuckTaskRecoveryJob {
                         .in(WorkflowStep::getStatus,
                                 WorkflowStep.STATUS_PROCESSING, WorkflowStep.STATUS_PENDING)
                         .set(WorkflowStep::getStatus, WorkflowStep.STATUS_SKIPPED));
+                // 恢复扫描是独立的终态路径（无 MQ 回执），补发事件让 WS 订阅者即时感知
+                workflowEngine.publishTaskEvent(task.getId(), AgentTask.STATUS_FAILED);
                 log.warn("Recovery: task {} stuck in PROCESSING > {}min, marked FAILED",
                         task.getId(), processingTimeoutMinutes);
             }

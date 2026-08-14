@@ -2,34 +2,35 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, Table, Button, Modal, Form, Input, Select, Typography,
-  message, Popconfirm, Space, Tag, Tooltip,
+  Popconfirm, Space, Tag, Tooltip,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { ragApi } from '@/api/rag';
 import { RagDataset, RagEmbeddingProvider } from '@/types/api';
+import { usePagination } from '@/hooks/usePagination';
+import { useAppFeedback } from '@/utils/feedback';
 
 const { Title } = Typography;
 
 const DatasetsPage: React.FC = () => {
-  const [datasets, setDatasets] = useState<RagDataset[]>([]);
-  const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [providers, setProviders] = useState<RagEmbeddingProvider[]>([]);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { message } = useAppFeedback();
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await ragApi.listDatasets({ page: 1, size: 100 });
-      setDatasets(res.data.data.records);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 原逻辑一次拉取最多 100 条且表格不分页，故固定 size=100、Table 传 pagination={false} 保持视觉不变
+  const table = usePagination<RagDataset>(
+    async (page, size) => {
+      const res = await ragApi.listDatasets({ page, size });
+      return res.data.data;
+    },
+    [],
+    { size: 100 }
+  );
 
-  useEffect(() => { load(); }, []);
+  const load = table.refresh;
 
   useEffect(() => {
     ragApi.listEmbeddingProviders()
@@ -115,8 +116,8 @@ const DatasetsPage: React.FC = () => {
         <Table
           rowKey="id"
           columns={columns}
-          dataSource={datasets}
-          loading={loading}
+          dataSource={table.records}
+          loading={table.loading}
           pagination={false}
         />
       </Card>

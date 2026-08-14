@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.platform.agent.dto.TaskSubmitRequest;
 import com.platform.agent.entity.AgentTask;
 import com.platform.agent.entity.WorkflowStep;
+import com.platform.agent.event.TaskStatusChangedEvent;
 import com.platform.agent.mapper.AgentTaskMapper;
 import com.platform.agent.mapper.WorkflowStepMapper;
 import com.platform.agent.rag.dto.RagReference;
@@ -22,6 +23,7 @@ import com.platform.feign.dto.AuditResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -44,6 +46,7 @@ public class TaskService {
     private final WorkflowStepMapper workflowStepMapper;
     private final WorkflowEngine workflowEngine;
     private final IntentParser intentParser;
+    private final ApplicationEventPublisher eventPublisher;
     private final UserFeignClient userFeignClient;
     private final SecurityFeignClient securityFeignClient;
     private final RagService ragService;
@@ -163,6 +166,9 @@ public class TaskService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                // 实时进度推送：事务提交后任务对订阅者可见。先发 PENDING 再推进步骤
+                // （advanceStep 内 dispatchStep 会发 PROCESSING，事件顺序与状态机一致）
+                eventPublisher.publishEvent(new TaskStatusChangedEvent(task.getId(), AgentTask.STATUS_PENDING));
                 workflowEngine.advanceStep(task.getId());
             }
 
@@ -290,6 +296,7 @@ public class TaskService {
             step.setStatus(WorkflowStep.STATUS_SKIPPED);
             workflowStepMapper.updateById(step);
         }
+        eventPublisher.publishEvent(new TaskStatusChangedEvent(taskId, AgentTask.STATUS_CANCELLED));
 
         log.info("Task cancelled: id={}", taskId);
     }

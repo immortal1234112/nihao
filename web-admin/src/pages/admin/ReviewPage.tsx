@@ -1,34 +1,30 @@
-import { useEffect, useState } from 'react';
-import { Table, Tag, Button, Space, Popconfirm, Typography, message } from 'antd';
+import { Table, Button, Space, Popconfirm, Typography } from 'antd';
 import { CheckOutlined, CloseOutlined, ReloadOutlined } from '@ant-design/icons';
 import { adminApi } from '@/api/admin';
 import { AgentTask } from '@/types/api';
+import { usePagination } from '@/hooks/usePagination';
+import { useAppFeedback } from '@/utils/feedback';
+import StatusTag from '@/components/common/StatusTag';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 
 const ReviewPage: React.FC = () => {
-  const [tasks, setTasks] = useState<AgentTask[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ page: 1, size: 20, total: 0 });
+  const { message } = useAppFeedback();
 
-  const loadTasks = async (page = 1, size = 20) => {
-    setLoading(true);
-    try {
+  const table = usePagination<AgentTask>(
+    async (page, size) => {
       const res = await adminApi.listAllTasks({ page, size, status: 'REVIEWING' });
-      const data = res.data.data;
-      setTasks(data.records);
-      setPagination({ page: data.pagination.page, size: data.pagination.size, total: data.pagination.total });
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadTasks(); }, []);
+      return res.data.data;
+    },
+    []
+  );
 
   const handleReview = async (id: string, action: 'PASS' | 'REJECT') => {
     try {
       await adminApi.reviewTask(id, action);
       message.success(action === 'PASS' ? '已通过' : '已拒绝');
-      loadTasks();
+      table.refresh();
     } catch { /* handled */ }
   };
 
@@ -38,7 +34,7 @@ const ReviewPage: React.FC = () => {
     { title: '类型', dataIndex: 'workflowType', key: 'type', width: 80 },
     {
       title: '状态', dataIndex: 'status', key: 'status', width: 100,
-      render: (s: string) => <Tag color="warning">{s}</Tag>,
+      render: (s: string) => <StatusTag status={s} />,
     },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170, render: (v: string) => dayjs(v).format('MM-DD HH:mm:ss') },
     {
@@ -60,20 +56,14 @@ const ReviewPage: React.FC = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>任务审核</Title>
-        <Button icon={<ReloadOutlined />} onClick={() => loadTasks()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={table.refresh}>刷新</Button>
       </div>
       <Table
-        dataSource={tasks}
+        dataSource={table.records}
         columns={columns}
         rowKey="id"
-        loading={loading}
-        pagination={{
-          current: pagination.page,
-          pageSize: pagination.size,
-          total: pagination.total,
-          showTotal: (t) => `共 ${t} 条待审核`,
-          onChange: (page, size) => loadTasks(page, size),
-        }}
+        loading={table.loading}
+        pagination={table.pagination}
       />
     </div>
   );

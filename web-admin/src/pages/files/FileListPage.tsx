@@ -1,32 +1,26 @@
-import { useEffect, useState } from 'react';
-import { Table, Upload, Button, Space, Typography, Tag, Popconfirm, message, Modal } from 'antd';
+import { useState } from 'react';
+import { Table, Upload, Button, Space, Typography, Tag, Popconfirm, Modal } from 'antd';
 import { UploadOutlined, DownloadOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { fileApi } from '@/api/file';
 import { StorageFile } from '@/types/api';
+import { usePagination } from '@/hooks/usePagination';
+import { useAppFeedback } from '@/utils/feedback';
 import { tokenStorage } from '@/utils/token';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
 
 const FileListPage: React.FC = () => {
-  const [files, setFiles] = useState<StorageFile[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [pagination, setPagination] = useState({ page: 1, size: 20, total: 0 });
   const [uploadOpen, setUploadOpen] = useState(false);
+  const { message } = useAppFeedback();
 
-  const loadFiles = async (page = 1, size = 20) => {
-    setLoading(true);
-    try {
+  const table = usePagination<StorageFile>(
+    async (page, size) => {
       const res = await fileApi.list({ page, size });
-      const data = res.data.data;
-      setFiles(data.records);
-      setPagination({ page: data.pagination.page, size: data.pagination.size, total: data.pagination.total });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadFiles(); }, []);
+      return res.data.data;
+    },
+    []
+  );
 
   const handleUpload = async (file: File, onSuccess: () => void, onError: (msg: string) => void) => {
     try {
@@ -34,7 +28,7 @@ const FileListPage: React.FC = () => {
       onSuccess();
       message.success('上传成功');
       setUploadOpen(false);
-      loadFiles();
+      table.refresh();
     } catch {
       onError('上传失败，请重试');
     }
@@ -44,7 +38,7 @@ const FileListPage: React.FC = () => {
     try {
       await fileApi.delete(id);
       message.success('删除成功');
-      loadFiles();
+      table.refresh();
     } catch { /* handled */ }
   };
 
@@ -115,23 +109,17 @@ const FileListPage: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>文件管理</Title>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => loadFiles()}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={table.refresh}>刷新</Button>
           <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>上传文件</Button>
         </Space>
       </div>
 
       <Table
-        dataSource={files}
+        dataSource={table.records}
         columns={columns}
         rowKey="id"
-        loading={loading}
-        pagination={{
-          current: pagination.page,
-          pageSize: pagination.size,
-          total: pagination.total,
-          showTotal: (t) => `共 ${t} 条`,
-          onChange: (page, size) => loadFiles(page, size),
-        }}
+        loading={table.loading}
+        pagination={table.pagination}
       />
 
       <Modal title="上传文件" open={uploadOpen} onCancel={() => setUploadOpen(false)} footer={null}>

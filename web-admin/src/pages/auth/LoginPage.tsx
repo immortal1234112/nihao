@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Form, Input, Button, Typography, message } from 'antd';
+import { Form, Input, Button, Typography } from 'antd';
 import { UserOutlined, LockOutlined, RocketOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/auth';
+import { useAppFeedback } from '@/utils/feedback';
 import ParticleBackground from '@/components/common/ParticleBackground';
 
 const { Title, Text } = Typography;
@@ -24,6 +25,7 @@ const glassStyle: React.CSSProperties = {
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { setTokens, setUser } = useAuthStore();
+  const { message } = useAppFeedback();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -87,6 +89,7 @@ const LoginPage: React.FC = () => {
             <Input
               prefix={<UserOutlined style={{ color: 'rgba(180,190,220,0.6)' }} />}
               placeholder="用户名"
+              autoComplete="username"
               style={{
                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
                 color: '#e0e0f0', borderRadius: 10, height: 48,
@@ -97,6 +100,7 @@ const LoginPage: React.FC = () => {
             <Input.Password
               prefix={<LockOutlined style={{ color: 'rgba(180,190,220,0.6)' }} />}
               placeholder="密码"
+              autoComplete="current-password"
               style={{
                 background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
                 color: '#e0e0f0', borderRadius: 10, height: 48,

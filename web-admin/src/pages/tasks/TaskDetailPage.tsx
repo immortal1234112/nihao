@@ -1,81 +1,72 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Descriptions, Tag, Steps, Button, Spin, Typography, Image, Alert, Space, Row, Col, Empty, message, Tooltip } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { Card, Descriptions, Button, Typography, Alert, Space, Empty, Spin } from 'antd';
+import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
+import type { AxiosError } from 'axios';
 import { taskApi } from '@/api/task';
 import { TaskDetail } from '@/types/api';
+import { useTaskProgress } from '@/hooks/useTaskProgress';
+import StatusTag from '@/components/common/StatusTag';
+import PageLoading from '@/components/common/PageLoading';
+import ResultPreview, { parseResultUrls } from '@/components/common/ResultPreview';
 import dayjs from 'dayjs';
 
 const { Title, Paragraph } = Typography;
-
-const statusColorMap: Record<string, string> = {
-  PENDING: 'default', PROCESSING: 'processing', DONE: 'success', FAILED: 'error', SKIPPED: 'warning',
-};
 
 const TaskDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [detail, setDetail] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const downloadFile = async (url: string) => {
-    const key = 'file-download';
-    message.loading({ content: '下载中...', key });
+  /** silent=true 时失败不弹 toast（WS 兜底轮询每 10s 一次，后端宕机时会刷屏），仅保留页面错误态 */
+  const load = useCallback(async (silent = false) => {
+    // 静默刷新：仅首次加载显示 loading，WS 事件/手动刷新不整页闪烁
+    setLoading((prev) => prev && detailRef.current === null);
+    setError(null);
     try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/tasks/download?url=${encodeURIComponent(url)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('download failed');
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      const isVideo = url.includes('.mp4') || url.includes('video') || blob.type.startsWith('video/');
-      a.download = isVideo ? `generated-${Date.now()}.mp4` : `generated-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-      message.success({ content: '下载完成', key });
-    } catch {
-      message.error({ content: '下载失败，请重试', key });
-    }
-  };
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await taskApi.getById(id!);
+      const res = await taskApi.getById(id!, silent);
       setDetail(res.data.data);
+    } catch (e) {
+      // 请求失败保留旧数据（拦截器已提示）；无旧数据时显示错误态：
+      // 业务错误（拦截器 reject 的 Error 带后端 message，如「任务不存在」）原样显示；
+      // 网络错误（AxiosError）显示通用提示
+      if (!detailRef.current) {
+        setError((e as Error)?.message && !(e as AxiosError).isAxiosError
+          ? (e as Error).message
+          : '加载失败，请检查网络后重试');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { if (id) load(); }, [id]);
+  // 供 setLoading 判断首次加载的 ref（避免闭包依赖 detail）
+  const detailRef = useRef<TaskDetail | null>(null);
+  detailRef.current = detail;
 
-  // 处理中自动刷新
-  useEffect(() => {
-    if (!detail?.task || (detail.task.status !== 'CREATED' && detail.task.status !== 'VALIDATING'
-        && detail.task.status !== 'PENDING' && detail.task.status !== 'PROCESSING' && detail.task.status !== 'REVIEWING'))
-      return;
-    const timer = setInterval(load, 3000);
-    return () => clearInterval(timer);
-  }, [detail?.task?.status]);
+  useEffect(() => { if (id) load(); }, [id, load]);
 
-  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  // 实时进度：WebSocket 收到状态变更事件即刷新全量详情（快照+增量，替代 3s 轮询）
+  // 连接持续失败时 hook 会周期性发 RECONNECTED 伪事件，这里作为轮询兜底继续拉取快照
+  // 兜底轮询走静默模式：失败不弹 toast（每 10s 一次，后端宕机时会刷屏）
+  useTaskProgress(id, () => { load(true); });
+
+  if (error) return <Alert type="error" message={error} action={<Button onClick={() => load()}>重试</Button>} />;
+  if (loading && !detail) return <PageLoading />;
   if (!detail) return <Alert type="error" message="任务不存在" />;
 
   const { task, steps } = detail;
+  // request_params 列可空；JSON.parse(null) 返回 null 不抛错，取属性会白屏，这里统一兜底为 {}
   let params: Record<string, unknown> = {};
-  try { params = JSON.parse(task.requestParams); } catch { /* */ }
+  try { params = JSON.parse(task.requestParams || '{}') ?? {}; } catch { /* */ }
 
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tasks')}>返回列表</Button>
-        <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => load()}>刷新</Button>
       </Space>
 
       <Card title={<Title level={4} style={{ margin: 0 }}>任务详情</Title>} style={{ marginBottom: 24 }}>
@@ -83,7 +74,7 @@ const TaskDetailPage: React.FC = () => {
           <Descriptions.Item label="任务ID">{task.id}</Descriptions.Item>
           <Descriptions.Item label="类型">{task.workflowType}</Descriptions.Item>
           <Descriptions.Item label="状态">
-            <Tag color={statusColorMap[task.status] || 'default'}>{task.status}</Tag>
+            <StatusTag status={task.status} />
           </Descriptions.Item>
           <Descriptions.Item label="提示词" span={3}>
             <Paragraph ellipsis={{ rows: 2, expandable: true }}>{params.prompt as string || '-'}</Paragraph>
@@ -100,138 +91,66 @@ const TaskDetailPage: React.FC = () => {
       {/* 步骤 + 内嵌结果 */}
       {steps && steps.length > 0 && (
         <Card title="执行步骤与结果" style={{ marginBottom: 24 }}>
-          {steps.map((step) => {
-            let stepImages: string[] = [];
-            try {
-              if (step.output) {
-                const out = JSON.parse(step.output);
-                if (out.outputFiles) {
-                  stepImages = out.outputFiles
-                    .filter((f: { url?: string }) => f.url)
-                    .map((f: { url: string }) => f.url);
-                } else if (out.url) {
-                  stepImages = [out.url];
-                } else if (out.videoUrl) {
-                  stepImages = [out.videoUrl];
-                }
+          {steps.map((step) => (
+            <Card
+              key={step.id}
+              size="small"
+              title={
+                <Space>
+                  <span>步骤 {step.stepOrder}: {step.stepType}</span>
+                  <StatusTag status={step.status} />
+                </Space>
               }
-            } catch { /* */ }
-
-            return (
-              <Card
-                key={step.id}
-                size="small"
-                title={
-                  <Space>
-                    <span>步骤 {step.stepOrder}: {step.stepType}</span>
-                    <Tag color={statusColorMap[step.status] || 'default'}>{step.status}</Tag>
-                  </Space>
-                }
-                style={{ marginBottom: 12 }}
-                extra={
-                  <span style={{ fontSize: 12, color: '#999' }}>
-                    {step.startedAt && `开始 ${dayjs(step.startedAt).format('HH:mm:ss')}`}
-                    {step.finishedAt && ` → 完成 ${dayjs(step.finishedAt).format('HH:mm:ss')}`}
-                  </span>
-                }
-              >
-                {step.errorMsg && <Alert type="error" message={step.errorMsg} style={{ marginBottom: 12 }} />}
-                {stepImages.length > 0 && (
-                  <Row gutter={[8, 8]}>
-                    {stepImages.map((url, i) => (
-                      <Col key={i} xs={24} sm={12} md={8} lg={6}>
-                        <div style={{ textAlign: 'center' }}>
-                          {url.includes('.mp4') || url.includes('video') ? (
-                            <video src={url} controls style={{ width: '100%', borderRadius: 8 }} />
-                          ) : (
-                            <Image src={url} alt={`生成结果 ${i + 1}`} style={{ borderRadius: 8 }}
-                              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" />
-                          )}
-                          <br />
-                          <Tooltip title="下载到本地">
-                            <Button type="link" size="small" icon={<DownloadOutlined />}
-                              onClick={(e) => { e.stopPropagation(); downloadFile(url); }}>
-                              下载
-                            </Button>
-                          </Tooltip>
-                        </div>
-                      </Col>
-                    ))}
-                  </Row>
-                )}
-                {step.status === 'PROCESSING' && !stepImages.length && (
-                  <Spin tip="处理中..." />
-                )}
-              </Card>
-            );
-          })}
+              style={{ marginBottom: 12 }}
+              extra={
+                <span style={{ fontSize: 12, color: '#999' }}>
+                  {step.startedAt && `开始 ${dayjs(step.startedAt).format('HH:mm:ss')}`}
+                  {step.finishedAt && ` → 完成 ${dayjs(step.finishedAt).format('HH:mm:ss')}`}
+                </span>
+              }
+            >
+              {step.errorMsg && <Alert type="error" message={step.errorMsg} style={{ marginBottom: 12 }} />}
+              <ResultPreview raw={step.output} />
+              {step.status === 'PROCESSING' && parseResultUrls(step.output).length === 0 && (
+                <div style={{ textAlign: 'center', padding: 16 }}>
+                  <Spin />
+                </div>
+              )}
+            </Card>
+          ))}
         </Card>
       )}
 
       {/* 任务级结果 */}
       {task.result && (
         <Card title="最终结果" style={{ marginTop: 24 }}>
-          {(() => {
-            try {
-              const result = JSON.parse(task.result);
-              const allImages: string[] = [];
-
-              // 解析 outputFiles 数组
-              if (result.outputFiles && Array.isArray(result.outputFiles)) {
-                result.outputFiles
-                  .filter((f: { url?: string }) => f.url)
-                  .forEach((f: { url: string }) => allImages.push(f.url));
-              }
-              // 直接 url
-              if (result.url) allImages.push(result.url);
-              // 视频
-              if (result.videoUrl) allImages.push(result.videoUrl);
-
-              if (allImages.length > 0) {
+          {parseResultUrls(task.result).length > 0 ? (
+            <ResultPreview raw={task.result} />
+          ) : (
+            (() => {
+              try {
+                const result = JSON.parse(task.result);
+                const meta = { ...result };
+                delete meta.outputFiles;
                 return (
-                  <Row gutter={[12, 12]}>
-                    {allImages.map((url, i) => (
-                      <Col key={i} xs={24} sm={12} md={8} lg={6}>
-                        <div style={{ textAlign: 'center' }}>
-                          {url.includes('.mp4') || url.includes('video') ? (
-                            <video src={url} controls style={{ width: '100%', borderRadius: 8 }} />
-                          ) : (
-                            <Image src={url} alt={`结果 ${i + 1}`} style={{ borderRadius: 8 }}
-                              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" />
-                          )}
-                          <br />
-                          <Tooltip title="下载到本地">
-                            <Button type="link" size="small" icon={<DownloadOutlined />}
-                              onClick={(e) => { e.stopPropagation(); downloadFile(url); }}>
-                              下载
-                            </Button>
-                          </Tooltip>
-                        </div>
-                      </Col>
-                    ))}
-                  </Row>
+                  <div>
+                    {Object.keys(meta).length > 0 && (
+                      <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
+                        {Object.entries(meta).map(([k, v]) => (
+                          <Descriptions.Item key={k} label={k}>
+                            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                          </Descriptions.Item>
+                        ))}
+                      </Descriptions>
+                    )}
+                    <Empty description="任务完成，结果见上方步骤" />
+                  </div>
                 );
+              } catch {
+                return <Paragraph>{task.result}</Paragraph>;
               }
-
-              // 元信息
-              const meta = { ...result };
-              delete meta.outputFiles;
-              return (
-                <div>
-                  {Object.keys(meta).length > 0 && (
-                    <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
-                      {Object.entries(meta).map(([k, v]) => (
-                        <Descriptions.Item key={k} label={k}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</Descriptions.Item>
-                      ))}
-                    </Descriptions>
-                  )}
-                  <Empty description="任务完成，结果见上方步骤" />
-                </div>
-              );
-            } catch {
-              return <Paragraph>{task.result}</Paragraph>;
-            }
-          })()}
+            })()
+          )}
         </Card>
       )}
     </div>

@@ -97,7 +97,9 @@
       "Bash(taskkill //F //PID 15596)",
       "Bash(MYSQL_PORT=3307 MYSQL_PASS=123456 REQUIRE_API_KEY=false mvn spring-boot:run -pl video-engine)",
       "Read(//tmp/**)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']['task']; print\\(f'Status: {d[\\\\\"status\\\\\"]}'\\); r=d.get\\('result'\\); print\\(f'Result: {str\\(r\\)[:300] if r else \\\\\"none\\\\\"}'\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']['task']; print\\(f'Status: {d[\\\\\"status\\\\\"]}'\\); r=d.get\\('result'\\); print\\(f'Result: {str\\(r\\)[:300] if r else \\\\\"none\\\\\"}'\\)\")",
+      "Bash(sed -n '/<build>/,/<\\\\/build>/p' agent-core/pom.xml)",
+      "Bash(sed -n '/<build>/,/<\\\\/build>/p' user-service/pom.xml)"
     ]
   }
 }

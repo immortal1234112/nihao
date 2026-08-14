@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Select, Slider, Button, Row, Col, Typography, message, Space } from 'antd';
-import { SendOutlined, ClearOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Select, Slider, Button, Row, Col, Typography, Space } from 'antd';
+import { SendOutlined, ClearOutlined, CopyOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import { useAppFeedback } from '@/utils/feedback';
 import DatasetSelect from '@/components/rag/DatasetSelect';
+import PromptTemplateModal from '@/components/workspace/PromptTemplateModal';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -20,8 +22,10 @@ const videoModels = [
 
 const VideoGenPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { message } = useAppFeedback();
 
   const onFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
@@ -55,7 +59,18 @@ const VideoGenPage: React.FC = () => {
           <Card>
             <Form form={form} layout="vertical" onFinish={onFinish}
               initialValues={{ duration: 5, fps: 24, resolution: '1920x1080' }}>
-              <Form.Item name="prompt" label="提示词" rules={[{ required: true, message: '请输入提示词' }]}>
+              <Form.Item
+                name="prompt"
+                label={
+                  <Space size={8}>
+                    <span>提示词</span>
+                    <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => setTemplateOpen(true)} style={{ padding: 0, height: 'auto' }}>
+                      模板
+                    </Button>
+                  </Space>
+                }
+                rules={[{ required: true, message: '请输入提示词' }]}
+              >
                 <TextArea rows={4} placeholder="描述你想要生成的视频内容..." maxLength={2000} showCount />
               </Form.Item>
               <Form.Item name="negativePrompt" label="负面提示词">
@@ -129,6 +144,15 @@ const VideoGenPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+      <PromptTemplateModal
+        open={templateOpen}
+        engineType="VIDEO"
+        onClose={() => setTemplateOpen(false)}
+        onSelect={(t) => {
+          form.setFieldsValue({ prompt: t.prompt, negativePrompt: t.negativePrompt ?? '' });
+          message.success(`已应用模板：${t.name}`);
+        }}
+      />
     </div>
   );
 };

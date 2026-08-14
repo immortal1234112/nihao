@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Select, Tag, Space, Typography, Popconfirm, message } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
+import { Table, Button, Modal, Form, Input, Select, Tag, Typography, Popconfirm } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 import { tenantApi } from '@/api/tenant';
 import { TenantMember } from '@/types/api';
+import { useAppFeedback } from '@/utils/feedback';
 
 const { Title } = Typography;
 
@@ -20,17 +21,18 @@ const MemberPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
+  const { message } = useAppFeedback();
 
-  const loadMembers = async () => {
+  const loadMembers = useCallback(async () => {
     if (!user?.tenantId) return;
     setLoading(true);
     try {
       const res = await tenantApi.getMembers(user.tenantId);
       setMembers(res.data.data);
     } finally { setLoading(false); }
-  };
+  }, [user?.tenantId]);
 
-  useEffect(() => { loadMembers(); }, [user]);
+  useEffect(() => { loadMembers(); }, [loadMembers]);
 
   const handleAdd = async (values: { userId: string; roleCode: string }) => {
     try {

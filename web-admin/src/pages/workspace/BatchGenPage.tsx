@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Form, Input, Select, InputNumber, Button, Row, Col, Typography, message, Space } from 'antd';
+import { Card, Form, Input, Select, InputNumber, Button, Row, Col, Typography, Space } from 'antd';
 import { SendOutlined, ClearOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
+import { useAppFeedback } from '@/utils/feedback';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -11,6 +12,7 @@ const BatchGenPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { message } = useAppFeedback();
 
   const onFinish = async (values: Record<string, unknown>) => {
     setLoading(true);
