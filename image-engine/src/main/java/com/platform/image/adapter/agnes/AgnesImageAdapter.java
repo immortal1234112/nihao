@@ -24,7 +24,8 @@ import java.util.concurrent.TimeUnit;
  * 注意（文档要点）:
  *   - response_format 必须放在 extra_body 内（顶层会被忽略）
  *   - size 推荐档位制（1K/2K/3K/4K）并配合 ratio；精确尺寸如 1024x768 也兼容（会被标准化）
- *   - 图生图/多图合成需 extra_body.image（v1 暂未启用）
+ *   - 图生图/多图合成：extra_body.image 传图片 URL 数组（1 张 = 图生图，多张 = 多图合成）。
+ *     注意 URL 必须公网可达且免鉴权——Agnes 服务器要主动拉取这张图，localhost/带登录权限的地址都会失败。
  *
  * 配置示例（管理后台模型配置页或 Nacos）:
  *   agnes-image:
@@ -89,8 +90,17 @@ public class AgnesImageAdapter implements ImageGenerationAdapter {
             body.put("prompt", request.getPrompt());
             body.put("size", size);
             if (ratio != null) body.put("ratio", ratio);
+
             // 注意：response_format 必须放在 extra_body（顶层写法不生效）
-            body.put("extra_body", Map.of("response_format", "url"));
+            Map<String, Object> extraBody = new LinkedHashMap<>();
+            extraBody.put("response_format", "url");
+            // 图生图/多图合成：extra_body.image 传图片 URL 数组（1 张=图生图，多张=多图合成）。
+            // URL 必须公网可达且免鉴权（Agnes 服务器主动拉取；localhost/需登录的地址会失败）
+            if (request.getReferenceImages() != null && !request.getReferenceImages().isEmpty()) {
+                extraBody.put("image", request.getReferenceImages());
+                log.info("Agnes Image img2img: {} reference image(s) attached", request.getReferenceImages().size());
+            }
+            body.put("extra_body", extraBody);
 
             String json = objectMapper.writeValueAsString(body);
 

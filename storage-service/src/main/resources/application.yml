@@ -52,8 +52,11 @@ minio:
   bucket: ${MINIO_BUCKET:agent-platform}
 
 # 网关地址：拼装对外可访问的文件下载 URL（客户端经网关下载，鉴权由网关 JWT 完成）
+# public-base-url = 前端展示用（保持本机地址，前端经 vite 代理同源访问）
+# engine-base-url  = 云端模型 provider 拉取参考图用（必须公网可达的 https 地址，如内网穿透/部署域名）
 storage:
   public-base-url: ${STORAGE_PUBLIC_BASE_URL:http://localhost:8080}
+  engine-base-url: ${STORAGE_ENGINE_BASE_URL:http://localhost:8080}
 
 logging:
   level:

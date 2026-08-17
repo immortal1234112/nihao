@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS agent_task (
     tenant_id VARCHAR(32) NOT NULL,
     workflow_type VARCHAR(16) NOT NULL COMMENT 'SINGLE|PIPELINE|BATCH',
     status VARCHAR(16) NOT NULL DEFAULT 'CREATED',
+    name VARCHAR(255) DEFAULT NULL COMMENT '作品名称（用户生成时命名，可空）',
     request_params JSON,
     result JSON,
     error_msg TEXT,

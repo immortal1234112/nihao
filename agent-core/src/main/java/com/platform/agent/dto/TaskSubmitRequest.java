@@ -14,6 +14,9 @@ public class TaskSubmitRequest {
     @NotBlank(message = "prompt 不能为空")
     private String prompt;
 
+    /** 作品名称（可选，画廊/项目展示用；不传时归档资产标题回退到 prompt 摘要） */
+    private String name;
+
     /** 工作流类型：SINGLE / PIPELINE / BATCH */
     private String workflowType = "SINGLE";
 

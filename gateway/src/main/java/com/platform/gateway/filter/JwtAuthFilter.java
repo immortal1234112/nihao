@@ -48,7 +48,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/v1/auth/login",
             "/api/v1/auth/register",
             "/api/v1/auth/refresh",
-            "/api/v1/open/**"
+            "/api/v1/open/**",
+            // 公开临时取图（参考图注入用）：链接自带 HMAC 签名 + 10 分钟过期，无签名/过期一律 401
+            "/api/v1/public/files/**"
     );
 
     /** 放行的公共资源路径 */

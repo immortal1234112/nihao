@@ -94,6 +94,8 @@ export type TaskStatus =
 
 export interface TaskSubmitRequest {
   prompt: string;
+  /** 作品名称（可选，画廊/项目展示用） */
+  name?: string;
   /** 后端按提交端点注入（/image /video /batch /workflow），前端可省略 */
   workflowType?: WorkflowType;
   /** 后端按提交端点注入（/image /video），前端可省略 */
@@ -155,6 +157,8 @@ export interface AgentTask {
   workflowType: WorkflowType;
   status: TaskStatus;
   requestParams: string;
+  /** 作品名称（用户生成时命名，可空） */
+  name?: string | null;
   result: string | null;
   errorMsg: string | null;
   retryCount: number;

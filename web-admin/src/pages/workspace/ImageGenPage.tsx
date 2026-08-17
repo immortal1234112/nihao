@@ -10,6 +10,7 @@ import {
   Form,
   Input,
   Row,
+  Segmented,
   Select,
   Slider,
   Space,
@@ -28,10 +29,11 @@ import {
 import { taskApi } from '@/api/task';
 import { assetApi } from '@/api/asset';
 import { projectApi } from '@/api/project';
+import { fileApi } from '@/api/file';
 import { AuthImage, downloadAuthFile } from '@/components/common/AuthMedia';
 import { useAppFeedback } from '@/utils/feedback';
 import { useTaskProgress, TERMINAL_STATUSES } from '@/hooks/useTaskProgress';
-import { AssetRow, ProjectRow, TaskSubmitRequest } from '@/types/api';
+import { AssetRow, ProjectRow, StorageFile, TaskSubmitRequest } from '@/types/api';
 import DatasetSelect from '@/components/rag/DatasetSelect';
 import PromptTemplateModal from '@/components/workspace/PromptTemplateModal';
 import ResultPreview, { parseResultUrls } from '@/components/common/ResultPreview';
@@ -77,6 +79,10 @@ const ImageGenPage: React.FC = () => {
   const [refAssetId, setRefAssetId] = useState<string | undefined>(searchParams.get('sourceAssetId') ?? undefined);
   const [refAsset, setRefAsset] = useState<AssetRow | null>(null);
   const [libraryAssets, setLibraryAssets] = useState<AssetRow[]>([]);
+  // 素材来源：资产中心 / 文件管理（文件管理里的图片选中后先导入为资产再作为参考图）
+  const [sourceTab, setSourceTab] = useState<'asset' | 'files'>('asset');
+  const [managedFiles, setManagedFiles] = useState<StorageFile[]>([]);
+  const [importing, setImporting] = useState(false);
 
   // 项目归属
   const [projectId, setProjectId] = useState<string | undefined>(searchParams.get('projectId') ?? undefined);
@@ -92,7 +98,31 @@ const ImageGenPage: React.FC = () => {
       .list({ page: 1, size: 100, scope: 'mine' })
       .then((res) => setProjectOptions(res.data.data.records))
       .catch(() => {});
+    // 文件管理里的图片（参考图用）
+    fileApi
+      .list({ page: 1, size: 100 })
+      .then((res) => setManagedFiles(res.data.data.records.filter((f) => f.contentType.startsWith('image/'))))
+      .catch(() => {});
   }, []);
+
+  /** 选择文件管理里的图片：先导入为资产（IMPORT），再作为参考图 */
+  const pickManagedFile = async (f: StorageFile) => {
+    setImporting(true);
+    try {
+      const res = await assetApi.create({
+        title: f.originalName,
+        fileId: f.id,
+        derivationType: 'IMPORT',
+        assetType: 'IMAGE',
+      });
+      setRefAssetId(res.data.data.id);
+      message.success(`已导入「${f.originalName}」作为参考图`);
+    } catch {
+      message.error('导入文件失败，请重试');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!refAssetId) {
@@ -140,6 +170,7 @@ const ImageGenPage: React.FC = () => {
     try {
       const base: TaskSubmitRequest = {
         prompt: values.prompt as string,
+        name: (values.name as string | undefined) || undefined,
         modelProvider: values.modelProvider as string,
         size: values.size as string,
         count: values.count as number,
@@ -224,33 +255,79 @@ const ImageGenPage: React.FC = () => {
                   选择一张图片作为参考图（可选），将触发图生图
                 </Text>
               )}
-              <Text type="secondary" style={{ fontSize: 12 }}>从资产中心选取：</Text>
+              <Segmented
+                size="small"
+                value={sourceTab}
+                onChange={(v) => setSourceTab(v as 'asset' | 'files')}
+                options={[
+                  { label: '资产中心', value: 'asset' },
+                  { label: '文件管理', value: 'files' },
+                ]}
+                style={{ marginBottom: 8 }}
+              />
               <div style={{ maxHeight: 420, overflowY: 'auto' }}>
-                <Flex gap={8} wrap>
-                  {libraryAssets.map((a) => (
-                    <Tooltip key={a.id} title={a.title}>
-                      <div
-                        onClick={() => setRefAssetId(a.id)}
-                        style={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 6,
-                          overflow: 'hidden',
-                          cursor: 'pointer',
-                          border: refAssetId === a.id ? '2px solid #1677ff' : '1px solid #f0f0f0',
-                        }}
-                      >
-                        {a.file?.url ? (
-                          <AuthImage src={a.file.url} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
-                        ) : (
-                          <div style={{ width: '100%', height: '100%', background: '#fafafa' }} />
-                        )}
-                      </div>
-                    </Tooltip>
-                  ))}
-                </Flex>
-                {libraryAssets.length === 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>暂无素材，生成或上传后可在资产中心看到</Text>
+                {sourceTab === 'asset' ? (
+                  <>
+                    <Flex gap={8} wrap>
+                      {libraryAssets.map((a) => (
+                        <Tooltip key={a.id} title={a.title}>
+                          <div
+                            onClick={() => setRefAssetId(a.id)}
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 6,
+                              overflow: 'hidden',
+                              cursor: 'pointer',
+                              border: refAssetId === a.id ? '2px solid #1677ff' : '1px solid #f0f0f0',
+                            }}
+                          >
+                            {a.file?.url ? (
+                              <AuthImage src={a.file.url} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', background: '#fafafa' }} />
+                            )}
+                          </div>
+                        </Tooltip>
+                      ))}
+                    </Flex>
+                    {libraryAssets.length === 0 && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>暂无素材，生成或上传后可在资产中心看到</Text>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Flex gap={8} wrap>
+                      {managedFiles.map((f) => (
+                        <Tooltip key={f.id} title={`${f.originalName}（点击导入为参考图）`}>
+                          <div
+                            onClick={() => pickManagedFile(f)}
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 6,
+                              overflow: 'hidden',
+                              cursor: 'pointer',
+                              border: '1px solid #f0f0f0',
+                              opacity: importing ? 0.5 : 1,
+                            }}
+                          >
+                            <AuthImage
+                              src={`/api/v1/files/${f.id}/download`}
+                              alt={f.originalName}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              preview={false}
+                            />
+                          </div>
+                        </Tooltip>
+                      ))}
+                    </Flex>
+                    {managedFiles.length === 0 && (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        文件管理里还没有图片，去「文件管理」页上传后即可在这里选用
+                      </Text>
+                    )}
+                  </>
                 )}
               </div>
             </Flex>
@@ -358,6 +435,9 @@ const ImageGenPage: React.FC = () => {
                 rules={[{ required: true, message: '请输入提示词' }]}
               >
                 <TextArea rows={4} placeholder="描述你想要生成的图片内容..." maxLength={2000} showCount />
+              </Form.Item>
+              <Form.Item name="name" label="作品名称（可选）">
+                <Input placeholder="给作品起个名字，画廊和项目中会用它展示" maxLength={50} />
               </Form.Item>
               <Form.Item name="modelProvider" label="模型选择" initialValue="qwen-image">
                 <Select

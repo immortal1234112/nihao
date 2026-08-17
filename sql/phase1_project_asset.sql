@@ -141,6 +141,16 @@ PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- 作品名称列（2026-08-17，用户生成时命名；画廊/归档资产标题用）
+SET @has_task_name := (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'agent_platform' AND TABLE_NAME = 'agent_task' AND COLUMN_NAME = 'name');
+SET @ddl2 := IF(@has_task_name = 0,
+    'ALTER TABLE agent_task ADD COLUMN name VARCHAR(255) DEFAULT NULL COMMENT ''作品名称（用户生成时命名，可空）''',
+    'SELECT 1');
+PREPARE stmt2 FROM @ddl2;
+EXECUTE stmt2;
+DEALLOCATE PREPARE stmt2;
+
 -- ==================== 模型能力目录种子数据 ====================
 -- 成本为估算占位值，运营页可调整；enabled=1 的行与 model_config.enabled 对齐
 -- 文本对话 TEXT_CHAT（cost_unit=TOKEN，单 token 估算成本）

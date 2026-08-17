@@ -86,6 +86,10 @@ spring:
           uri: lb://storage-service
           predicates:
             - Path=/api/v1/files/**
+        - id: public-files
+          uri: lb://storage-service
+          predicates:
+            - Path=/api/v1/public/files/**
         - id: meme
           uri: lb://image-engine
           predicates:

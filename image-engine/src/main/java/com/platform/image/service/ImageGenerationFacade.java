@@ -131,6 +131,7 @@ public class ImageGenerationFacade extends AbstractGenerationFacade {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private GenerateRequest buildRequest(Map<String, Object> params) {
         return GenerateRequest.builder()
                 .prompt((String) params.get("prompt"))
@@ -142,6 +143,7 @@ public class ImageGenerationFacade extends AbstractGenerationFacade {
                 .format((String) params.getOrDefault("format", "png"))
                 .quality((String) params.getOrDefault("quality", "standard"))
                 .negativePrompt((String) params.get("negativePrompt"))
+                .referenceImages((List<String>) params.get("referenceImages"))
                 .build();
     }
 }

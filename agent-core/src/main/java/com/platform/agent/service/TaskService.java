@@ -18,7 +18,9 @@ import com.platform.core.exception.BizException;
 import com.platform.core.exception.ErrorCode;
 import com.platform.core.util.JsonUtils;
 import com.platform.feign.SecurityFeignClient;
+import com.platform.feign.StorageFeignClient;
 import com.platform.feign.UserFeignClient;
+import com.platform.feign.dto.FileDTO;
 import com.platform.feign.dto.AuditResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +51,7 @@ public class TaskService {
     private final ApplicationEventPublisher eventPublisher;
     private final UserFeignClient userFeignClient;
     private final SecurityFeignClient securityFeignClient;
+    private final StorageFeignClient storageFeignClient;
     private final RagService ragService;
     private final com.platform.agent.project.service.ProjectService projectService;
     private final com.platform.agent.asset.service.AssetService assetService;
@@ -163,6 +166,7 @@ public class TaskService {
         task.setProjectId(request.getProjectId());
         task.setSourceAssetId(request.getSourceAssetId());
         task.setBatchGroupId(request.getBatchGroupId());
+        task.setName(request.getName());
 
         // 5. 构建请求参数
         Map<String, Object> params = buildParams(request, intent, effectivePrompt, ragReferences);
@@ -364,6 +368,37 @@ public class TaskService {
         params.put("fps", request.getFps());
         params.put("resolution", request.getResolution());
         params.put("pipelineSteps", request.getPipelineSteps());
+
+        // 参考图链路（图生图/图生视频）：给输入资产生成"限时公开取图 URL"注入参数。
+        // 视频引擎消费 sourceImageUrl（imageToVideo）；图片引擎消费 referenceImages（agnes 图生图/多图合成）。
+        // 用签名临时 URL（10 分钟过期、只能下载该文件、防伪造）而非平台下载链接——
+        // 云端 provider 无登录凭证且服务器需要公网可达地址，平台下载链接（需 JWT）会 401。
+        if (request.getSourceAssetId() != null && !request.getSourceAssetId().isBlank()) {
+            try {
+                Map<String, Object> assetDetail = assetService.detail(request.getSourceAssetId());
+                Object file = assetDetail.get("file");
+                if (!(file instanceof FileDTO dto)) {
+                    log.warn("Reference image skip: asset has no resolvable file. assetId={}, detailKeys={}",
+                            request.getSourceAssetId(), assetDetail.keySet());
+                } else if (dto.id() == null || dto.id().isBlank()) {
+                    log.warn("Reference image skip: file missing id. assetId={}", request.getSourceAssetId());
+                } else {
+                    var publicUrlRes = storageFeignClient.getPublicUrl(dto.id());
+                    if (publicUrlRes == null || publicUrlRes.getCode() != 0 || publicUrlRes.getData() == null) {
+                        log.warn("Reference image skip: public-url request failed. assetId={}, fileId={}, res={}",
+                                request.getSourceAssetId(), dto.id(), publicUrlRes);
+                    } else {
+                        String refUrl = publicUrlRes.getData();
+                        params.put("sourceImageUrl", refUrl);
+                        params.put("referenceImages", List.of(refUrl));
+                        log.info("Reference image injected: assetId={}, url={}", request.getSourceAssetId(), refUrl);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Resolve reference image url failed: assetId={}, err={}",
+                        request.getSourceAssetId(), e.getMessage());
+            }
+        }
         return params;
     }
 }

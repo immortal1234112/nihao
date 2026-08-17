@@ -70,7 +70,7 @@ public class AssetArchiveService {
             asset.setParentAssetId(task.getSourceAssetId());
             asset.setDerivationType(resolveDerivationType(source, file));
             asset.setAssetType(resolveAssetType(file.contentType()));
-            asset.setTitle(buildTitle(prompt));
+            asset.setTitle(buildTitle(task.getName(), prompt));
             asset.setFileId(file.id());
             asset.setPrompt(prompt);
             asset.setModelProvider(provider);
@@ -181,7 +181,11 @@ public class AssetArchiveService {
         return Asset.TYPE_FILE;
     }
 
-    private String buildTitle(String prompt) {
+    private String buildTitle(String taskName, String prompt) {
+        // 任务名优先（用户生成时命名）；未命名回退 prompt 摘要
+        if (taskName != null && !taskName.isBlank()) {
+            return taskName.trim();
+        }
         if (prompt == null || prompt.isBlank()) {
             return "生成结果";
         }

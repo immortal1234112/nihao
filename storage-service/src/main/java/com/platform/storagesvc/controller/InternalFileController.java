@@ -25,6 +25,9 @@ public class InternalFileController {
 
     private final FileService fileService;
 
+    /** 限时公开取图 URL 生成器（参考图注入用） */
+    private final PublicFileController publicFileController;
+
     /** 网关地址：拼装对外可访问的下载 URL（客户端经网关下载，鉴权由网关 JWT 完成） */
     @Value("${storage.public-base-url:http://localhost:8080}")
     private String publicBaseUrl;
@@ -46,6 +49,21 @@ public class InternalFileController {
                 sf.getDurationMs()
         );
         return Result.ok(dto);
+    }
+
+    /**
+     * 生成限时公开取图 URL（Agent-Core 参考图注入用）。
+     * 返回带 HMAC 签名的免鉴权链接，供云端模型 provider 拉取参考图，10 分钟过期。
+     */
+    @GetMapping("/{fileId}/public-url")
+    public Result<String> buildPublicUrl(@PathVariable String fileId) {
+        StorageFile sf = fileService.getById(fileId);
+        if (sf == null) {
+            throw new com.platform.core.exception.BizException(
+                    com.platform.core.exception.ErrorCode.FILE_NOT_FOUND);
+        }
+        long expires = publicFileController.defaultExpires();
+        return Result.ok(publicFileController.buildPublicUrl(fileId, expires));
     }
 
     /**

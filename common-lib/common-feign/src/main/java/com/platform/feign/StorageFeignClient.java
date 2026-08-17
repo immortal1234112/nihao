@@ -15,6 +15,13 @@ public interface StorageFeignClient {
     @GetMapping("/{fileId}")
     Result<FileDTO> getFile(@PathVariable("fileId") String fileId);
 
+    /**
+     * 生成限时公开取图 URL（参考图注入用）。
+     * 返回带 HMAC 签名的免鉴权链接：10 分钟过期、只能下载该文件、防伪造。
+     */
+    @GetMapping("/{fileId}/public-url")
+    Result<String> getPublicUrl(@PathVariable("fileId") String fileId);
+
     /** 内部取文件字节（任务结果下载代理用，服务间免公开鉴权） */
     @GetMapping(value = "/{fileId}/content", produces = "application/octet-stream")
     byte[] downloadContent(@PathVariable("fileId") String fileId);

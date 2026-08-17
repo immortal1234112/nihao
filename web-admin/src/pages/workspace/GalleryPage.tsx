@@ -1,16 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Empty, Flex, Segmented, Skeleton, Typography, Tag, Tooltip } from 'antd';
+import { Empty, Flex, Segmented, Skeleton, Typography, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import { taskApi } from '@/api/task';
 import { AgentTask } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
 import { parseResultUrls, isVideoUrl } from '@/components/common/ResultPreview';
 import { AuthImage, AuthVideo } from '@/components/common/AuthMedia';
-import StatusTag from '@/components/common/StatusTag';
-
-const { Text } = Typography;
 
 /** 从任务 requestParams JSON 中解析引擎类型（IMAGE/VIDEO） */
 function getEngineType(task: AgentTask): string | null {
@@ -24,15 +20,6 @@ function getEngineType(task: AgentTask): string | null {
 /** 任务是否有可展示的作品（result 解析出图片/视频 URL） */
 function hasWork(task: AgentTask): boolean {
   return parseResultUrls(task.result).length > 0;
-}
-
-/** 任务 prompt 摘要 */
-function getPrompt(task: AgentTask): string {
-  try {
-    return (JSON.parse(task.requestParams).prompt as string) || '';
-  } catch {
-    return '';
-  }
 }
 
 const GALLERY_PAGE_SIZE = 100;
@@ -121,8 +108,8 @@ interface GalleryCardProps {
 
 const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
   const urls = parseResultUrls(task.result);
-  const prompt = getPrompt(task);
-  const engineType = getEngineType(task);
+  // 只显示照片：提示词/状态/时间全部隐藏，有作品名则在照片底部叠加
+  const title = task.name?.trim() || '';
 
   return (
     <div
@@ -146,35 +133,42 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
       }}
     >
-      {/* 图片不开启独立预览：点击任意位置都跳转任务详情（与卡片 onClick 行为一致） */}
-      {urls.map((url, i) =>
-        isVideoUrl(url) ? (
-          <AuthVideo key={i} src={url} muted preload="metadata" style={{ width: '100%', display: 'block' }} />
-        ) : (
-          <AuthImage
-            key={i}
-            src={url}
-            alt={prompt.slice(0, 30) || '作品'}
-            style={{ width: '100%', display: 'block' }}
-            preview={false}
-          />
-        )
-      )}
-      <div style={{ padding: '10px 12px' }}>
-        <div style={{ marginBottom: 6 }}>
-          <StatusTag status={task.status} />
-          {engineType && (
-            <Tag color={engineType === 'VIDEO' ? 'purple' : 'blue'} style={{ marginLeft: 6 }}>
-              {engineType === 'VIDEO' ? '视频' : '图片'}
-            </Tag>
-          )}
-        </div>
-        <Text type="secondary" style={{ fontSize: 12, display: 'block' }} ellipsis={{ tooltip: prompt }}>
-          {prompt || '无提示词'}
-        </Text>
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {task.createdAt ? dayjs(task.createdAt).format('YYYY-MM-DD HH:mm') : ''}
-        </Text>
+      <div style={{ position: 'relative' }}>
+        {/* 图片不开启独立预览：点击任意位置都跳转任务详情（与卡片 onClick 行为一致） */}
+        {urls.map((url, i) =>
+          isVideoUrl(url) ? (
+            <AuthVideo key={i} src={url} muted preload="metadata" style={{ width: '100%', display: 'block' }} />
+          ) : (
+            <AuthImage
+              key={i}
+              src={url}
+              alt={title || '作品'}
+              style={{ width: '100%', display: 'block' }}
+              preview={false}
+            />
+          )
+        )}
+        {title && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: '18px 12px 8px',
+              background: 'linear-gradient(transparent, rgba(0,0,0,0.55))',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 500,
+              textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {title}
+          </div>
+        )}
       </div>
     </div>
   );

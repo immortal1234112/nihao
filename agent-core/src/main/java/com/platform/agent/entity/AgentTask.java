@@ -33,6 +33,10 @@ public class AgentTask extends BaseEntity {
     @TableField("request_params")
     private String requestParams;
 
+    /** 作品名称（可选，用户生成时命名；画廊/归档资产标题用） */
+    @TableField("name")
+    private String name;
+
     @TableField("result")
     private String result;
 
