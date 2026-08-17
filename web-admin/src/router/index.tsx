@@ -37,6 +37,9 @@ const ModelConfigPage = lazy(() => import('@/pages/admin/ModelConfigPage'));
 const AuditLogPage = lazy(() => import('@/pages/admin/AuditLogPage'));
 const DatasetsPage = lazy(() => import('@/pages/rag/DatasetsPage'));
 const DatasetDetailPage = lazy(() => import('@/pages/rag/DatasetDetailPage'));
+const ProjectsPage = lazy(() => import('@/pages/projects/ProjectsPage'));
+const ProjectWorkspacePage = lazy(() => import('@/pages/projects/ProjectWorkspacePage'));
+const AssetsPage = lazy(() => import('@/pages/assets/AssetsPage'));
 
 // React Router v7 future flags：消除 v6 弃用警告，提前对齐 v7 行为
 export const router = createBrowserRouter(
@@ -55,6 +58,9 @@ export const router = createBrowserRouter(
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: LazyLoad(DashboardPage) },
+      { path: 'projects', element: LazyLoad(ProjectsPage) },
+      { path: 'projects/:id', element: LazyLoad(ProjectWorkspacePage) },
+      { path: 'assets', element: LazyLoad(AssetsPage) },
       { path: 'workspace/image', element: LazyLoad(ImageGenPage) },
       { path: 'workspace/video', element: LazyLoad(VideoGenPage) },
       { path: 'workspace/batch', element: LazyLoad(BatchGenPage) },

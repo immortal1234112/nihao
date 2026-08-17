@@ -14,6 +14,7 @@ import com.platform.web.annotation.AuditLog;
 import com.platform.web.annotation.RequireRole;
 import com.platform.web.context.UserContext;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.Map;
 /**
  * 租户控制器 — /api/v1/tenants
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/tenants")
 @RequiredArgsConstructor
@@ -126,6 +128,14 @@ public class TenantController {
         ut.setRoleCode(roleCode);
         userTenantMapper.insert(ut);
 
+        // 重新加入自动恢复账户（被移除成员时账户随迁禁用，见 removeMember）
+        UserAccount account = userAccountMapper.selectById(userId);
+        if (account != null && UserAccount.STATUS_DISABLED.equals(account.getStatus())) {
+            account.setStatus(UserAccount.STATUS_ACTIVE);
+            userAccountMapper.updateById(account);
+            log.info("Member re-added, account re-enabled: userId={}, tenantId={}", userId, id);
+        }
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("id", ut.getId());
         result.put("userId", userId);
@@ -167,6 +177,15 @@ public class TenantController {
         }
 
         userTenantMapper.deleteById(target.getId());
+
+        // 账户随成员移除一并禁用：被移除者将无法再登录平台（即使保留着个人租户）。
+        // 后续可经 ADD_MEMBER 重新加入并自动恢复（见 addMember）。
+        UserAccount account = userAccountMapper.selectById(userId);
+        if (account != null && !UserAccount.STATUS_DISABLED.equals(account.getStatus())) {
+            account.setStatus(UserAccount.STATUS_DISABLED);
+            userAccountMapper.updateById(account);
+            log.info("Tenant member removed, account disabled: userId={}, tenantId={}", userId, id);
+        }
         return Result.ok();
     }
 }

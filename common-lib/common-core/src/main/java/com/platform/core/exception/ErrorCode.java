@@ -35,6 +35,8 @@ public enum ErrorCode {
     CONCURRENCY_LIMIT(3002, "并发任务数超限"),
     RATE_LIMITED(3003, "请求频率超限"),
     TENANT_SUSPENDED(3004, "租户已停用"),
+    LAST_OWNER_PROTECTED(3005, "项目至少保留一名 OWNER"),
+    MEMBER_NOT_IN_TENANT(3006, "用户不是租户成员"),
 
     // 4xxx: 资源不存在
     TASK_NOT_FOUND(4001, "任务不存在"),
@@ -44,6 +46,8 @@ public enum ErrorCode {
     DOCUMENT_NOT_FOUND(4005, "文档不存在"),
     MEMORY_NOT_FOUND(4006, "记忆不存在"),
     TEMPLATE_NOT_FOUND(4007, "模板不存在"),
+    PROJECT_NOT_FOUND(4008, "项目不存在"),
+    ASSET_NOT_FOUND(4009, "资产不存在"),
 
     // 5xxx: 系统错误
     SERVICE_TIMEOUT(5001, "服务调用超时"),

@@ -48,4 +48,13 @@ public class TaskSubmitRequest {
 
     /** RAG 检索条数（可选，默认 3，上限 10） */
     private Integer ragTopK;
+
+    /** 所属项目（阶段 1，可选；传了则校验项目写权限并随任务落库） */
+    private String projectId;
+
+    /** 输入资产（图生图/图生视频的来源，可选） */
+    private String sourceAssetId;
+
+    /** 批次号（批量任务同组，可选，前端批量生成时生成） */
+    private String batchGroupId;
 }

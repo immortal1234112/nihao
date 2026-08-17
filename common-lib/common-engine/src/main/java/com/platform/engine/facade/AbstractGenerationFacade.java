@@ -58,7 +58,8 @@ public abstract class AbstractGenerationFacade {
             MultipartFile file = createMultipartFile(bytes, filename, contentType);
             var uploadResult = storageFeignClient.upload(file,
                     userId != null ? userId : "system",
-                    tenantId != null ? tenantId : "system");
+                    tenantId != null ? tenantId : "system",
+                    taskId);
             if (uploadResult != null && uploadResult.getData() != null) {
                 String fileId = uploadResult.getData().fileId();
                 log.info("File uploaded: taskId={}, fileId={}", taskId, fileId);

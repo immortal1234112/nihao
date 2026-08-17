@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Empty, Flex, Image, Segmented, Skeleton, Typography, Tag, Tooltip } from 'antd';
+import { Empty, Flex, Segmented, Skeleton, Typography, Tag, Tooltip } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { taskApi } from '@/api/task';
 import { AgentTask } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
 import { parseResultUrls, isVideoUrl } from '@/components/common/ResultPreview';
+import { AuthImage, AuthVideo } from '@/components/common/AuthMedia';
 import StatusTag from '@/components/common/StatusTag';
 
 const { Text } = Typography;
@@ -148,9 +149,9 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
       {/* 图片不开启独立预览：点击任意位置都跳转任务详情（与卡片 onClick 行为一致） */}
       {urls.map((url, i) =>
         isVideoUrl(url) ? (
-          <video key={i} src={url} muted preload="metadata" style={{ width: '100%', display: 'block' }} />
+          <AuthVideo key={i} src={url} muted preload="metadata" style={{ width: '100%', display: 'block' }} />
         ) : (
-          <Image
+          <AuthImage
             key={i}
             src={url}
             alt={prompt.slice(0, 30) || '作品'}

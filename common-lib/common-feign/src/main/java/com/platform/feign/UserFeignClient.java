@@ -18,6 +18,9 @@ public interface UserFeignClient {
     @GetMapping("/{userId}/quota")
     Result<QuotaDTO> getQuota(@PathVariable("userId") String userId, @RequestParam("type") String type);
 
+    @GetMapping("/{userId}/tenant-membership")
+    Result<Boolean> isTenantMember(@PathVariable("userId") String userId, @RequestParam("tenantId") String tenantId);
+
     @PostMapping("/{userId}/quota/consume")
     Result<Boolean> consumeQuota(@PathVariable("userId") String userId, @RequestBody Map<String, Object> body);
 

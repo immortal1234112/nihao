@@ -47,9 +47,10 @@ public class FileService {
 
     /**
      * 服务端上传 —— 接收 MultipartFile，存储到 MinIO 并记录元数据。
+     * taskId 可选：Engine 生成结果上传时带入，Agent-Core 归档靠它按任务反查文件。
      */
     @Transactional
-    public StorageFile upload(String userId, String tenantId, MultipartFile file, String storageClass) {
+    public StorageFile upload(String userId, String tenantId, MultipartFile file, String storageClass, String taskId) {
         try {
             String objectKey = buildObjectKey(userId, file.getOriginalFilename());
             String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
@@ -74,6 +75,10 @@ public class FileService {
             sf.setStorageClass(storageClass != null ? storageClass : StorageFile.CLASS_ASSET);
             sf.setVisibility(StorageFile.VISIBILITY_PRIVATE);
             sf.setSourceType(StorageFile.SOURCE_UPLOAD);
+            // Engine 生成结果与任务关联（Agent-Core 归档按任务反查文件用）
+            if (taskId != null && !taskId.isBlank()) {
+                sf.setSourceTaskId(taskId);
+            }
 
             if (StorageFile.CLASS_TEMP.equals(storageClass)) {
                 sf.setExpireAt(LocalDateTime.now().plusHours(24));
@@ -192,6 +197,22 @@ public class FileService {
     /**
      * 查询单个文件。
      */
+    /** 按任务 ID 查询产出文件（资产归档用）。 */
+    public List<StorageFile> listByTask(String taskId) {
+        return storageFileMapper.selectList(new LambdaQueryWrapper<StorageFile>()
+                .eq(StorageFile::getSourceTaskId, taskId)
+                .orderByAsc(StorageFile::getCreatedAt));
+    }
+
+    /** 批量查询文件（资产列表预览用）。 */
+    public List<StorageFile> listByIds(List<String> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return List.of();
+        }
+        return storageFileMapper.selectList(new LambdaQueryWrapper<StorageFile>()
+                .in(StorageFile::getId, fileIds));
+    }
+
     public StorageFile getById(String fileId) {
         StorageFile sf = storageFileMapper.selectById(fileId);
         if (sf == null) {

@@ -36,6 +36,7 @@ public class TaskResultConsumer {
     private final AgentTaskMapper agentTaskMapper;
     private final WorkflowEngine workflowEngine;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final com.platform.agent.asset.service.AssetArchiveService assetArchiveService;
 
     /** 写库成功后推送任务状态变更（快照事件，前端收到后拉全量详情） */
     private void publishEvent(String taskId, String status, Integer stepOrder) {
@@ -186,6 +187,15 @@ public class TaskResultConsumer {
         }
 
         agentTaskMapper.updateById(task);
+        // 阶段 1：任务完成 → 自动归档为资产 + 成本估算（与 TaskService.updateTaskStatus 同一挂点；
+        // 失败不阻塞任务主流程，兜底接口 POST /api/v1/tasks/{id}/archive 可重试）
+        if (AgentTask.STATUS_DONE.equals(task.getStatus())) {
+            try {
+                assetArchiveService.onTaskDone(task);
+            } catch (Exception e) {
+                log.error("Asset archive failed for task={}, manual retry: POST /api/v1/tasks/{}/archive", task.getId(), task.getId(), e);
+            }
+        }
         // 状态未变化（重复回执/x-death 重投）不重复推送，避免无意义的前端刷新
         if (!oldStatus.equals(task.getStatus())) {
             publishEvent(task.getId(), task.getStatus(), null);

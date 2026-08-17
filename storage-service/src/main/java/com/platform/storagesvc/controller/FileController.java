@@ -37,7 +37,8 @@ public class FileController {
                 UserContext.getUserId(),
                 TenantContext.get(),
                 file,
-                storageClass
+                storageClass,
+                null
         );
 
         Map<String, Object> result = Map.of(

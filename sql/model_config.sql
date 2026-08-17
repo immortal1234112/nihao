@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS model_config (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Insert default rows for all providers (disabled by default)
+-- INSERT IGNORE：启动脚本每次都会重跑本文件，已存在的种子跳过（幂等）；
+-- 已改过的 api_key 不会被覆盖。
 -- LLM
-INSERT INTO model_config (id, provider, api_key, api_secret, base_url, model, enabled) VALUES
+INSERT IGNORE INTO model_config (id, provider, api_key, api_secret, base_url, model, enabled) VALUES
 ('1', 'openai', '', '', 'https://api.openai.com', 'gpt-4o', 0),
 ('2', 'anthropic', '', '', 'https://api.anthropic.com', 'claude-sonnet-4-20250514', 0),
 ('3', 'deepseek', '', '', 'https://api.deepseek.com', 'deepseek-chat', 0),

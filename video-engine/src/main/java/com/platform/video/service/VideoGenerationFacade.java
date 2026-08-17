@@ -64,8 +64,9 @@ public class VideoGenerationFacade extends AbstractGenerationFacade {
                 }
             }
             if (result.getVideoUrl() != null && !result.getVideoUrl().startsWith("deepseek-chat://")) {
-                fileInfos.add(new TaskResultMessage.FileInfo(
-                        null, result.getVideoUrl(), result.getThumbnailUrl()));
+                // 下载 provider 直链视频字节 → 上传 Storage（带 taskId，归档可按任务反查）
+                TaskResultMessage.FileInfo fi = uploadVideo(taskId, userId, tenantId, result);
+                fileInfos.add(fi);
             }
             if (fileInfos.isEmpty()) {
                 fileInfos.add(new TaskResultMessage.FileInfo(
@@ -101,5 +102,58 @@ public class VideoGenerationFacade extends AbstractGenerationFacade {
                 script.getBytes(StandardCharsets.UTF_8),
                 "deepseek-script-" + taskId + ".txt",
                 "text/plain; charset=UTF-8");
+    }
+
+    /**
+     * 视频结果落库：下载 provider 直链 → 上传 Storage（带 taskId 供归档反查）。
+     * 失败降级回退直链 FileInfo（fileId=null，任务仍 DONE，与 fail-open 策略一致）。
+     */
+    private TaskResultMessage.FileInfo uploadVideo(String taskId, String userId, String tenantId,
+                                                   VideoGenerationResult result) {
+        try {
+            byte[] bytes = downloadBytes(result.getVideoUrl());
+            if (bytes == null || bytes.length == 0) {
+                throw new java.io.IOException("video bytes empty");
+            }
+            String filename = "generated-" + taskId + ".mp4";
+            TaskResultMessage.FileInfo uploaded = uploadToStorage(taskId, userId, tenantId,
+                    bytes, filename, "video/mp4");
+            if (uploaded == null) {
+                throw new java.io.IOException("storage upload returned empty result");
+            }
+            // 缩略图可下载则一并落库；失败不影响主文件
+            String thumbnailUrl = result.getThumbnailUrl();
+            if (result.getThumbnailUrl() != null && !result.getThumbnailUrl().isBlank()) {
+                try {
+                    byte[] thumbBytes = downloadBytes(result.getThumbnailUrl());
+                    // 缩略图不带 taskId（派生物不参与归档反查，避免重复归档）
+                    TaskResultMessage.FileInfo thumb = uploadToStorage(null, userId, tenantId,
+                            thumbBytes, "thumbnail-" + taskId + ".png", "image/png");
+                    if (thumb != null) {
+                        thumbnailUrl = thumb.url();
+                    }
+                } catch (Exception e) {
+                    log.warn("Thumbnail upload failed for task={}: {}", taskId, e.getMessage());
+                }
+            }
+            return new TaskResultMessage.FileInfo(uploaded.fileId(), uploaded.url(), thumbnailUrl);
+        } catch (Exception e) {
+            log.warn("Failed to persist video for task={}: {} (fallback to provider URL)", taskId, e.getMessage());
+        }
+        return new TaskResultMessage.FileInfo(null, result.getVideoUrl(), result.getThumbnailUrl());
+    }
+
+    /** 下载 provider 直链字节（视频/缩略图通用） */
+    private byte[] downloadBytes(String url) throws java.io.IOException {
+        okhttp3.Request request = new okhttp3.Request.Builder().url(url).get().build();
+        try (okhttp3.Response response = new okhttp3.OkHttpClient.Builder()
+                .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                .build().newCall(request).execute()) {
+            if (!response.isSuccessful() || response.body() == null) {
+                throw new java.io.IOException("download failed: HTTP " + response.code());
+            }
+            return response.body().bytes();
+        }
     }
 }

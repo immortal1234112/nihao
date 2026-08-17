@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu } from 'antd';
 import {
@@ -22,6 +23,8 @@ import {
   FileSearchOutlined,
   SettingOutlined,
   DatabaseOutlined,
+  ProjectOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -33,8 +36,23 @@ const SideMenu: React.FC = () => {
 
   const isAdmin = roles.includes('TENANT_ADMIN') || roles.includes('SUPER_ADMIN');
 
+  // 菜单 key 均为路由前缀：/projects/xxx 也应高亮 /projects
+  const selectedKey = useMemo(() => {
+    const pathname = location.pathname;
+    if (pathname === '/projects' || pathname.startsWith('/projects/')) return '/projects';
+    return pathname;
+  }, [location.pathname]);
+
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: '首页仪表盘' },
+    {
+      type: 'group' as const,
+      label: '项目与资产',
+      children: [
+        { key: '/projects', icon: <ProjectOutlined />, label: '项目' },
+        { key: '/assets', icon: <InboxOutlined />, label: '资产中心' },
+      ],
+    },
     {
       type: 'group' as const,
       label: 'AI 创作',
@@ -104,7 +122,7 @@ const SideMenu: React.FC = () => {
     <Menu
       theme="dark"
       mode="inline"
-      selectedKeys={[location.pathname]}
+      selectedKeys={[selectedKey]}
       defaultOpenKeys={['/workspace', '/llm', '/user', '/tenant', '/admin']}
       items={menuItems}
       onClick={({ key }) => navigate(key)}

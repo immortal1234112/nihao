@@ -7,8 +7,12 @@ import com.platform.storagesvc.entity.StorageFile;
 import com.platform.storagesvc.service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 /**
  * 内部 Feign 调用控制器 — /api/v1/internal/files
@@ -36,21 +40,85 @@ public class InternalFileController {
                 sf.getObjectKey(),
                 publicFileUrl(sf.getId()),
                 sf.getContentType(),
-                sf.getFileSize()
+                sf.getFileSize(),
+                sf.getWidth(),
+                sf.getHeight(),
+                sf.getDurationMs()
         );
         return Result.ok(dto);
     }
 
     /**
+     * 内部取文件字节（Agent-Core 任务结果下载代理用，服务间免公开鉴权）。
+     */
+    @GetMapping(value = "/{fileId}/content", produces = "application/octet-stream")
+    public ResponseEntity<byte[]> downloadContent(@PathVariable String fileId) {
+        StorageFile sf = fileService.getById(fileId);
+        if (sf == null) {
+            throw new com.platform.core.exception.BizException(
+                    com.platform.core.exception.ErrorCode.STORAGE_ERROR, "文件不存在: " + fileId);
+        }
+        try (java.io.InputStream in = fileService.download(fileId).getInputStream()) {
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(
+                            sf.getContentType() != null ? sf.getContentType() : "application/octet-stream"))
+                    .body(in.readAllBytes());
+        } catch (Exception e) {
+            throw new com.platform.core.exception.BizException(
+                    com.platform.core.exception.ErrorCode.STORAGE_ERROR, "文件读取失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 按任务 ID 查询产出文件（供 Agent-Core 资产归档调用）。
+     */
+    @GetMapping("/by-task/{taskId}")
+    public Result<List<FileDTO>> listByTask(@PathVariable String taskId) {
+        List<FileDTO> files = fileService.listByTask(taskId).stream()
+                .map(sf -> new FileDTO(
+                        sf.getId(),
+                        sf.getObjectKey(),
+                        publicFileUrl(sf.getId()),
+                        sf.getContentType(),
+                        sf.getFileSize(),
+                        sf.getWidth(),
+                        sf.getHeight(),
+                        sf.getDurationMs()))
+                .toList();
+        return Result.ok(files);
+    }
+
+    /**
+     * 批量查询文件（供 Agent-Core 资产列表预览调用）。
+     */
+    @GetMapping("/batch")
+    public Result<List<FileDTO>> listByIds(@RequestParam List<String> ids) {
+        List<FileDTO> files = fileService.listByIds(ids).stream()
+                .map(sf -> new FileDTO(
+                        sf.getId(),
+                        sf.getObjectKey(),
+                        publicFileUrl(sf.getId()),
+                        sf.getContentType(),
+                        sf.getFileSize(),
+                        sf.getWidth(),
+                        sf.getHeight(),
+                        sf.getDurationMs()))
+                .toList();
+        return Result.ok(files);
+    }
+
+    /**
      * 内部上传（Engine 使用）—— 返回真实下载 URL（此前为 null，导致前端拿不到文件）。
+     * X-Source-Task-Id 可选：Engine 生成结果带 taskId 上传，供 Agent-Core 归档时按任务反查文件。
      */
     @PostMapping(value = "/upload")
     public Result<UploadResult> upload(
             @RequestPart MultipartFile file,
             @RequestHeader("X-User-Id") String userId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(value = "X-Source-Task-Id", required = false) String taskId) {
 
-        StorageFile sf = fileService.upload(userId, tenantId, file, "ASSET");
+        StorageFile sf = fileService.upload(userId, tenantId, file, "ASSET", taskId);
 
         UploadResult uploadResult = new UploadResult(
                 sf.getId(),

@@ -5,9 +5,12 @@
 #  不再弹出 8 个杂乱的控制台窗口。本窗口提供状态查看 / 日志查看 /
 #  错误搜索 / 一键停止 等功能。
 #
+#  启动流程: 清理旧进程 → Docker 基础设施 → 数据库迁移 (sql\*.sql 自动应用, 幂等)
+#           → Maven 编译 → 后台启动服务
+#
 #  用法:
-#    .\start.bat                 完整启动 (Docker + 编译 + 服务)
-#    .\start.bat -SkipInfra      跳过 Docker 基础设施
+#    .\start.bat                 完整启动 (Docker + 迁移 + 编译 + 服务)
+#    .\start.bat -SkipInfra      跳过 Docker 基础设施 (MySQL 不在时同时跳过迁移)
 #    .\start.bat -SkipBuild      跳过 Maven 编译
 #    .\start.bat -NoMenu         启动后不进入控制台菜单, 直接退出 (脚本/后台场景)
 #
@@ -196,6 +199,57 @@ function Read-Key {
     }
 }
 
+# 数据库迁移: 将 sql\*.sql 按固定顺序应用到 Docker MySQL。
+# 全部文件幂等 (CREATE ... IF NOT EXISTS / INSERT IGNORE / information_schema 条件 ALTER),
+# 每次启动重复执行无副作用, 新环境首跑即建全表。
+# 顺序: init(建库) → model_config(模型种子) → rag → chat → prompt_template → phase1(项目/资产)
+function Invoke-SqlMigrations {
+    $containerId = docker compose ps -q mysql 2>$null
+    if (-not $containerId) {
+        Write-Host '  未检测到 MySQL 容器, 跳过数据库迁移 (-SkipInfra 时属正常)。'
+        return
+    }
+    # 容器的端口映射先于 mysqld 就绪, 用 mysqladmin ping 等真正可查询 (最长 60 秒)
+    $env:MYSQL_PWD = $env:MYSQL_ROOT_PASSWORD
+    $ready = $false
+    for ($i = 0; $i -lt 20; $i++) {
+        & docker exec -e MYSQL_PWD $containerId mysqladmin ping -uroot --silent 2>$null
+        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+        Start-Sleep -Seconds 3
+    }
+    if (-not $ready) {
+        Write-Host '  MySQL 未就绪, 跳过数据库迁移 (服务启动后可能缺表, 请重跑 start.bat)。'
+        Remove-Item Env:\MYSQL_PWD -ErrorAction SilentlyContinue
+        return
+    }
+    $files = @('init.sql', 'model_config.sql', 'rag.sql', 'chat.sql', 'prompt_template.sql', 'phase1_project_asset.sql')
+    $tmpOut = Join-Path $env:TEMP 'sql_migrate_out.txt'
+    $tmpErr = Join-Path $env:TEMP 'sql_migrate_err.txt'
+    foreach ($f in $files) {
+        $path = Join-Path $PROJ_DIR ('sql\' + $f)
+        if (-not (Test-Path $path)) { Write-Host ('  跳过 (文件不存在): {0}' -f $f); continue }
+        # Start-Process 重定向 stdin: SQL 文件字节原样传入 mysql,
+        # 中文不走 PowerShell 管道/命令行, 不会被系统编码重编码
+        $proc = Start-Process -FilePath 'docker' `
+            -ArgumentList @('exec', '-i', '-e', 'MYSQL_PWD', $containerId, 'mysql', '-uroot', '--default-character-set=utf8mb4') `
+            -RedirectStandardInput $path -RedirectStandardOutput $tmpOut -RedirectStandardError $tmpErr `
+            -Wait -PassThru -NoNewWindow
+        $errText = if (Test-Path $tmpErr) { (Get-Content $tmpErr -Raw -Encoding UTF8) } else { '' }
+        if ($proc.ExitCode -ne 0 -or $errText -match 'ERROR ') {
+            if ($f -eq 'init.sql') {
+                Write-Host ('  [错误] 基础建库脚本 init.sql 应用失败, 中止启动: {0}' -f (($errText.Trim() -split "`n" | Select-Object -Last 2) -join ' | '))
+                Remove-Item Env:\MYSQL_PWD -ErrorAction SilentlyContinue
+                exit 1
+            }
+            Write-Host ('  [迁移警告] {0}: {1}' -f $f, (($errText.Trim() -split "`n" | Select-Object -Last 2) -join ' | '))
+        } else {
+            Write-Host ('  已应用: {0}' -f $f)
+        }
+    }
+    Remove-Item $tmpOut, $tmpErr -ErrorAction SilentlyContinue
+    Remove-Item Env:\MYSQL_PWD -ErrorAction SilentlyContinue
+}
+
 # 停止所有服务: 按 spring-boot:run / 已知端口清理
 function Stop-All {
     Write-Host '停止所有后台服务...'
@@ -341,11 +395,15 @@ function Main {
         }
     }
 
-    # [3/4] 编译
+    # [3/5] 数据库迁移
+    Write-Host '[3/5] 应用数据库迁移 (sql\*.sql, 幂等可重复)...'
+    Invoke-SqlMigrations
+
+    # [4/5] 编译
     if ($SkipBuild) {
-        Write-Host '[3/4] 跳过 Maven 编译 (-SkipBuild)'
+        Write-Host '[4/5] 跳过 Maven 编译 (-SkipBuild)'
     } else {
-        Write-Host '[3/4] 编译项目 (mvn install -DskipTests -q) ...'
+        Write-Host '[4/5] 编译项目 (mvn install -DskipTests -q) ...'
         & mvn install -DskipTests -q
         if ($LASTEXITCODE -ne 0) {
             Write-Host '[错误] 编译失败! 按任意键退出...'
@@ -355,8 +413,8 @@ function Main {
         Write-Host '编译完成。'
     }
 
-    # [4/4] 启动服务
-    Write-Host '[4/4] 后台启动所有服务...'
+    # [5/5] 启动服务
+    Write-Host '[5/5] 后台启动所有服务...'
     if (-not (Test-Path $LOG_DIR)) { New-Item -ItemType Directory -Path $LOG_DIR -Force | Out-Null }
     Get-ChildItem (Join-Path $LOG_DIR '*.log') -ErrorAction SilentlyContinue | Remove-Item -Force
     foreach ($svc in $SERVICES) {

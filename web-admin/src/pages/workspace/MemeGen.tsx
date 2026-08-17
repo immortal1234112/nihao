@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Card, Form, Input, Button, Typography, Image, Spin, Result, Space, Tag } from 'antd';
+import { Card, Form, Input, Button, Typography, Spin, Result, Space, Tag } from 'antd';
 import { SendOutlined, ClearOutlined, ReloadOutlined } from '@ant-design/icons';
 import { memeApi, MemeResultRes } from '@/api/meme';
+import { AuthImage } from '@/components/common/AuthMedia';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -128,11 +129,10 @@ const MemeGen: React.FC = () => {
         {/* 生成结果 */}
         {result?.status === 'DONE' && (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <Image
+            <AuthImage
               src={result.imageUrl!}
               alt={result.memeText || '表情包'}
               style={{ maxWidth: '100%', maxHeight: 480, borderRadius: 8 }}
-              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
             />
             {result.memeText && (
               <Paragraph style={{ marginTop: 16, fontSize: 18, fontWeight: 600 }}>

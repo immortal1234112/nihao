@@ -94,8 +94,10 @@ export type TaskStatus =
 
 export interface TaskSubmitRequest {
   prompt: string;
-  workflowType: WorkflowType;
-  engineType: EngineType;
+  /** 后端按提交端点注入（/image /video /batch /workflow），前端可省略 */
+  workflowType?: WorkflowType;
+  /** 后端按提交端点注入（/image /video），前端可省略 */
+  engineType?: EngineType;
   modelProvider?: string;
   size?: string;
   count?: number;
@@ -113,6 +115,12 @@ export interface TaskSubmitRequest {
   datasetId?: string;
   /** RAG 检索条数（可选） */
   ragTopK?: number;
+  /** Phase1 项目归属：项目 ID（可选） */
+  projectId?: string;
+  /** Phase1 输入资产：源资产 ID（可选，图生图/图生视频） */
+  sourceAssetId?: string;
+  /** Phase1 批量分组：批量任务分组 ID（可选） */
+  batchGroupId?: string;
 }
 
 // ========== 提示词模板 ==========
@@ -154,6 +162,14 @@ export interface AgentTask {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  /** Phase1：项目归属 */
+  projectId?: string | null;
+  /** Phase1：源资产 ID */
+  sourceAssetId?: string | null;
+  /** Phase1：批量分组 ID */
+  batchGroupId?: string | null;
+  /** Phase1：估算成本 */
+  cost?: number | null;
 }
 
 export interface WorkflowStep {
@@ -366,6 +382,132 @@ export interface TenantMember {
   email: string;
   roleCode: string;
   joinedAt: string;
+}
+
+// ========== 项目 ==========
+export type ProjectRole = 'OWNER' | 'EDITOR' | 'REVIEWER' | 'VIEWER';
+
+export interface ProjectRow {
+  id: string;
+  name: string;
+  status: string;
+  deadline: string | null;
+  coverAssetId: string | null;
+  memberCount: number;
+  assetCount: number;
+  createdAt: string;
+}
+
+export interface CreativeBrief {
+  id: string;
+  projectId: string;
+  target: string | null;
+  style: string | null;
+  referenceAssets: string | null;
+  extra: string | null;
+  updatedAt: string | null;
+}
+
+export interface ProjectDetail {
+  id: string;
+  tenantId: string;
+  name: string;
+  status: string;
+  deadline: string | null;
+  coverAssetId: string | null;
+  brief: CreativeBrief | null;
+  memberCount: number;
+  assetCount: number;
+  createdAt: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  roleCode: ProjectRole;
+  createdAt: string;
+}
+
+export type TimelineEventType = 'TASK' | 'ASSET';
+
+export interface TimelineEvent {
+  type: TimelineEventType;
+  id: string;
+  title: string;
+  status?: string;
+  assetType?: string;
+  derivationType?: string;
+  parentAssetId?: string | null;
+  batchGroupId?: string | null;
+  createdAt: string;
+}
+
+export interface ProjectTimeline {
+  events: TimelineEvent[];
+  taskCount: number;
+  assetCount: number;
+}
+
+// ========== 资产 ==========
+export type AssetType = 'IMAGE' | 'VIDEO' | 'AUDIO' | 'TEXT' | 'FILE';
+export type AssetStatus = 'DRAFT' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED';
+
+export interface AssetRow {
+  id: string;
+  projectId: string | null;
+  parentAssetId: string | null;
+  derivationType: string;
+  assetType: AssetType;
+  title: string;
+  fileId: string | null;
+  thumbFileId: string | null;
+  status: AssetStatus;
+  starred: number;
+  createdAt: string;
+  createdBy: string;
+  description?: string;
+  contentText?: string;
+  prompt?: string;
+  modelProvider?: string;
+  modelCode?: string;
+  params?: string;
+  tags?: string[];
+  file?: {
+    id: string;
+    url: string;
+    contentType: string;
+    fileSize: number;
+    width: number | null;
+    height: number | null;
+    durationMs: number | null;
+  };
+}
+
+export interface AssetLineage {
+  asset: AssetRow;
+  parents: Array<{ id: string; title: string; derivationType: string; deleted: boolean }>;
+  children: AssetRow[];
+  tasks: Array<{
+    taskId: string;
+    relationType: string;
+    status: string;
+    workflowType: string;
+    createdAt: string;
+  }>;
+}
+
+export interface ModelCapability {
+  id: string;
+  capability: string;
+  provider: string;
+  modelCode: string;
+  label: string;
+  tier: string;
+  priority: number;
+  costPerUnit: number;
+  costUnit: string;
+  enabled: number;
 }
 
 // ========== 管理 ==========

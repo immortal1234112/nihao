@@ -45,6 +45,19 @@ spring:
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/tasks/**
+        # Phase1 项目/资产域：项目、资产中心、模型能力目录（agent-core）
+        - id: projects
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/projects/**
+        - id: assets
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/assets/**
+        - id: model-capabilities
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/model-capabilities/**
         - id: templates
           uri: lb://agent-core
           predicates:

@@ -11,7 +11,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableDiscoveryClient
 @EnableFeignClients(basePackages = "com.platform.feign")
 @EnableScheduling
-@MapperScan({"com.platform.agent.mapper", "com.platform.agent.rag.mapper", "com.platform.agent.chat.mapper", "com.platform.core.config"})
+@MapperScan({"com.platform.agent.mapper", "com.platform.agent.rag.mapper", "com.platform.agent.chat.mapper",
+        "com.platform.agent.project.mapper", "com.platform.agent.asset.mapper", "com.platform.agent.modelcap.mapper",
+        "com.platform.core.config"})
 public class AgentCoreApplication {
 
     public static void main(String[] args) {

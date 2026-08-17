@@ -1,9 +1,7 @@
-import { Button, Col, Image, Row, Tooltip } from 'antd';
+import { Button, Col, Row, Tooltip } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useAppFeedback } from '@/utils/feedback';
-
-const FALLBACK_IMG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+import { AuthImage, AuthVideo, downloadAuthFile } from './AuthMedia';
 
 /**
  * 解析任务/步骤结果 JSON，提取图片/视频 URL 列表（画廊页也复用此函数）。
@@ -32,6 +30,44 @@ export function isVideoUrl(url: string): boolean {
   return url.includes('.mp4') || url.includes('.webm') || url.includes('video');
 }
 
+/**
+ * 单个结果媒体项：本地平台文件带 Bearer fetch 成 Blob 预览/下载（直连会 401）；
+ * 远端 provider 直链直接渲染，下载走服务端代理（后端已做 URL 解码 + 白名单校验）。
+ * 预览/下载逻辑统一在 AuthMedia。
+ */
+const MediaItem: React.FC<{ url: string; index: number }> = ({ url, index }) => {
+  const { message } = useAppFeedback();
+  const isVideo = isVideoUrl(url);
+
+  return (
+    <div style={{ textAlign: 'center' }}>
+      {isVideo ? (
+        <AuthVideo src={url} controls style={{ width: '100%', borderRadius: 8 }} />
+      ) : (
+        <AuthImage src={url} alt={`生成结果 ${index + 1}`} style={{ borderRadius: 8 }} />
+      )}
+      <br />
+      <Tooltip title="下载到本地">
+        <Button
+          type="link"
+          size="small"
+          icon={<DownloadOutlined />}
+          onClick={async (e) => {
+            e.stopPropagation();
+            const key = 'file-download';
+            message.loading({ content: '下载中...', key });
+            const ok = await downloadAuthFile(url, `generated-${Date.now()}.${isVideo ? 'mp4' : 'png'}`);
+            if (ok) message.success({ content: '下载完成', key });
+            else message.error({ content: '下载失败，请重试', key });
+          }}
+        >
+          下载
+        </Button>
+      </Tooltip>
+    </div>
+  );
+};
+
 interface ResultPreviewProps {
   /** 步骤 output 或任务 result 的 JSON 字符串 */
   raw?: string | null;
@@ -41,65 +77,14 @@ interface ResultPreviewProps {
  * 任务结果预览（图片/视频网格 + 下载），从 TaskDetailPage 抽取，画廊等页复用。
  */
 const ResultPreview: React.FC<ResultPreviewProps> = ({ raw }) => {
-  const { message } = useAppFeedback();
   const urls = parseResultUrls(raw);
   if (urls.length === 0) return null;
-
-  const downloadFile = async (url: string) => {
-    const key = 'file-download';
-    message.loading({ content: '下载中...', key });
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/tasks/download?url=${encodeURIComponent(url)}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error('download failed');
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      const isVideo = isVideoUrl(url) || blob.type.startsWith('video/');
-      a.download = `generated-${Date.now()}.${isVideo ? 'mp4' : 'png'}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-      message.success({ content: '下载完成', key });
-    } catch {
-      message.error({ content: '下载失败，请重试', key });
-    }
-  };
 
   return (
     <Row gutter={[12, 12]}>
       {urls.map((url, i) => (
         <Col key={i} xs={24} sm={12} md={8} lg={6}>
-          <div style={{ textAlign: 'center' }}>
-            {isVideoUrl(url) ? (
-              <video src={url} controls style={{ width: '100%', borderRadius: 8 }} />
-            ) : (
-              <Image
-                src={url}
-                alt={`生成结果 ${i + 1}`}
-                style={{ borderRadius: 8 }}
-                fallback={FALLBACK_IMG}
-              />
-            )}
-            <br />
-            <Tooltip title="下载到本地">
-              <Button
-                type="link"
-                size="small"
-                icon={<DownloadOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  downloadFile(url);
-                }}
-              >
-                下载
-              </Button>
-            </Tooltip>
-          </div>
+          <MediaItem url={url} index={i} />
         </Col>
       ))}
     </Row>

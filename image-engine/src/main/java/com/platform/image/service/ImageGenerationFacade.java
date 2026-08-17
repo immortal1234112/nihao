@@ -58,7 +58,7 @@ public class ImageGenerationFacade extends AbstractGenerationFacade {
             // 5. 上传结果到 Storage-Service + 收集 FileInfo
             List<TaskResultMessage.FileInfo> fileInfos = new ArrayList<>();
             for (GenerationResult result : results) {
-                TaskResultMessage.FileInfo fi = uploadResult(result, userId, tenantId);
+                TaskResultMessage.FileInfo fi = uploadResult(taskId, result, userId, tenantId);
                 if (fi != null) fileInfos.add(fi);
             }
 
@@ -72,7 +72,8 @@ public class ImageGenerationFacade extends AbstractGenerationFacade {
         }
     }
 
-    private TaskResultMessage.FileInfo uploadResult(GenerationResult result, String userId, String tenantId) {
+    private TaskResultMessage.FileInfo uploadResult(String taskId, GenerationResult result,
+                                                    String userId, String tenantId) {
         try {
             byte[] bytes;
             if (result.getBase64Data() != null && !result.getBase64Data().isEmpty()) {
@@ -87,20 +88,20 @@ public class ImageGenerationFacade extends AbstractGenerationFacade {
                 throw new IOException("result bytes empty");
             }
 
-            // 通过 Storage Feign 上传（消费线程无 ThreadLocal，身份必须显式传参）
+            // 通过 Storage Feign 上传（消费线程无 ThreadLocal，身份必须显式传参；带 taskId 供归档反查）
             var uploadResult = storageFeignClient.upload(
-                    createMultipartFile(bytes, "generated.png", "image/png"), userId, tenantId);
+                    createMultipartFile(bytes, "generated.png", "image/png"), userId, tenantId, taskId);
             if (uploadResult != null && uploadResult.getData() != null) {
                 String fileId = uploadResult.getData().fileId();
                 String url = uploadResult.getData().url();
 
-                // 生成缩略图
+                // 生成缩略图（不带 taskId：缩略图是派生物，不参与归档反查，避免一任务归档出两个资产）
                 String thumbnailUrl = null;
                 String thumbBase64 = postProcessor.generateThumbnail(result);
                 if (thumbBase64 != null) {
                     byte[] thumbBytes = Base64.getDecoder().decode(thumbBase64);
                     var thumbUpload = storageFeignClient.upload(
-                            createMultipartFile(thumbBytes, "thumbnail.png", "image/png"), userId, tenantId);
+                            createMultipartFile(thumbBytes, "thumbnail.png", "image/png"), userId, tenantId, null);
                     if (thumbUpload != null && thumbUpload.getData() != null) {
                         thumbnailUrl = thumbUpload.getData().url();
                     }

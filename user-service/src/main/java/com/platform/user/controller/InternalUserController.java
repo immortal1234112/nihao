@@ -65,6 +65,17 @@ public class InternalUserController {
     }
 
     /**
+     * 校验用户是否为指定租户成员（供 Feign 调用，项目成员添加前置校验）。
+     */
+    @GetMapping("/{userId}/tenant-membership")
+    public Result<Boolean> isTenantMember(@PathVariable String userId, @RequestParam String tenantId) {
+        UserTenant ut = userTenantMapper.selectOne(new LambdaQueryWrapper<UserTenant>()
+                .eq(UserTenant::getUserId, userId)
+                .eq(UserTenant::getTenantId, tenantId));
+        return Result.ok(ut != null);
+    }
+
+    /**
      * 获取用户配额（供 Feign 调用）。
      */
     @GetMapping("/{userId}/quota")

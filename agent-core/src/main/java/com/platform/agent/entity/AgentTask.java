@@ -48,6 +48,22 @@ public class AgentTask extends BaseEntity {
     @TableField("completed_at")
     private LocalDateTime completedAt;
 
+    /** 所属项目（阶段 1 新增，可空兼容存量） */
+    @TableField("project_id")
+    private String projectId;
+
+    /** 输入资产（图生图/图生视频的来源） */
+    @TableField("source_asset_id")
+    private String sourceAssetId;
+
+    /** 批次号，批量任务同组 */
+    @TableField("batch_group_id")
+    private String batchGroupId;
+
+    /** 估算成本，任务完成时写入 */
+    @TableField("cost")
+    private java.math.BigDecimal cost;
+
     // ========== 工作流类型常量 ==========
     public static final String WF_SINGLE = "SINGLE";
     public static final String WF_PIPELINE = "PIPELINE";

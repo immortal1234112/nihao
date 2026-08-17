@@ -21,6 +21,16 @@ public class StorageFeignFallback implements StorageFeignClient {
     }
 
     @Override
+    public Result<java.util.List<FileDTO>> listByTask(String taskId) {
+        return Result.fail(ErrorCode.SERVICE_TIMEOUT);
+    }
+
+    @Override
+    public Result<java.util.List<FileDTO>> listByIds(java.util.List<String> ids) {
+        return Result.fail(ErrorCode.SERVICE_TIMEOUT);
+    }
+
+    @Override
     public Result<Void> delete(String fileId) {
         return Result.fail(ErrorCode.SERVICE_TIMEOUT);
     }

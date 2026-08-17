@@ -50,6 +50,9 @@ public class TaskService {
     private final UserFeignClient userFeignClient;
     private final SecurityFeignClient securityFeignClient;
     private final RagService ragService;
+    private final com.platform.agent.project.service.ProjectService projectService;
+    private final com.platform.agent.asset.service.AssetService assetService;
+    private final com.platform.agent.asset.service.AssetArchiveService assetArchiveService;
 
     /** 审核服务异常时的降级开关：默认失败关闭（false），本地开发可显式开启降级 */
     @Value("${platform.audit.degrade-allowed:false}")
@@ -122,6 +125,15 @@ public class TaskService {
             }
         }
 
+        // 3.3 项目归属校验（传了 projectId 才校验；项目动作只看项目角色）
+        if (request.getProjectId() != null && !request.getProjectId().isBlank()) {
+            projectService.checkProjectWritable(request.getProjectId());
+        }
+        // 3.4 输入资产校验（传了 sourceAssetId 才校验，防止跨租户/跨项目引用）
+        if (request.getSourceAssetId() != null && !request.getSourceAssetId().isBlank()) {
+            assetService.requireVisibleAsset(request.getSourceAssetId());
+        }
+
         // 3.5 RAG 知识库增强（审核后，只增强已过审 prompt；检索失败降级不影响任务）
         String effectivePrompt = request.getPrompt();
         List<RagReference> ragReferences = List.of();
@@ -148,6 +160,9 @@ public class TaskService {
         task.setStatus(AgentTask.STATUS_VALIDATING);
         task.setRetryCount(0);
         task.setPriority(0);
+        task.setProjectId(request.getProjectId());
+        task.setSourceAssetId(request.getSourceAssetId());
+        task.setBatchGroupId(request.getBatchGroupId());
 
         // 5. 构建请求参数
         Map<String, Object> params = buildParams(request, intent, effectivePrompt, ragReferences);
@@ -314,6 +329,15 @@ public class TaskService {
             task.setCompletedAt(LocalDateTime.now());
         }
         agentTaskMapper.updateById(task);
+
+        // 阶段 1：任务完成 → 自动归档为资产 + 成本估算（失败不阻塞任务主流程，兜底接口可重试）
+        if (AgentTask.STATUS_DONE.equals(status)) {
+            try {
+                assetArchiveService.onTaskDone(task);
+            } catch (Exception e) {
+                log.error("Asset archive failed for task={}, manual retry: POST /api/v1/tasks/{}/archive", taskId, taskId, e);
+            }
+        }
     }
 
     // ========== 辅助方法 ==========

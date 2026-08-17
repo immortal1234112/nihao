@@ -22,6 +22,11 @@ public class UserFeignFallback implements UserFeignClient {
     }
 
     @Override
+    public Result<Boolean> isTenantMember(String userId, String tenantId) {
+        return Result.fail(ErrorCode.SERVICE_TIMEOUT);
+    }
+
+    @Override
     public Result<Boolean> consumeQuota(String userId, Map<String, Object> body) {
         return Result.fail(ErrorCode.SERVICE_TIMEOUT);
     }

@@ -30,6 +30,8 @@ import java.util.Map;
 public class TaskController {
 
     private final TaskService taskService;
+    private final com.platform.agent.asset.service.AssetArchiveService assetArchiveService;
+    private final com.platform.feign.StorageFeignClient storageFeignClient;
 
     @AuditLog(action = "SUBMIT_IMAGE_TASK")
     @PostMapping("/image")
@@ -105,6 +107,15 @@ public class TaskController {
         return Result.ok();
     }
 
+    @AuditLog(action = "ARCHIVE_TASK_ASSET")
+    @PostMapping("/{id}/archive")
+    public Result<Void> archive(@PathVariable String id) {
+        // 兜底入口：任务完成事件归档失败时手动重试
+        AgentTask task = taskService.getTask(id, UserContext.getUserId());
+        assetArchiveService.onTaskDone(task);
+        return Result.ok();
+    }
+
     private static final java.util.Set<String> ALLOWED_DOWNLOAD_DOMAINS = java.util.Set.of(
             "aliyuncs.com", "openai.com", "stability.ai", "midjourney.com",
             "runwayml.com", "klingai.com", "pika.art", "lumalabs.ai",
@@ -115,9 +126,18 @@ public class TaskController {
     @AuditLog(action = "DOWNLOAD_RESULT")
     @GetMapping("/download")
     public void downloadProxy(@RequestParam String url, HttpServletResponse response) {
+        // 网关会对 query 重新编码：前端 encodeURIComponent 一次后到达本服务仍是编码态，
+        // 统一先解码一次（幂等：已是明文 URL 时解码无副作用）
+        String decoded;
         try {
+            decoded = java.net.URLDecoder.decode(url, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            decoded = url;
+        }
+        try {
+            URL urlObj = new URL(decoded);
             // 域名白名单校验（精确后缀匹配，防绕过）
-            String host = new URL(url).getHost().toLowerCase();
+            String host = urlObj.getHost().toLowerCase();
             boolean allowed = false;
             for (String domain : ALLOWED_DOWNLOAD_DOMAINS) {
                 if (host.equals(domain) || host.endsWith("." + domain)) {
@@ -129,7 +149,20 @@ public class TaskController {
                 response.sendError(400, "Unsupported image source");
                 return;
             }
-            URL urlObj = new URL(url);
+
+            // 本平台文件：走存储内部接口直接取字节（公开 URL 回连网关会因无鉴权 401）
+            if ("localhost".equals(host) || "127.0.0.1".equals(host)) {
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("/api/v1/files/([^/]+)/download").matcher(urlObj.getPath());
+                if (!m.find()) {
+                    response.sendError(400, "Unsupported local file url");
+                    return;
+                }
+                byte[] bytes = storageFeignClient.downloadContent(m.group(1));
+                streamBytes(bytes, "application/octet-stream", response);
+                return;
+            }
+
             URLConnection conn = urlObj.openConnection();
             conn.setConnectTimeout(10000);
             conn.setReadTimeout(60000);
@@ -156,11 +189,18 @@ public class TaskController {
                 }
             }
         } catch (Exception e) {
-            log.error("Download proxy failed: url={}", url, e);
+            log.error("Download proxy failed: url={}", decoded, e);
             try {
                 response.sendError(500, "Download failed: " + e.getMessage());
             } catch (java.io.IOException ignored) {}
         }
+    }
+
+    private void streamBytes(byte[] bytes, String contentType, HttpServletResponse response) throws java.io.IOException {
+        response.setContentType(contentType);
+        response.setContentLengthLong(bytes.length);
+        response.setHeader("Content-Disposition", "attachment; filename=\"generated.bin\"");
+        response.getOutputStream().write(bytes);
     }
 
     private String getTenantId() {
