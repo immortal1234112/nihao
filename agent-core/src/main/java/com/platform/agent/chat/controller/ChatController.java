@@ -7,6 +7,7 @@ import com.platform.agent.chat.entity.UserMemory;
 import com.platform.agent.chat.mapper.ChatConversationMapper;
 import com.platform.agent.chat.mapper.ChatMessageMapper;
 import com.platform.agent.chat.mapper.UserMemoryMapper;
+import com.platform.agent.chat.service.MemoryService;
 import com.platform.agent.rag.dto.RagReference;
 import com.platform.core.base.PageResult;
 import com.platform.core.base.Result;
@@ -39,6 +40,7 @@ public class ChatController {
     private final ChatConversationMapper conversationMapper;
     private final ChatMessageMapper messageMapper;
     private final UserMemoryMapper memoryMapper;
+    private final MemoryService memoryService;
 
     // ==================== 会话 ====================
 
@@ -134,18 +136,27 @@ public class ChatController {
     @GetMapping("/memories")
     public Result<PageResult<MemoryVO>> listMemories(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        Page<UserMemory> mpPage = new Page<>(page, size);
-        Page<UserMemory> result = memoryMapper.selectPage(mpPage,
-                new LambdaQueryWrapper<UserMemory>()
-                        .eq(UserMemory::getUserId, UserContext.getUserId())
-                        .eq(UserMemory::getTenantId, TenantContext.get())
-                        .orderByDesc(UserMemory::getCreatedAt));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String category) {
+        LambdaQueryWrapper<UserMemory> wrapper = new LambdaQueryWrapper<UserMemory>()
+                .eq(UserMemory::getUserId, UserContext.getUserId())
+                .eq(UserMemory::getTenantId, TenantContext.get())
+                .eq(UserMemory::getDeleted, 0)   // 软删记忆不出现在管理列表
+                .orderByDesc(UserMemory::getCreatedAt);
+        if (category != null && !category.isBlank()) {
+            if (!UserMemory.CATEGORY_LONG_TERM.equals(category)
+                    && !UserMemory.CATEGORY_SHORT_TERM.equals(category)) {
+                throw new BizException(ErrorCode.PARAM_INVALID, "category 仅支持 LONG_TERM|SHORT_TERM");
+            }
+            wrapper.eq(UserMemory::getCategory, category);
+        }
+        Page<UserMemory> result = memoryMapper.selectPage(new Page<>(page, size), wrapper);
         List<MemoryVO> vOs = result.getRecords().stream().map(m -> {
             MemoryVO vo = new MemoryVO();
             vo.setId(m.getId());
             vo.setContent(m.getContent());
             vo.setMemoryType(m.getMemoryType());
+            vo.setCategory(m.getCategory());
             vo.setSourceConversationId(m.getSourceConversationId());
             vo.setCreatedAt(m.getCreatedAt());
             return vo;
@@ -163,7 +174,43 @@ public class ChatController {
                 || !memory.getTenantId().equals(TenantContext.get())) {
             throw new BizException(ErrorCode.NO_PERMISSION);
         }
-        memoryMapper.deleteById(id);
+        // 软删：行保留但标记 deleted=1 —— 列表/检索不再可见，
+        // 同时提取去重（含软删记录）能阻止同内容再次被提取"复活"（假删除根因）
+        UserMemory update = new UserMemory();
+        update.setId(id);
+        update.setDeleted(1);
+        memoryMapper.updateById(update);
+        return Result.ok(null);
+    }
+
+    /**
+     * 手动添加记忆（记忆管理页）：content 必填，memoryType 缺省 FACT。
+     * 固定写入长期板块（短期由自动提取/「记住 X」指令生成，管理页不提供手动短期入口）；请求体 category 忽略。
+     */
+    @PostMapping("/memories")
+    public Result<Void> createMemory(@RequestBody Map<String, Object> request) {
+        String content = request.get("content") == null ? null : String.valueOf(request.get("content")).trim();
+        if (content == null || content.isBlank()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "记忆内容不能为空");
+        }
+        String type = request.get("memoryType") == null ? "FACT" : String.valueOf(request.get("memoryType"));
+        String result = memoryService.saveManual(UserContext.getUserId(), TenantContext.get(),
+                content, type, UserMemory.CATEGORY_LONG_TERM);
+        if ("DUPLICATE".equals(result)) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "已存在相同内容的记忆");
+        }
+        return Result.ok(null);
+    }
+
+    /** 编辑记忆（内容/类型变更，embedding 重算） */
+    @PutMapping("/memories/{id}")
+    public Result<Void> updateMemory(@PathVariable String id, @RequestBody Map<String, Object> request) {
+        String content = request.get("content") == null ? null : String.valueOf(request.get("content")).trim();
+        if (content == null || content.isBlank()) {
+            throw new BizException(ErrorCode.PARAM_INVALID, "记忆内容不能为空");
+        }
+        String type = request.get("memoryType") == null ? "FACT" : String.valueOf(request.get("memoryType"));
+        memoryService.updateMemory(UserContext.getUserId(), TenantContext.get(), id, content, type);
         return Result.ok(null);
     }
 

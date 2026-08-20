@@ -5,7 +5,7 @@ import { ReloadOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
 import { AgentTask } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
-import { parseResultUrls, isVideoUrl } from '@/components/common/ResultPreview';
+import { parseResultUrls } from '@/components/common/ResultPreview';
 import { AuthImage, AuthVideo } from '@/components/common/AuthMedia';
 
 /** 从任务 requestParams JSON 中解析引擎类型（IMAGE/VIDEO） */
@@ -34,7 +34,8 @@ const GalleryPage: React.FC = () => {
 
   const table = usePagination<AgentTask>(
     async (page, size) => {
-      const res = await taskApi.list({ page, size });
+      // hideNoVisibleAsset：归档资产已删除的任务不展示（删除作品后画廊不留残留）
+      const res = await taskApi.list({ page, size, hideNoVisibleAsset: true });
       return res.data.data;
     },
     [],
@@ -110,6 +111,8 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
   const urls = parseResultUrls(task.result);
   // 只显示照片：提示词/状态/时间全部隐藏，有作品名则在照片底部叠加
   const title = task.name?.trim() || '';
+  // 本地文件 URL 无扩展名（相对路径），按任务引擎类型判断视频/图片
+  const isVideo = getEngineType(task) === 'VIDEO';
 
   return (
     <div
@@ -136,8 +139,19 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
       <div style={{ position: 'relative' }}>
         {/* 图片不开启独立预览：点击任意位置都跳转任务详情（与卡片 onClick 行为一致） */}
         {urls.map((url, i) =>
-          isVideoUrl(url) ? (
-            <AuthVideo key={i} src={url} muted preload="metadata" style={{ width: '100%', display: 'block' }} />
+          isVideo ? (
+            /* 视频：固定 16:9 容器避免瀑布流卡片高度塌陷错乱；静音自动播放保证有画面（不黑屏） */
+            <div key={i} style={{ aspectRatio: '16 / 9', background: '#000' }}>
+              <AuthVideo
+                src={url}
+                muted
+                autoPlay
+                loop
+                playsInline
+                preload="auto"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
+            </div>
           ) : (
             <AuthImage
               key={i}

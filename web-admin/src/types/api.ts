@@ -121,6 +121,8 @@ export interface TaskSubmitRequest {
   projectId?: string;
   /** Phase1 输入资产：源资产 ID（可选，图生图/图生视频） */
   sourceAssetId?: string;
+  /** 输入资产列表（多图合成，可选；传了优先于 sourceAssetId） */
+  sourceAssetIds?: string[];
   /** Phase1 批量分组：批量任务分组 ID（可选） */
   batchGroupId?: string;
 }
@@ -305,6 +307,7 @@ export interface MemoryItem {
   id: string;
   content: string;
   memoryType: 'FACT' | 'PREFERENCE';
+  category: 'LONG_TERM' | 'SHORT_TERM';
   sourceConversationId: string;
   createdAt: string;
 }

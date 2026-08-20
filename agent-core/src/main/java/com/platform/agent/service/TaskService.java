@@ -32,6 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ public class TaskService {
     private final com.platform.agent.project.service.ProjectService projectService;
     private final com.platform.agent.asset.service.AssetService assetService;
     private final com.platform.agent.asset.service.AssetArchiveService assetArchiveService;
+    private final PromptEnhancerService promptEnhancerService;
 
     /** 审核服务异常时的降级开关：默认失败关闭（false），本地开发可显式开启降级 */
     @Value("${platform.audit.degrade-allowed:false}")
@@ -132,13 +134,17 @@ public class TaskService {
         if (request.getProjectId() != null && !request.getProjectId().isBlank()) {
             projectService.checkProjectWritable(request.getProjectId());
         }
-        // 3.4 输入资产校验（传了 sourceAssetId 才校验，防止跨租户/跨项目引用）
-        if (request.getSourceAssetId() != null && !request.getSourceAssetId().isBlank()) {
-            assetService.requireVisibleAsset(request.getSourceAssetId());
+        // 3.4 输入资产校验（传了 sourceAssetId/sourceAssetIds 才校验，防止跨租户/跨项目引用）
+        for (String assetId : collectRefAssetIds(request)) {
+            assetService.requireVisibleAsset(assetId);
         }
 
-        // 3.5 RAG 知识库增强（审核后，只增强已过审 prompt；检索失败降级不影响任务）
-        String effectivePrompt = request.getPrompt();
+        // 3.5 中文提示词自动翻译为英文（生成模型对英文理解更佳；失败降级原文，不阻塞任务）。
+        // 注意：审核走的是第 2 步的中文原文（审核更准）；这里只增强交给引擎的 prompt。
+        String enhancedPrompt = promptEnhancerService.enhance(request.getPrompt());
+
+        // 3.6 RAG 知识库增强（审核后，只增强已过审 prompt；检索失败降级不影响任务）
+        String effectivePrompt = enhancedPrompt;
         List<RagReference> ragReferences = List.of();
         if (request.getDatasetId() != null && !request.getDatasetId().isBlank()) {
             try {
@@ -148,7 +154,7 @@ public class TaskService {
                 searchRequest.setTopK(request.getRagTopK() != null ? request.getRagTopK() : 3);
                 RagSearchResult searchResult = ragService.search(userId, tenantId, searchRequest);
                 ragReferences = searchResult.getChunks();
-                effectivePrompt = request.getPrompt() + ragService.buildReferencePrompt(ragReferences);
+                effectivePrompt = enhancedPrompt + ragService.buildReferencePrompt(ragReferences);
             } catch (Exception e) {
                 log.warn("RAG prompt enhancement degraded: {}", e.getMessage());
             }
@@ -164,7 +170,9 @@ public class TaskService {
         task.setRetryCount(0);
         task.setPriority(0);
         task.setProjectId(request.getProjectId());
-        task.setSourceAssetId(request.getSourceAssetId());
+        // 多图时任务表记录第一张（历史单字段兼容；完整列表在 request_params.referenceImages）
+        List<String> refIds = collectRefAssetIds(request);
+        task.setSourceAssetId(refIds.isEmpty() ? null : refIds.get(0));
         task.setBatchGroupId(request.getBatchGroupId());
         task.setName(request.getName());
 
@@ -254,12 +262,23 @@ public class TaskService {
         return detail;
     }
 
-    public PageResult<AgentTask> listTasks(String userId, int page, int size, String status) {
+    public PageResult<AgentTask> listTasks(String userId, int page, int size, String status, boolean hideNoVisibleAsset) {
         Page<AgentTask> mpPage = new Page<>(page, size);
         LambdaQueryWrapper<AgentTask> wrapper = new LambdaQueryWrapper<AgentTask>()
                 .eq(AgentTask::getUserId, userId);
         if (status != null && !status.isEmpty()) {
             wrapper.eq(AgentTask::getStatus, status);
+        }
+        if (hideNoVisibleAsset) {
+            // 画廊语义：展示「无作品（OUTPUT）归档」或「作品仍有存活」的任务；
+            // OUTPUT 资产已全部被删除（软删）的任务视为"作品已删"，不再展示。
+            // 只看 OUTPUT（relation_type）—— INPUT（参考图等源素材）删除与否不影响画廊。
+            wrapper.and(q -> q
+                    .notExists("SELECT 1 FROM asset_task_relation r2 "
+                            + "WHERE r2.task_id = agent_task.id AND r2.relation_type = 'OUTPUT'")
+                    .or()
+                    .exists("SELECT 1 FROM asset_task_relation r JOIN asset a ON a.id = r.asset_id "
+                            + "WHERE r.task_id = agent_task.id AND r.relation_type = 'OUTPUT' AND a.deleted = 0"));
         }
         wrapper.orderByDesc(AgentTask::getCreatedAt);
 
@@ -350,8 +369,11 @@ public class TaskService {
                                             String effectivePrompt, List<RagReference> ragReferences) {
         Map<String, Object> params = new HashMap<>();
         params.put("prompt", effectivePrompt);
-        if (!ragReferences.isEmpty()) {
+        // 原文保留：被翻译（或拼接 RAG）后与引擎收到的 prompt 不同，任务详情里可回看用户原始输入
+        if (!effectivePrompt.equals(request.getPrompt())) {
             params.put("originalPrompt", request.getPrompt());
+        }
+        if (!ragReferences.isEmpty()) {
             params.put("ragReferences", ragReferences);
         }
         params.put("engineType", request.getEngineType());
@@ -362,43 +384,64 @@ public class TaskService {
         params.put("style", intent.getOrDefault("style", "default"));
         params.put("format", request.getFormat() != null ? request.getFormat() : "png");
         params.put("quality", request.getQuality() != null ? request.getQuality() : "standard");
-        params.put("negativePrompt", request.getNegativePrompt());
+        // 负面提示词同样自动翻译（有中文才调用；失败/纯英文原样返回）
+        params.put("negativePrompt", promptEnhancerService.enhance(request.getNegativePrompt()));
         params.put("batchCount", request.getBatchCount());
         params.put("duration", request.getDuration());
         params.put("fps", request.getFps());
         params.put("resolution", request.getResolution());
         params.put("pipelineSteps", request.getPipelineSteps());
 
-        // 参考图链路（图生图/图生视频）：给输入资产生成"限时公开取图 URL"注入参数。
-        // 视频引擎消费 sourceImageUrl（imageToVideo）；图片引擎消费 referenceImages（agnes 图生图/多图合成）。
+        // 参考图链路（图生图/图生视频/多图合成）：给每个输入资产生成"限时公开取图 URL"注入参数。
+        // 视频引擎消费 sourceImageUrl（imageToVideo）；图片引擎消费 referenceImages（agnes 图生图/多图合成，
+        // 1 张=图生图、多张=多图合成，适配器原样透传 extra_body.image）。
         // 用签名临时 URL（10 分钟过期、只能下载该文件、防伪造）而非平台下载链接——
         // 云端 provider 无登录凭证且服务器需要公网可达地址，平台下载链接（需 JWT）会 401。
-        if (request.getSourceAssetId() != null && !request.getSourceAssetId().isBlank()) {
+        List<String> refUrls = new ArrayList<>();
+        for (String assetId : collectRefAssetIds(request)) {
             try {
-                Map<String, Object> assetDetail = assetService.detail(request.getSourceAssetId());
+                Map<String, Object> assetDetail = assetService.detail(assetId);
                 Object file = assetDetail.get("file");
                 if (!(file instanceof FileDTO dto)) {
                     log.warn("Reference image skip: asset has no resolvable file. assetId={}, detailKeys={}",
-                            request.getSourceAssetId(), assetDetail.keySet());
+                            assetId, assetDetail.keySet());
                 } else if (dto.id() == null || dto.id().isBlank()) {
-                    log.warn("Reference image skip: file missing id. assetId={}", request.getSourceAssetId());
+                    log.warn("Reference image skip: file missing id. assetId={}", assetId);
                 } else {
                     var publicUrlRes = storageFeignClient.getPublicUrl(dto.id());
                     if (publicUrlRes == null || publicUrlRes.getCode() != 0 || publicUrlRes.getData() == null) {
                         log.warn("Reference image skip: public-url request failed. assetId={}, fileId={}, res={}",
-                                request.getSourceAssetId(), dto.id(), publicUrlRes);
+                                assetId, dto.id(), publicUrlRes);
                     } else {
                         String refUrl = publicUrlRes.getData();
-                        params.put("sourceImageUrl", refUrl);
-                        params.put("referenceImages", List.of(refUrl));
-                        log.info("Reference image injected: assetId={}, url={}", request.getSourceAssetId(), refUrl);
+                        refUrls.add(refUrl);
+                        log.info("Reference image injected: assetId={}, url={}", assetId, refUrl);
                     }
                 }
             } catch (Exception e) {
-                log.warn("Resolve reference image url failed: assetId={}, err={}",
-                        request.getSourceAssetId(), e.getMessage());
+                log.warn("Resolve reference image url failed: assetId={}, err={}", assetId, e.getMessage());
             }
         }
+        if (!refUrls.isEmpty()) {
+            params.put("sourceImageUrl", refUrls.get(0));
+            params.put("referenceImages", refUrls);
+            log.info("Reference images injected: count={}", refUrls.size());
+        }
         return params;
+    }
+
+    /** 收集输入资产 ID 列表：sourceAssetIds 优先（过滤空串），否则取单个 sourceAssetId */
+    private List<String> collectRefAssetIds(TaskSubmitRequest request) {
+        List<String> ids = new ArrayList<>();
+        if (request.getSourceAssetIds() != null && !request.getSourceAssetIds().isEmpty()) {
+            for (String id : request.getSourceAssetIds()) {
+                if (id != null && !id.isBlank()) {
+                    ids.add(id);
+                }
+            }
+        } else if (request.getSourceAssetId() != null && !request.getSourceAssetId().isBlank()) {
+            ids.add(request.getSourceAssetId());
+        }
+        return ids;
     }
 }

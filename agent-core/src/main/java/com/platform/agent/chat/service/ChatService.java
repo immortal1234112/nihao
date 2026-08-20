@@ -131,9 +131,9 @@ public class ChatService {
         conversation.setUpdatedAt(java.time.LocalDateTime.now());
         conversationMapper.updateById(conversation);
 
-        // 10. 异步记忆提取（显式传参，@Async 线程无 ThreadLocal）
+        // 10. 异步记忆提取（显式传参，@Async 线程无 ThreadLocal；history 已截断，取尾部多轮作提取上下文）
         try {
-            extractProcessor.extractAsync(userId, tenantId, provider, message, response, conversation.getId());
+            extractProcessor.extractAsync(userId, tenantId, provider, message, response, conversation.getId(), history);
         } catch (Exception e) {
             log.warn("Memory extract trigger failed (ignored): {}", e.getMessage());
         }

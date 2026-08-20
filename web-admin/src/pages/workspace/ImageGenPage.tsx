@@ -25,7 +25,9 @@ import {
   FolderAddOutlined,
   SendOutlined,
   SyncOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
+import { llmApi } from '@/api/llm';
 import { taskApi } from '@/api/task';
 import { assetApi } from '@/api/asset';
 import { projectApi } from '@/api/project';
@@ -52,6 +54,28 @@ const imageModels = [
   { value: 'agnes-image', label: 'Agnes Image 2.1 (免费)', desc: 'Agnes AI，高信息密度，1K~4K，支持 21:9 宽幅' },
 ];
 
+/** Agnes Image 档位尺寸（其他模型用像素档） */
+const PIXEL_SIZE_OPTIONS = [
+  { value: '512x512', label: '512×512' },
+  { value: '768x768', label: '768×768' },
+  { value: '1024x1024', label: '1024×1024' },
+  { value: '2048x2048', label: '2048×2048' },
+];
+
+/** Agnes 支持的 8 种宽高比（其他模型保留常用 4 种） */
+const AGNES_RATIO_OPTIONS = ['1:1', '3:4', '4:3', '16:9', '9:16', '2:3', '3:2', '21:9'].map((v) => ({ value: v, label: v }));
+const COMMON_RATIO_OPTIONS = ['1:1', '16:9', '9:16', '4:3'].map((v) => ({ value: v, label: v }));
+
+/** Agnes 档位 × 宽高比 → 实际输出分辨率（尺寸下拉提示用，与官方文档一致） */
+const AGNES_RESOLUTIONS: Record<string, Record<string, string>> = {
+  '1K': { '1:1': '1024×1024', '3:4': '864×1152', '4:3': '1152×864', '16:9': '1312×736', '9:16': '736×1312', '2:3': '832×1248', '3:2': '1248×832', '21:9': '1568×672' },
+  '2K': { '1:1': '2048×2048', '3:4': '1728×2304', '4:3': '2304×1728', '16:9': '2624×1472', '9:16': '1472×2624', '2:3': '1664×2496', '3:2': '2496×1664', '21:9': '3136×1344' },
+  '3K': { '1:1': '3072×3072', '3:4': '2592×3456', '4:3': '3456×2592', '16:9': '3936×2208', '9:16': '2208×3936', '2:3': '2496×3744', '3:2': '3744×2496', '21:9': '4704×2016' },
+  '4K': { '1:1': '4096×4096', '3:4': '3456×4608', '4:3': '4608×3456', '16:9': '5248×2944', '9:16': '2944×5248', '2:3': '3328×4992', '3:2': '4992×3328', '21:9': '6272×2688' },
+};
+
+const MAX_REF_IMAGES = 6;
+
 /**
  * AI 图片生成 — 三栏布局：
  * 左=素材与参考图（资产中心复用/项目资产选取，选定即作为图生图输入）
@@ -67,6 +91,53 @@ const ImageGenPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+
+  // 模型联动：agnes-image 用档位尺寸(1K~4K) + 8 种宽高比，其他模型用像素档 + 常用 4 种
+  const modelProvider = Form.useWatch('modelProvider', form);
+  const aspectRatioVal = Form.useWatch('aspectRatio', form);
+  const isAgnes = modelProvider === 'agnes-image';
+  const sizeOptions = isAgnes
+    ? ['1K', '2K', '3K', '4K'].map((v) => ({
+        value: v,
+        label: `${v}（${AGNES_RESOLUTIONS[v]?.[aspectRatioVal ?? '1:1'] ?? ''}）`,
+      }))
+    : PIXEL_SIZE_OPTIONS;
+  const ratioOptions = isAgnes ? AGNES_RATIO_OPTIONS : COMMON_RATIO_OPTIONS;
+
+  // 切换模型时当前值不在新选项集内 → 兜底为默认值
+  useEffect(() => {
+    const patch: Record<string, unknown> = {};
+    const size = form.getFieldValue('size');
+    const ratio = form.getFieldValue('aspectRatio');
+    if (!sizeOptions.some((o) => o.value === size)) patch.size = isAgnes ? '1K' : '1024x1024';
+    if (!ratioOptions.some((o) => o.value === ratio)) patch.aspectRatio = '1:1';
+    if (Object.keys(patch).length > 0) form.setFieldsValue(patch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelProvider]);
+
+  /** AI 润色：中文提示词翻译/润色为英文，回填输入框（可手动修改后提交） */
+  const handleEnhance = async () => {
+    const prompt = form.getFieldValue('prompt') as string | undefined;
+    if (!prompt?.trim()) {
+      message.warning('请先输入提示词，再点击 AI 润色');
+      return;
+    }
+    setEnhancing(true);
+    try {
+      const res = await llmApi.enhancePrompt(prompt);
+      if (res.data.code === 0 && res.data.data?.enhanced) {
+        form.setFieldsValue({ prompt: res.data.data.enhanced });
+        message.success('已润色为英文提示词，可修改后提交');
+      } else {
+        message.warning(res.data.message || '润色失败，请稍后重试');
+      }
+    } catch {
+      message.warning('润色失败，请稍后重试');
+    } finally {
+      setEnhancing(false);
+    }
+  };
 
   // 任务/画布状态
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -75,9 +146,11 @@ const ImageGenPage: React.FC = () => {
   const [archivedAssets, setArchivedAssets] = useState<AssetRow[]>([]);
   const [archiveTaskId, setArchiveTaskId] = useState<string | null>(null);
 
-  // 素材与参考图
-  const [refAssetId, setRefAssetId] = useState<string | undefined>(searchParams.get('sourceAssetId') ?? undefined);
-  const [refAsset, setRefAsset] = useState<AssetRow | null>(null);
+  // 素材与参考图（多选：1 张=图生图，多张=多图合成，按选择顺序传给模型）
+  const [refAssetIds, setRefAssetIds] = useState<string[]>(
+    searchParams.get('sourceAssetId') ? [searchParams.get('sourceAssetId') as string] : [],
+  );
+  const [refAssets, setRefAssets] = useState<AssetRow[]>([]);
   const [libraryAssets, setLibraryAssets] = useState<AssetRow[]>([]);
   // 素材来源：资产中心 / 文件管理（文件管理里的图片选中后先导入为资产再作为参考图）
   const [sourceTab, setSourceTab] = useState<'asset' | 'files'>('asset');
@@ -105,8 +178,25 @@ const ImageGenPage: React.FC = () => {
       .catch(() => {});
   }, []);
 
-  /** 选择文件管理里的图片：先导入为资产（IMPORT），再作为参考图 */
+  /** 勾选/取消参考图（按点击顺序入数组，已选点击即取消；上限 MAX_REF_IMAGES） */
+  const toggleRefAsset = (id: string) => {
+    if (refAssetIds.includes(id)) {
+      setRefAssetIds((prev) => prev.filter((x) => x !== id));
+      return;
+    }
+    if (refAssetIds.length >= MAX_REF_IMAGES) {
+      message.warning(`最多选择 ${MAX_REF_IMAGES} 张参考图（多图合成按选择顺序传给模型）`);
+      return;
+    }
+    setRefAssetIds((prev) => [...prev, id]);
+  };
+
+  /** 选择文件管理里的图片：先导入为资产（IMPORT），再追加为参考图 */
   const pickManagedFile = async (f: StorageFile) => {
+    if (refAssetIds.length >= MAX_REF_IMAGES) {
+      message.warning(`最多选择 ${MAX_REF_IMAGES} 张参考图`);
+      return;
+    }
     setImporting(true);
     try {
       const res = await assetApi.create({
@@ -115,7 +205,8 @@ const ImageGenPage: React.FC = () => {
         derivationType: 'IMPORT',
         assetType: 'IMAGE',
       });
-      setRefAssetId(res.data.data.id);
+      const id = res.data.data.id;
+      setRefAssetIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
       message.success(`已导入「${f.originalName}」作为参考图`);
     } catch {
       message.error('导入文件失败，请重试');
@@ -125,15 +216,14 @@ const ImageGenPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!refAssetId) {
-      setRefAsset(null);
+    if (refAssetIds.length === 0) {
+      setRefAssets([]);
       return;
     }
-    assetApi
-      .detail(refAssetId)
-      .then((res) => setRefAsset(res.data.data))
-      .catch(() => setRefAsset(null));
-  }, [refAssetId]);
+    Promise.all(refAssetIds.map((id) => assetApi.detail(id)))
+      .then((res) => setRefAssets(res.map((r) => r.data.data)))
+      .catch(() => setRefAssets([]));
+  }, [refAssetIds]);
 
   // ===== 结果刷新（WS 驱动 + 终态拉归档资产）=====
   const loadResult = useCallback(async () => {
@@ -182,7 +272,8 @@ const ImageGenPage: React.FC = () => {
         datasetId: values.datasetId as string | undefined,
         ragTopK: 3,
         projectId,
-        sourceAssetId: refAssetId,
+        sourceAssetIds: refAssetIds.length > 0 ? refAssetIds : undefined,
+        sourceAssetId: refAssetIds[0],
         batchGroupId: (values.count as number) > 1 ? crypto.randomUUID() : undefined,
       };
       const res = await taskApi.submitImage(base);
@@ -205,7 +296,7 @@ const ImageGenPage: React.FC = () => {
       message.warning('归档资产尚未就绪，稍后再试');
       return;
     }
-    setRefAssetId(source.id);
+    setRefAssetIds([source.id]);
     const values = form.getFieldsValue();
     await onFinish(values);
   };
@@ -231,28 +322,71 @@ const ImageGenPage: React.FC = () => {
         <Col span={5}>
           <Card size="small" title="素材与参考图" style={{ height: '100%' }}>
             <Flex vertical gap={12}>
-              {refAsset ? (
+              {refAssets.length > 0 ? (
                 <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>当前参考图（图生图）</Text>
-                  <div style={{ marginTop: 4 }}>
-                    {refAsset.file?.url && (
-                      <AuthImage
-                        src={refAsset.file.url}
-                        alt={refAsset.title}
-                        style={{ width: '100%', borderRadius: 8, maxHeight: 160, objectFit: 'cover' }}
-                      />
-                    )}
-                    <Text strong style={{ fontSize: 12, display: 'block' }} ellipsis>
-                      {refAsset.title}
-                    </Text>
-                    <Button size="small" type="text" onClick={() => setRefAssetId(undefined)}>
-                      移除参考图
-                    </Button>
-                  </div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {refAssets.length === 1 ? '当前参考图（图生图）' : `参考图 ${refAssets.length} 张（按选择顺序传给模型）`}
+                  </Text>
+                  <Flex vertical gap={8} style={{ marginTop: 4 }}>
+                    {refAssets.map((a, idx) => (
+                      <div
+                        key={a.id}
+                        style={{
+                          display: 'flex',
+                          gap: 8,
+                          alignItems: 'center',
+                          background: '#fafafa',
+                          borderRadius: 8,
+                          padding: 6,
+                        }}
+                      >
+                        <div style={{ width: 48, height: 48, borderRadius: 6, overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                          {a.file?.url && (
+                            <AuthImage src={a.file.url} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                          )}
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: 2,
+                              left: 2,
+                              background: '#1677ff',
+                              color: '#fff',
+                              fontSize: 10,
+                              borderRadius: 4,
+                              padding: '0 4px',
+                              lineHeight: '14px',
+                            }}
+                          >
+                            {idx + 1}
+                          </span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <Text strong style={{ fontSize: 12, display: 'block' }} ellipsis>
+                            {a.title}
+                          </Text>
+                          {idx === 0 && refAssets.length > 1 && (
+                            <Text type="secondary" style={{ fontSize: 10 }}>主图</Text>
+                          )}
+                        </div>
+                        <Button
+                          size="small"
+                          type="text"
+                          onClick={() => setRefAssetIds((prev) => prev.filter((x) => x !== a.id))}
+                        >
+                          移除
+                        </Button>
+                      </div>
+                    ))}
+                  </Flex>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+                    {refAssets.length === 1
+                      ? '图生图：按提示词转换/优化参考图（保留原构图）'
+                      : '多图合成：提示词中可用「第一张图…第二张图…」描述各图角色'}
+                  </Text>
                 </div>
               ) : (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  选择一张图片作为参考图（可选），将触发图生图
+                  选择 1 张图片触发图生图；选多张（最多 {MAX_REF_IMAGES} 张）触发多图合成
                 </Text>
               )}
               <Segmented
@@ -269,27 +403,48 @@ const ImageGenPage: React.FC = () => {
                 {sourceTab === 'asset' ? (
                   <>
                     <Flex gap={8} wrap>
-                      {libraryAssets.map((a) => (
-                        <Tooltip key={a.id} title={a.title}>
-                          <div
-                            onClick={() => setRefAssetId(a.id)}
-                            style={{
-                              width: 56,
-                              height: 56,
-                              borderRadius: 6,
-                              overflow: 'hidden',
-                              cursor: 'pointer',
-                              border: refAssetId === a.id ? '2px solid #1677ff' : '1px solid #f0f0f0',
-                            }}
-                          >
-                            {a.file?.url ? (
-                              <AuthImage src={a.file.url} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
-                            ) : (
-                              <div style={{ width: '100%', height: '100%', background: '#fafafa' }} />
-                            )}
-                          </div>
-                        </Tooltip>
-                      ))}
+                      {libraryAssets.map((a) => {
+                        const selIdx = refAssetIds.indexOf(a.id);
+                        return (
+                          <Tooltip key={a.id} title={`${a.title}${selIdx >= 0 ? `（第 ${selIdx + 1} 张）` : '（点击选为参考图）'}`}>
+                            <div
+                              onClick={() => toggleRefAsset(a.id)}
+                              style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 6,
+                                overflow: 'hidden',
+                                cursor: 'pointer',
+                                position: 'relative',
+                                border: selIdx >= 0 ? '2px solid #1677ff' : '1px solid #f0f0f0',
+                              }}
+                            >
+                              {a.file?.url ? (
+                                <AuthImage src={a.file.url} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', background: '#fafafa' }} />
+                              )}
+                              {selIdx >= 0 && (
+                                <span
+                                  style={{
+                                    position: 'absolute',
+                                    top: 2,
+                                    left: 2,
+                                    background: '#1677ff',
+                                    color: '#fff',
+                                    fontSize: 10,
+                                    borderRadius: 4,
+                                    padding: '0 4px',
+                                    lineHeight: '14px',
+                                  }}
+                                >
+                                  {selIdx + 1}
+                                </span>
+                              )}
+                            </div>
+                          </Tooltip>
+                        );
+                      })}
                     </Flex>
                     {libraryAssets.length === 0 && (
                       <Text type="secondary" style={{ fontSize: 12 }}>暂无素材，生成或上传后可在资产中心看到</Text>
@@ -430,11 +585,25 @@ const ImageGenPage: React.FC = () => {
                     <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => setTemplateOpen(true)} style={{ padding: 0, height: 'auto' }}>
                       模板
                     </Button>
+                    <Button type="link" size="small" icon={<ThunderboltOutlined />} loading={enhancing} onClick={handleEnhance} style={{ padding: 0, height: 'auto' }}>
+                      AI 润色
+                    </Button>
                   </Space>
                 }
                 rules={[{ required: true, message: '请输入提示词' }]}
               >
-                <TextArea rows={4} placeholder="描述你想要生成的图片内容..." maxLength={2000} showCount />
+                <TextArea
+                  rows={4}
+                  placeholder={
+                    refAssets.length === 0
+                      ? '描述你想要生成的图片内容...'
+                      : refAssets.length === 1
+                        ? '描述如何转换/优化参考图，如：将场景改为赛博朋克夜景...'
+                        : '多图合成：用「第一张图…第二张图…」描述各图角色与最终场景...'
+                  }
+                  maxLength={2000}
+                  showCount
+                />
               </Form.Item>
               <Form.Item name="name" label="作品名称（可选）">
                 <Input placeholder="给作品起个名字，画廊和项目中会用它展示" maxLength={50} />
@@ -467,12 +636,7 @@ const ImageGenPage: React.FC = () => {
                 </Col>
                 <Col span={12}>
                   <Form.Item name="aspectRatio" label="宽高比">
-                    <Select options={[
-                      { value: '1:1', label: '1:1' },
-                      { value: '16:9', label: '16:9' },
-                      { value: '9:16', label: '9:16' },
-                      { value: '4:3', label: '4:3' },
-                    ]} />
+                    <Select options={ratioOptions} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -495,12 +659,7 @@ const ImageGenPage: React.FC = () => {
                         <Row gutter={8}>
                           <Col span={12}>
                             <Form.Item name="size" label="尺寸">
-                              <Select options={[
-                                { value: '512x512', label: '512×512' },
-                                { value: '768x768', label: '768×768' },
-                                { value: '1024x1024', label: '1024×1024' },
-                                { value: '2048x2048', label: '2048×2048' },
-                              ]} />
+                              <Select options={sizeOptions} />
                             </Form.Item>
                           </Col>
                           <Col span={12}>

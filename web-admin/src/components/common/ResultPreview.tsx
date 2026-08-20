@@ -1,7 +1,7 @@
-import { Button, Col, Row, Tooltip } from 'antd';
+import { Button, Col, Row, Spin, Tooltip } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { useAppFeedback } from '@/utils/feedback';
-import { AuthImage, AuthVideo, downloadAuthFile } from './AuthMedia';
+import { AuthImage, AuthVideo, downloadAuthFile, isLocalFile, useMediaKind } from './AuthMedia';
 
 /**
  * 解析任务/步骤结果 JSON，提取图片/视频 URL 列表（画廊页也复用此函数）。
@@ -37,12 +37,23 @@ export function isVideoUrl(url: string): boolean {
  */
 const MediaItem: React.FC<{ url: string; index: number }> = ({ url, index }) => {
   const { message } = useAppFeedback();
-  const isVideo = isVideoUrl(url);
+  // 本地平台文件无扩展名（相对路径），按 fetch 到的 Content-Type 判定视频/图片
+  const kind = useMediaKind(url);
+  const isVideo = isLocalFile(url) ? kind === 'video' : isVideoUrl(url);
 
   return (
     <div style={{ textAlign: 'center' }}>
-      {isVideo ? (
-        <AuthVideo src={url} controls style={{ width: '100%', borderRadius: 8 }} />
+      {isLocalFile(url) && kind === 'unknown' ? (
+        /* 类型探测中：占位，避免渲染成错误组件 */
+        <div style={{ minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Spin size="small" />
+        </div>
+      ) : kind === 'error' ? (
+        <div style={{ minHeight: 120, background: '#f5f5f5', color: '#999', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          文件加载失败
+        </div>
+      ) : isVideo ? (
+        <AuthVideo src={url} controls preload="auto" style={{ width: '100%', borderRadius: 8 }} />
       ) : (
         <AuthImage src={url} alt={`生成结果 ${index + 1}`} style={{ borderRadius: 8 }} />
       )}

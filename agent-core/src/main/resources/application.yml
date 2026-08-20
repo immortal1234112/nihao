@@ -49,6 +49,11 @@ platform:
     degrade-allowed: ${PROMPT_AUDIT_DEGRADE_ALLOWED:false}
   quota:
     degrade-allowed: ${QUOTA_DEGRADE_ALLOWED:false}
+  # 中文提示词自动翻译/润色为英文（生成模型对英文理解更佳；失败降级原文不阻塞任务）
+  prompt-enhance:
+    enabled: ${PROMPT_ENHANCE_ENABLED:true}
+    provider: ${PROMPT_ENHANCE_PROVIDER:deepseek}
+    max-tokens: ${PROMPT_ENHANCE_MAX_TOKENS:1024}
   # 卡死任务恢复扫描（StuckTaskRecoveryJob）：
   # PROCESSING 超时（分钟，默认 120 = 视频引擎幂等锁 TTL 7200s）→ 置 FAILED；PENDING 超时（分钟，默认 30）→ 重新分发
   recovery:
@@ -78,7 +83,9 @@ memory:
   search:
     max-candidates: 500
   dedupe-similarity: 0.88     # 相似记忆去重阈值（BGE-M3 近义短句通常 0.85~0.93）
-  max-count-per-user: 200     # 每用户记忆数量上限，超出不再新增
+  max-count-per-user: 200     # 每用户每板块记忆数量上限，超出不再新增
+  long-term-max-count: 30     # 长期记忆无条件注入上限（条）
+  long-term-max-chars: 2000   # 长期记忆注入字符上限（防 prompt 膨胀）
 
 mybatis-plus:
   global-config:

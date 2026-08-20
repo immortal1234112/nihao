@@ -85,10 +85,16 @@ const ParticleBackground: React.FC = () => {
 
   return (
     <>
-      {/* 背景图片 */}
-      <img
-        src="/bg.jpg"
-        alt=""
+      {/* 背景视频（静音自动循环，poster 为封面帧兜底） */}
+      <video
+        src="/login-bg.mp4"
+        poster="/login-poster.jpg"
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        aria-hidden="true"
         style={{
           position: 'fixed', top: 0, left: 0,
           width: '100%', height: '100%',

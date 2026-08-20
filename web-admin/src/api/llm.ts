@@ -28,7 +28,17 @@ export const llmApi = {
     ),
 
   // ===== 记忆 =====
-  listMemories: (page = 1, size = 10) =>
-    http.get<ApiResult<PageResult<MemoryItem>>>(`/llm/memories?page=${page}&size=${size}`),
+  listMemories: (page = 1, size = 10, category?: 'LONG_TERM' | 'SHORT_TERM') =>
+    http.get<ApiResult<PageResult<MemoryItem>>>(
+      `/llm/memories?page=${page}&size=${size}${category ? `&category=${category}` : ''}`,
+    ),
+  createMemory: (data: { content: string; memoryType?: string }) =>
+    http.post<ApiResult<null>>('/llm/memories', data),
+  updateMemory: (id: string, data: { content: string; memoryType?: string }) =>
+    http.put<ApiResult<null>>(`/llm/memories/${id}`, data),
   deleteMemory: (id: string) => http.delete<ApiResult<null>>(`/llm/memories/${id}`),
+
+  /** 提示词增强：中文 → 英文翻译/润色（纯英文原样返回；失败降级原文） */
+  enhancePrompt: (prompt: string) =>
+    http.post<ApiResult<{ enhanced: string; original: string }>>('/llm/enhance-prompt', { prompt }),
 };

@@ -126,11 +126,17 @@ public class VideoGenerationFacade extends AbstractGenerationFacade {
             if (result.getThumbnailUrl() != null && !result.getThumbnailUrl().isBlank()) {
                 try {
                     byte[] thumbBytes = downloadBytes(result.getThumbnailUrl());
-                    // 缩略图不带 taskId（派生物不参与归档反查，避免重复归档）
-                    TaskResultMessage.FileInfo thumb = uploadToStorage(null, userId, tenantId,
-                            thumbBytes, "thumbnail-" + taskId + ".png", "image/png");
-                    if (thumb != null) {
-                        thumbnailUrl = thumb.url();
+                    // 魔数校验：部分 provider 的 ?thumb=1 链接实际返回完整视频（mp4），
+                    // 直接当 png 上传会让前端解码失败。非图片字节一律丢弃，只用视频本身做封面。
+                    if (!isImageBytes(thumbBytes)) {
+                        log.warn("Thumbnail skipped: provider returned non-image bytes, task={}", taskId);
+                    } else {
+                        // 缩略图不带 taskId（派生物不参与归档反查，避免重复归档）
+                        TaskResultMessage.FileInfo thumb = uploadToStorage(null, userId, tenantId,
+                                thumbBytes, "thumbnail-" + taskId + ".png", "image/png");
+                        if (thumb != null) {
+                            thumbnailUrl = thumb.url();
+                        }
                     }
                 } catch (Exception e) {
                     log.warn("Thumbnail upload failed for task={}: {}", taskId, e.getMessage());
@@ -141,6 +147,15 @@ public class VideoGenerationFacade extends AbstractGenerationFacade {
             log.warn("Failed to persist video for task={}: {} (fallback to provider URL)", taskId, e.getMessage());
         }
         return new TaskResultMessage.FileInfo(null, result.getVideoUrl(), result.getThumbnailUrl());
+    }
+
+    /** 图片魔数校验：PNG / JPEG / WebP 才算图片（provider 缩略图链接可能返回视频） */
+    private boolean isImageBytes(byte[] b) {
+        if (b == null || b.length < 12) return false;
+        return (b[0] == (byte) 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G')      // PNG
+                || (b[0] == (byte) 0xFF && b[1] == (byte) 0xD8 && b[2] == (byte) 0xFF) // JPEG
+                || (b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F'
+                && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P');        // WebP
     }
 
     /** 下载 provider 直链字节（视频/缩略图通用） */

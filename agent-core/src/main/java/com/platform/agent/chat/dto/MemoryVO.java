@@ -13,6 +13,7 @@ public class MemoryVO {
     private String id;
     private String content;
     private String memoryType;
+    private String category;
     private String sourceConversationId;
     private LocalDateTime createdAt;
 }

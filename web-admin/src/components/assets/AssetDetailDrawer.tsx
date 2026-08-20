@@ -175,7 +175,7 @@ const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({ assetId, onClose,
             <AuthImage src={asset.file.url} alt={asset.title} style={{ width: '100%', borderRadius: 8 }} />
           )}
           {asset.assetType === 'VIDEO' && asset.file?.url && (
-            <AuthVideo src={asset.file.url} controls style={{ width: '100%', borderRadius: 8 }} />
+            <AuthVideo src={asset.file.url} controls preload="auto" style={{ width: '100%', borderRadius: 8 }} />
           )}
           {asset.assetType === 'TEXT' && (
             <div style={{ padding: 12, background: '#f6ffed', borderRadius: 8, whiteSpace: 'pre-wrap' }}>

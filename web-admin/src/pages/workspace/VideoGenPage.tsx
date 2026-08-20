@@ -24,7 +24,9 @@ import {
   FolderAddOutlined,
   SendOutlined,
   SyncOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
+import { llmApi } from '@/api/llm';
 import { taskApi } from '@/api/task';
 import { assetApi } from '@/api/asset';
 import { projectApi } from '@/api/project';
@@ -64,6 +66,30 @@ const VideoGenPage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
+
+  /** AI 润色：中文提示词翻译/润色为英文，回填输入框（可手动修改后提交） */
+  const handleEnhance = async () => {
+    const prompt = form.getFieldValue('prompt') as string | undefined;
+    if (!prompt?.trim()) {
+      message.warning('请先输入提示词，再点击 AI 润色');
+      return;
+    }
+    setEnhancing(true);
+    try {
+      const res = await llmApi.enhancePrompt(prompt);
+      if (res.data.code === 0 && res.data.data?.enhanced) {
+        form.setFieldsValue({ prompt: res.data.data.enhanced });
+        message.success('已润色为英文提示词，可修改后提交');
+      } else {
+        message.warning(res.data.message || '润色失败，请稍后重试');
+      }
+    } catch {
+      message.warning('润色失败，请稍后重试');
+    } finally {
+      setEnhancing(false);
+    }
+  };
 
   const [taskId, setTaskId] = useState<string | null>(null);
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
@@ -411,6 +437,9 @@ const VideoGenPage: React.FC = () => {
                     <span>提示词</span>
                     <Button type="link" size="small" icon={<CopyOutlined />} onClick={() => setTemplateOpen(true)} style={{ padding: 0, height: 'auto' }}>
                       模板
+                    </Button>
+                    <Button type="link" size="small" icon={<ThunderboltOutlined />} loading={enhancing} onClick={handleEnhance} style={{ padding: 0, height: 'auto' }}>
+                      AI 润色
                     </Button>
                   </Space>
                 }

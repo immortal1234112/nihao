@@ -58,6 +58,9 @@ public class TaskSubmitRequest {
     /** 输入资产（图生图/图生视频的来源，可选） */
     private String sourceAssetId;
 
+    /** 输入资产列表（图生图/多图合成来源，可选；传了优先于 sourceAssetId） */
+    private java.util.List<String> sourceAssetIds;
+
     /** 批次号（批量任务同组，可选，前端批量生成时生成） */
     private String batchGroupId;
 }

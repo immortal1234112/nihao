@@ -43,7 +43,17 @@ const AssetThumb: React.FC<{ asset: AssetRow }> = ({ asset }) => {
     return <AuthImage src={url} alt={asset.title} preview={false} style={{ width: '100%', height: 160, objectFit: 'cover' }} />;
   }
   if (asset.assetType === 'VIDEO' && url) {
-    return <AuthVideo src={url} muted preload="metadata" style={{ width: '100%', height: 160, objectFit: 'cover' }} />;
+    return (
+      <AuthVideo
+        src={url}
+        muted
+        autoPlay
+        loop
+        playsInline
+        preload="auto"
+        style={{ width: '100%', height: 160, objectFit: 'cover' }}
+      />
+    );
   }
   if (asset.assetType === 'TEXT') {
     return (

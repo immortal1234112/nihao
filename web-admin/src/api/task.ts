@@ -7,7 +7,7 @@ export const taskApi = {
   submitVideo: (data: TaskSubmitRequest) => http.post<ApiResult<TaskDetail>>('/tasks/video', data),
   submitBatch: (data: TaskSubmitRequest) => http.post<ApiResult<TaskDetail>>('/tasks/batch', data),
   submitWorkflow: (data: TaskSubmitRequest) => http.post<ApiResult<TaskDetail>>('/tasks/workflow', data),
-  list: (params: { page?: number; size?: number; status?: string }) =>
+  list: (params: { page?: number; size?: number; status?: string; hideNoVisibleAsset?: boolean }) =>
     http.get<ApiResult<PageResult<AgentTask>>>('/tasks', { params }),
   /** silent=true 时不弹错误提示（WS 兜底轮询每 10s 一次，失败弹 toast 会刷屏） */
   getById: (id: string, silent = false) =>

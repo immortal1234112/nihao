@@ -2,6 +2,7 @@ package com.platform.agent.controller;
 
 import com.platform.agent.adapter.LLMAdapter;
 import com.platform.agent.chat.service.ChatService;
+import com.platform.agent.service.PromptEnhancerService;
 import com.platform.core.base.Result;
 import com.platform.core.exception.BizException;
 import com.platform.web.annotation.AuditLog;
@@ -28,6 +29,7 @@ public class LlmController {
 
     private final List<LLMAdapter> llmAdapters;
     private final ChatService chatService;
+    private final PromptEnhancerService promptEnhancerService;
 
     /**
      * 列出所有可用的 LLM 模型。
@@ -67,6 +69,29 @@ public class LlmController {
             // 不透传底层错误细节（API Key/供应商异常可能泄露敏感信息），仅记录日志
             log.error("LLM chat failed: {}", e.getMessage(), e);
             return Result.fail(500, "对话失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 提示词增强：中文 → 英文翻译/润色（供前端「AI 润色」按钮预览编辑）。
+     * 纯英文原样返回；LLM 不可用时降级返回原文，不报错。
+     * 与任务提交时的自动翻译共用同一逻辑（PromptEnhancerService）。
+     */
+    @PostMapping("/enhance-prompt")
+    public Result<Map<String, Object>> enhancePrompt(@RequestBody Map<String, Object> request) {
+        String prompt = (String) request.get("prompt");
+        if (prompt == null || prompt.isEmpty()) {
+            return Result.fail(1001, "prompt 不能为空");
+        }
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("enhanced", promptEnhancerService.enhance(prompt));
+            data.put("original", prompt);
+            return Result.ok(data);
+        } catch (Exception e) {
+            // 不透传底层错误细节，仅记录日志
+            log.error("Prompt enhance failed: {}", e.getMessage(), e);
+            return Result.fail(500, "润色失败，请稍后重试");
         }
     }
 }

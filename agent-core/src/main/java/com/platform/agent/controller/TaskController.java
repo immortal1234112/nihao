@@ -71,8 +71,10 @@ public class TaskController {
     public Result<PageResult<AgentTask>> list(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String status) {
-        PageResult<AgentTask> result = taskService.listTasks(UserContext.getUserId(), page, size, status);
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "false") boolean hideNoVisibleAsset) {
+        // hideNoVisibleAsset=true：画廊语义 —— 归档资产已全部删除的任务不展示（作品已删）
+        PageResult<AgentTask> result = taskService.listTasks(UserContext.getUserId(), page, size, status, hideNoVisibleAsset);
         return Result.ok(result);
     }
 

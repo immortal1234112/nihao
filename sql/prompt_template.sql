@@ -24,50 +24,99 @@ CREATE TABLE IF NOT EXISTS prompt_template (
 
 -- ==================== 种子模板（15 条，PUBLIC 官方精选） ====================
 -- scope 未显式指定：建表默认 PUBLIC（官方模板）
+-- 正文/负面词为中文：平台自动翻译为英文（PromptEnhancerService）后再交给生成引擎
 -- INSERT IGNORE：脚本可重复执行（幂等），已存在的种子跳过
+-- UPDATE：老库已有英文模板时刷新为中文版（幂等，无 id 匹配时无害）
 INSERT IGNORE INTO prompt_template (id, name, category, engine_type, prompt, negative_prompt) VALUES
 ('tpl001', '黄昏城市剪影', '摄影', 'IMAGE',
- 'Golden hour city skyline silhouette, dramatic sunset sky with orange and purple clouds, birds flying in the distance, cinematic composition, high contrast, professional photography, 8k',
- 'blurry, low quality, watermark, text'),
+ '黄昏时分城市天际线剪影，夕阳天空点缀橙色和紫色云霞，远处飞鸟掠过，电影感构图，高对比度，专业摄影，8k 画质',
+ '模糊，低质量，水印，文字'),
 ('tpl002', '北欧极光之夜', '摄影', 'IMAGE',
- 'Northern lights over a snowy Nordic landscape, aurora borealis in green and purple, starry night sky, reflection on frozen lake, hyperrealistic, long exposure photography',
- 'oversaturation, noise, watermark'),
+ '北欧雪原上的极光之夜，绿色和紫色的北极光，璀璨星空，极光倒映在结冰的湖面上，超写实，长曝光摄影',
+ '过饱和，噪点，水印'),
 ('tpl003', '江南水墨山水', '国风', 'IMAGE',
- 'Traditional Chinese ink wash painting, misty mountains over a river, lone fisherman on a small boat, willow trees, monochrome ink on rice paper, elegant brushwork, wabi-sabi',
- 'colorful, western oil painting style, watermark'),
+ '中国传统水墨画风格，江面薄雾笼罩的层叠山峦，小船上独坐的渔翁，依依垂柳，宣纸上的墨色晕染，笔触优雅，侘寂意境',
+ '彩色，西方油画风格，水印'),
 ('tpl004', '敦煌飞天仕女', '国风', 'IMAGE',
- 'Dunhuang flying apsaras mural style, graceful celestial maiden with flowing ribbons, vivid mineral pigments, golden background, Tang dynasty aesthetic, high detail illustration',
- 'modern clothes, deformed hands, watermark'),
+ '敦煌飞天壁画风格，衣袂飘带的曼妙仕女，绚丽的矿物颜料色彩，金色背景，唐代审美，高细节插画',
+ '现代服饰，畸形的手，水印'),
 ('tpl005', '赛博朋克霓虹雨夜', '赛博朋克', 'IMAGE',
- 'Cyberpunk neon-lit alley in the rain, holographic advertisements, reflections on wet asphalt, lone figure with umbrella, purple and cyan color palette, futuristic, blade runner atmosphere',
- 'daylight, rural scenery, blurry'),
+ '雨夜中霓虹闪烁的赛博朋克小巷，全息广告招牌，湿润柏油路上的霓虹倒影，撑伞的孤独身影，紫青色调，未来感，银翼杀手氛围',
+ '白天，乡村景色，模糊'),
 ('tpl006', '机甲武士', '赛博朋克', 'IMAGE',
- 'Cybernetic samurai warrior in armor with glowing energy lines, katana emitting blue plasma, dark futuristic dojo background, dramatic lighting, detailed mechanical design, concept art',
- 'weak design, plain background, watermark'),
+ '身披铠甲的赛博武士，铠甲上流动的能量纹路，等离子武士刀泛着蓝光，暗黑未来道场背景，戏剧性打光，精密机械设计，概念艺术',
+ '设计简陋，背景单调，水印'),
 ('tpl007', '宫崎骏风乡村田野', '动漫', 'IMAGE',
- 'Studio Ghibli style countryside landscape, rolling green hills, small red-roofed houses, fluffy clouds, gentle warm sunlight, hand-drawn animation aesthetic, peaceful and whimsical',
- '3d render, realistic photo, dark mood'),
+ '宫崎骏动画风格的乡村风景，起伏的翠绿山丘，红色屋顶的小屋，蓬松的云朵，柔和温暖的阳光，手绘动画美学，宁静而奇幻',
+ '3d 渲染，写实照片，阴暗氛围'),
 ('tpl008', '新海诚式夏日天空', '动漫', 'IMAGE',
- 'Makoto Shinkai style summer sky, towering cumulus clouds, vivid blue sky, power lines and school rooftop in foreground, cinematic color grading, anime background art, high detail',
- 'desaturated, dark, low detail'),
+ '新海诚风格的夏日天空，高耸的积雨云，湛蓝的天空，前景是电线杆与学校天台，电影感调色，动漫背景美术，高细节',
+ '低饱和，昏暗，低细节'),
 ('tpl009', '极简白色陶瓷产品', '产品', 'IMAGE',
- 'Minimalist white ceramic vase product photography, soft studio lighting, clean light gray background, subtle shadows, centered composition, commercial product shot, 4k',
- 'cluttered background, warm orange lighting, text'),
+ '极简白色陶瓷花瓶产品摄影，柔和影棚灯光，干净的浅灰背景，微妙阴影，居中构图，商业产品拍摄，4k',
+ '杂乱背景，暖橙灯光，文字'),
 ('tpl010', '智能手表广告大片', '产品', 'IMAGE',
- 'Premium smartwatch product advertisement, floating watch with glowing screen, dark gradient background, dramatic rim lighting, dust particles, luxury tech aesthetic, 3d render',
- 'toy-like, poor materials, watermark'),
+ '高端智能手表广告，悬浮手表屏幕泛着微光，深色渐变背景，戏剧性轮廓光，漂浮的尘埃颗粒，奢华科技美学，3d 渲染',
+ '玩具质感，材质廉价，水印'),
 ('tpl011', '复古电影海报', '海报', 'IMAGE',
- 'Retro movie poster style, bold typography layout, art deco design, dramatic central character, vintage color palette of orange teal and cream, paper texture, cinematic title design',
- 'modern ui, text overlay mess, blurry'),
+ '复古电影海报风格，粗体排印版式，装饰艺术设计，戏剧性的中央主角，橙蓝奶油复古配色，纸张肌理，电影标题设计',
+ '现代 ui，文字杂乱叠加，模糊'),
 ('tpl012', '国潮音乐节海报', '海报', 'IMAGE',
- 'Chinese streetwear music festival poster, traditional patterns mixed with modern graffiti, vibrant red and gold colors, dynamic composition, bold Chinese typography, high energy design',
- 'plain background, dull colors, no energy'),
+ '国潮音乐节海报，传统纹样融合现代涂鸦，红金配色热烈醒目，动感构图，粗壮的汉字排印，高能量设计',
+ '背景单调，色彩暗淡，缺乏活力'),
 ('tpl013', '川西雪山云海航拍', '风景', 'IMAGE',
- 'Aerial drone shot of snow-capped mountains above a sea of clouds, golden morning light on peaks, dramatic valleys, crisp air, majestic scale, landscape photography masterpiece',
- 'cloudy grey sky, low resolution, watermark'),
+ '无人机航拍云海之上的雪山群峰，金色晨光洒满山巅，壮阔的山谷，空气澄澈，气势恢宏，风光摄影杰作',
+ '阴天灰云，低分辨率，水印'),
 ('tpl014', '老城街角清晨咖啡', '人像', 'IMAGE',
- 'Cozy morning cafe scene, elderly man reading newspaper by window with warm sunlight, steam rising from coffee cup, shallow depth of field, cinematic street photography, nostalgic mood',
- 'modern interiors, harsh flash, blurry face'),
+ '温馨的清晨咖啡馆，老人坐在窗边读报，暖阳洒在桌上，咖啡杯升腾热气，浅景深，电影感街头摄影，怀旧氛围',
+ '现代室内装修，生硬闪光灯，脸部模糊'),
 ('tpl015', '科幻宇宙飞船运镜', '视频', 'VIDEO',
- 'Cinematic tracking shot of a massive spaceship flying over an alien planet, camera orbits from below, engine glow illuminating clouds, epic scale, sci-fi film VFX, smooth motion',
- 'jittery camera, low detail, static shot');
+ '巨型飞船飞越外星行星的电影运镜镜头，摄像机从下方环绕上升，引擎辉光照亮云层，史诗级尺度，科幻电影特效，运镜顺滑',
+ '镜头抖动，低细节，静态镜头');
+
+-- 老库升级：已存在（英文版）的种子模板刷新为中文版
+UPDATE prompt_template SET
+  prompt = '黄昏时分城市天际线剪影，夕阳天空点缀橙色和紫色云霞，远处飞鸟掠过，电影感构图，高对比度，专业摄影，8k 画质',
+  negative_prompt = '模糊，低质量，水印，文字' WHERE id = 'tpl001';
+UPDATE prompt_template SET
+  prompt = '北欧雪原上的极光之夜，绿色和紫色的北极光，璀璨星空，极光倒映在结冰的湖面上，超写实，长曝光摄影',
+  negative_prompt = '过饱和，噪点，水印' WHERE id = 'tpl002';
+UPDATE prompt_template SET
+  prompt = '中国传统水墨画风格，江面薄雾笼罩的层叠山峦，小船上独坐的渔翁，依依垂柳，宣纸上的墨色晕染，笔触优雅，侘寂意境',
+  negative_prompt = '彩色，西方油画风格，水印' WHERE id = 'tpl003';
+UPDATE prompt_template SET
+  prompt = '敦煌飞天壁画风格，衣袂飘带的曼妙仕女，绚丽的矿物颜料色彩，金色背景，唐代审美，高细节插画',
+  negative_prompt = '现代服饰，畸形的手，水印' WHERE id = 'tpl004';
+UPDATE prompt_template SET
+  prompt = '雨夜中霓虹闪烁的赛博朋克小巷，全息广告招牌，湿润柏油路上的霓虹倒影，撑伞的孤独身影，紫青色调，未来感，银翼杀手氛围',
+  negative_prompt = '白天，乡村景色，模糊' WHERE id = 'tpl005';
+UPDATE prompt_template SET
+  prompt = '身披铠甲的赛博武士，铠甲上流动的能量纹路，等离子武士刀泛着蓝光，暗黑未来道场背景，戏剧性打光，精密机械设计，概念艺术',
+  negative_prompt = '设计简陋，背景单调，水印' WHERE id = 'tpl006';
+UPDATE prompt_template SET
+  prompt = '宫崎骏动画风格的乡村风景，起伏的翠绿山丘，红色屋顶的小屋，蓬松的云朵，柔和温暖的阳光，手绘动画美学，宁静而奇幻',
+  negative_prompt = '3d 渲染，写实照片，阴暗氛围' WHERE id = 'tpl007';
+UPDATE prompt_template SET
+  prompt = '新海诚风格的夏日天空，高耸的积雨云，湛蓝的天空，前景是电线杆与学校天台，电影感调色，动漫背景美术，高细节',
+  negative_prompt = '低饱和，昏暗，低细节' WHERE id = 'tpl008';
+UPDATE prompt_template SET
+  prompt = '极简白色陶瓷花瓶产品摄影，柔和影棚灯光，干净的浅灰背景，微妙阴影，居中构图，商业产品拍摄，4k',
+  negative_prompt = '杂乱背景，暖橙灯光，文字' WHERE id = 'tpl009';
+UPDATE prompt_template SET
+  prompt = '高端智能手表广告，悬浮手表屏幕泛着微光，深色渐变背景，戏剧性轮廓光，漂浮的尘埃颗粒，奢华科技美学，3d 渲染',
+  negative_prompt = '玩具质感，材质廉价，水印' WHERE id = 'tpl010';
+UPDATE prompt_template SET
+  prompt = '复古电影海报风格，粗体排印版式，装饰艺术设计，戏剧性的中央主角，橙蓝奶油复古配色，纸张肌理，电影标题设计',
+  negative_prompt = '现代 ui，文字杂乱叠加，模糊' WHERE id = 'tpl011';
+UPDATE prompt_template SET
+  prompt = '国潮音乐节海报，传统纹样融合现代涂鸦，红金配色热烈醒目，动感构图，粗壮的汉字排印，高能量设计',
+  negative_prompt = '背景单调，色彩暗淡，缺乏活力' WHERE id = 'tpl012';
+UPDATE prompt_template SET
+  prompt = '无人机航拍云海之上的雪山群峰，金色晨光洒满山巅，壮阔的山谷，空气澄澈，气势恢宏，风光摄影杰作',
+  negative_prompt = '阴天灰云，低分辨率，水印' WHERE id = 'tpl013';
+UPDATE prompt_template SET
+  prompt = '温馨的清晨咖啡馆，老人坐在窗边读报，暖阳洒在桌上，咖啡杯升腾热气，浅景深，电影感街头摄影，怀旧氛围',
+  negative_prompt = '现代室内装修，生硬闪光灯，脸部模糊' WHERE id = 'tpl014';
+UPDATE prompt_template SET
+  prompt = '巨型飞船飞越外星行星的电影运镜镜头，摄像机从下方环绕上升，引擎辉光照亮云层，史诗级尺度，科幻电影特效，运镜顺滑',
+  negative_prompt = '镜头抖动，低细节，静态镜头' WHERE id = 'tpl015';

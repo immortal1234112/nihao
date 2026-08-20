@@ -6,7 +6,6 @@ import com.platform.storage.UploadResult;
 import com.platform.storagesvc.entity.StorageFile;
 import com.platform.storagesvc.service.FileService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,10 +26,6 @@ public class InternalFileController {
 
     /** 限时公开取图 URL 生成器（参考图注入用） */
     private final PublicFileController publicFileController;
-
-    /** 网关地址：拼装对外可访问的下载 URL（客户端经网关下载，鉴权由网关 JWT 完成） */
-    @Value("${storage.public-base-url:http://localhost:8080}")
-    private String publicBaseUrl;
 
     /**
      * 获取文件信息。
@@ -148,7 +143,11 @@ public class InternalFileController {
     }
 
     private String publicFileUrl(String fileId) {
-        return publicBaseUrl + "/api/v1/files/" + fileId + "/download";
+        // 返回相对路径：前端同源 fetch（带 JWT）预览/下载，localhost 内网与 cpolar 公网访问都正确。
+        // 绝对 URL（http://localhost:8080）会写进任务 result / 资产记录，公网用户浏览器
+        // fetch localhost 指向用户自己机器 → 下载/预览失败（"能下载但格式不对"根因）。
+        // provider 需要的公网绝对地址走 engine-base-url 签名链路（PublicFileController），与此无关。
+        return "/api/v1/files/" + fileId + "/download";
     }
 
     /**
