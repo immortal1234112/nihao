@@ -8,7 +8,8 @@ body,
 }
 
 body {
-  background: #f5f6fa;
+  background: #f3f6f8;
+  color: #17252d;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -27,4 +28,9 @@ body {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+::selection {
+  color: #083344;
+  background: #fde68a;
 }

@@ -5,6 +5,7 @@ import { SendOutlined, ClearOutlined, PlusOutlined, DeleteOutlined } from '@ant-
 import { taskApi } from '@/api/task';
 import { useAppFeedback } from '@/utils/feedback';
 import DatasetSelect from '@/components/rag/DatasetSelect';
+import styles from './PipelinePage.module.css';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -59,19 +60,24 @@ const PipelinePage: React.FC = () => {
   };
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>流水线编排</Title>
-      <Row gutter={24}>
-        <Col span={16}>
-          <Card>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>流水线编排</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>组合多个生成与处理步骤，提交一条可追踪的任务流水线</Typography.Text>
+        </div>
+      </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={16}>
+          <Card className={styles.panel}>
             <Form form={form} layout="vertical" onFinish={onFinish}>
               <Form.Item name="prompt" label="初始提示词" rules={[{ required: true, message: '请输入提示词' }]}>
                 <TextArea rows={3} placeholder="描述整体创作意图..." maxLength={2000} showCount />
               </Form.Item>
 
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <span style={{ fontWeight: 500 }}>流水线步骤 ({steps.length})</span>
+              <div className={styles.stepsSection}>
+                <div className={styles.stepsHeader}>
+                  <span className={styles.stepsTitle}>流水线步骤 ({steps.length})</span>
                   <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={addStep}>添加步骤</Button>
                 </div>
                 <Steps
@@ -138,8 +144,8 @@ const PipelinePage: React.FC = () => {
             </Form>
           </Card>
         </Col>
-        <Col span={8}>
-          <Card title="流水线说明">
+        <Col xs={24} xl={8}>
+          <Card className={styles.panel} title="流水线说明">
             <ul>
               <li>流水线支持多个步骤串联执行</li>
               <li>每个步骤的输出作为下一个步骤的输入</li>

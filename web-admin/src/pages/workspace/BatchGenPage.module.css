@@ -1,0 +1,120 @@
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  margin-bottom: 18px;
+  padding: 8px 12px 14px;
+  border-bottom: 1px solid #dfe9eb;
+}
+
+.pageTitle {
+  margin: 0 !important;
+  color: #17323a !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.pageHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.layoutRow {
+  align-items: stretch;
+}
+
+.workspaceCard {
+  height: 100%;
+  border: 1px solid #dfe9eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04) !important;
+  overflow: hidden;
+}
+
+.workspaceCard :global(.ant-card-head) {
+  min-height: 50px;
+  padding: 0 16px;
+  background: #fbfdfd;
+  border-bottom-color: #e8eff0;
+}
+
+.workspaceCard :global(.ant-card-head-title) {
+  color: #27434b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.formCard :global(.ant-card-body) {
+  padding: 20px;
+}
+
+.formCard :global(.ant-form-item-label > label) {
+  color: #52656d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.formCard :global(.ant-input),
+.formCard :global(.ant-input-number),
+.formCard :global(.ant-select-selector) {
+  border-color: #d9e5e7 !important;
+  border-radius: 7px !important;
+}
+
+.formCard :global(.ant-input:focus),
+.formCard :global(.ant-input-focused),
+.formCard :global(.ant-input-number-focused),
+.formCard :global(.ant-select-focused .ant-select-selector) {
+  border-color: #0f766e !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1) !important;
+}
+
+.formActions {
+  margin-bottom: 0 !important;
+  padding-top: 6px;
+  border-top: 1px solid #edf2f2;
+}
+
+.formActions :global(.ant-btn) {
+  border-radius: 7px;
+}
+
+.formActions :global(.ant-btn-primary) {
+  height: 40px;
+  color: #16333b;
+  background: #facc15;
+  border-color: #facc15;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.infoCard {
+  background: #f7faf9 !important;
+}
+
+.infoList {
+  margin: 0;
+  padding-left: 20px;
+  color: #52656d;
+  font-size: 13px;
+  line-height: 2;
+}
+
+@media (max-width: 900px) {
+  .layoutRow :global(.ant-col) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .pageTitle {
+    font-size: 20px !important;
+  }
+
+  .formCard :global(.ant-card-body) {
+    padding: 16px;
+  }
+}

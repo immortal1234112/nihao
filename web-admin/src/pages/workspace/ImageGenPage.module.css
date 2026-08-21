@@ -1,0 +1,208 @@
+.page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.pageTitle {
+  margin: 0 0 18px !important;
+  color: #17323a !important;
+  font-size: 24px !important;
+  line-height: 1.25 !important;
+}
+
+.workspaceRow {
+  align-items: stretch;
+}
+
+.workspaceCard {
+  height: 100%;
+  border: 1px solid #dfe9eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(23, 50, 58, 0.05) !important;
+  overflow: hidden;
+}
+
+.workspaceCard :global(.ant-card-head) {
+  min-height: 48px;
+  padding: 0 16px;
+  background: #fbfdfd;
+  border-bottom-color: #e8eff0;
+}
+
+.workspaceCard :global(.ant-card-head-title) {
+  color: #27434b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.workspaceCard :global(.ant-card-body) {
+  padding: 16px;
+}
+
+.referenceCard :global(.ant-card-body) {
+  min-height: 620px;
+}
+
+.canvasCard {
+  background: #ffffff !important;
+  border-color: #dfe9eb !important;
+}
+
+.canvasCard :global(.ant-card-head) {
+  background: #fbfdfd;
+  border-bottom-color: #e8eff0;
+}
+
+.canvasCard :global(.ant-card-head-title) {
+  color: #27434b;
+}
+
+.canvasCard :global(.ant-card-body) {
+  min-height: 620px;
+  padding: 18px;
+  background: #f6f9fa;
+}
+
+.canvasCard :global(.ant-card-extra),
+.canvasCard :global(.ant-empty-description),
+.canvasCard :global(.ant-typography-secondary) {
+  color: #71838a !important;
+}
+
+.canvasCard :global(.ant-spin-text) {
+  color: #71838a;
+}
+
+.canvasStage {
+  min-height: 584px;
+  padding: 14px;
+  border: 1px solid #e1ebec;
+  border-radius: 10px;
+  background-color: #eef4f4;
+  background-image: radial-gradient(#d6e3e3 0.8px, transparent 0.8px);
+  background-size: 14px 14px;
+}
+
+.canvasEmpty {
+  min-height: 554px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #bdd1d1;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.resultFrame {
+  padding: 16px;
+  border: 1px solid #e2e9e9;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(23, 50, 58, 0.06);
+}
+
+.parameterCard :global(.ant-card-body) {
+  min-height: 620px;
+}
+
+.parameterCard :global(.ant-form-item-label > label) {
+  color: #52656d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.parameterCard :global(.ant-input),
+.parameterCard :global(.ant-select-selector) {
+  border-color: #d9e5e7 !important;
+  border-radius: 7px !important;
+}
+
+.parameterCard :global(.ant-input:focus),
+.parameterCard :global(.ant-input-focused),
+.parameterCard :global(.ant-select-focused .ant-select-selector) {
+  border-color: #0f766e !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1) !important;
+}
+
+.parameterCard :global(.ant-btn-primary) {
+  height: 42px;
+  color: #16333b;
+  background: #facc15;
+  border-color: #facc15;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.parameterCard :global(.ant-btn-primary:hover) {
+  color: #16333b !important;
+  background: #f8d943 !important;
+  border-color: #f8d943 !important;
+}
+
+.referenceCard :global(.ant-segmented),
+.parameterCard :global(.ant-collapse) {
+  background: #f3f8f8;
+}
+
+.referenceCard :global(.ant-segmented-item-selected) {
+  color: #0f766e;
+}
+
+.assetTile {
+  border-radius: 7px !important;
+  border-color: #d9e5e7 !important;
+}
+
+.assetTileSelected {
+  border-color: #0f766e !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
+}
+
+.resultActions :global(.ant-btn-primary) {
+  color: #16333b;
+  background: #facc15;
+  border-color: #facc15;
+}
+
+@media (max-width: 1100px) {
+  .workspaceRow :global(.ant-col) {
+    width: 50%;
+  }
+
+  .workspaceRow :global(.ant-col:nth-child(2)) {
+    width: 100%;
+    order: -1;
+  }
+
+  .canvasCard :global(.ant-card-body),
+  .referenceCard :global(.ant-card-body),
+  .parameterCard :global(.ant-card-body) {
+    min-height: auto;
+  }
+
+  .canvasStage {
+    min-height: auto;
+  }
+
+  .canvasEmpty {
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pageTitle {
+    font-size: 21px !important;
+  }
+
+  .workspaceRow :global(.ant-col) {
+    width: 100%;
+  }
+
+  .workspaceRow :global(.ant-col:nth-child(2)) {
+    order: 0;
+  }
+
+  .canvasEmpty {
+    min-height: 320px;
+  }
+}

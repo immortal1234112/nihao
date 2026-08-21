@@ -1,0 +1,12 @@
+.page { max-width: 1600px; margin: 0 auto; }
+.pageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; min-height: 70px; margin-bottom: 12px; padding: 8px 12px 14px; border-bottom: 1px solid #dfe9eb; }
+.pageTitle { margin: 0 !important; color: #17323a !important; font-size: 22px !important; line-height: 1.25 !important; }
+.pageHint { display: block; max-width: 900px; margin-top: 5px; font-size: 12px; line-height: 1.6; }
+.headerActions :global(.ant-btn) { border-radius: 7px; }
+.headerActions :global(.ant-btn-primary) { color: #16333b; background: #facc15; border-color: #facc15; box-shadow: none; font-weight: 700; }
+.tabs :global(.ant-tabs-nav) { margin-bottom: 0; }
+.tableShell { overflow: hidden; border: 1px solid #dfe9eb; border-radius: 10px; background: #fff; box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04); }
+.memoryTable :global(.ant-table-thead > tr > th) { background: #f7faf9; color: #52656d; font-size: 12px; font-weight: 700; }
+.memoryTable :global(.ant-table-tbody > tr > td) { color: #40565d; font-size: 13px; }
+.memoryTable :global(.ant-table-tbody > tr:hover > td) { background: #f2f9f8 !important; }
+@media (max-width: 720px) { .pageHeader { align-items: flex-start; flex-direction: column; } .pageTitle { font-size: 20px !important; } }

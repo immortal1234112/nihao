@@ -4,6 +4,7 @@ import { SettingOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlin
 import http from '@/api/client';
 import { ApiResult } from '@/types/api';
 import { useAppFeedback } from '@/utils/feedback';
+import styles from './ModelConfigPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -179,25 +180,21 @@ const ModelConfigPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
         <div>
-          <Title level={4} style={{ margin: 0 }}>模型配置</Title>
-          <Text type="secondary">配置各模型的 API Key，配置后立即生效无需重启</Text>
+          <Title level={3} className={styles.pageTitle}>模型配置</Title>
+          <Text type="secondary" className={styles.pageHint}>配置各模型的 API Key，配置后立即生效无需重启</Text>
         </div>
-        <Space>
+        <Space className={styles.headerActions}>
           <Button icon={<ReloadOutlined />} onClick={loadConfigs}>刷新</Button>
           <Button icon={<ReloadOutlined />} onClick={handleRefresh}>刷新缓存</Button>
         </Space>
       </div>
 
-      <Table
-        dataSource={configs}
-        columns={columns}
-        rowKey="provider"
-        loading={loading}
-        pagination={false}
-      />
+      <div className={styles.tableShell}>
+        <Table className={styles.configTable} dataSource={configs} columns={columns} rowKey="provider" loading={loading} pagination={false} />
+      </div>
 
       <Modal
         title={`配置 ${providerLabels[currentProvider]?.name || currentProvider}`}

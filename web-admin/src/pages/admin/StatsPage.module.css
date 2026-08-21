@@ -1,0 +1,7 @@
+.page { max-width: 1600px; margin: 0 auto; }
+.pageHeader { min-height: 58px; margin-bottom: 16px; padding: 8px 12px 14px; border-bottom: 1px solid #dfe9eb; }
+.pageTitle { margin: 0 !important; color: #17323a !important; font-size: 22px !important; line-height: 1.25 !important; }
+.pageHint { display: block; margin-top: 4px; font-size: 12px; }
+.statCard { border-color: #dfe9eb !important; border-radius: 10px !important; box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04); }
+.statCard :global(.ant-statistic-title) { color: #61737a; }
+@media (max-width: 720px) { .pageTitle { font-size: 20px !important; } }

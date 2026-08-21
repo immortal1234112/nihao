@@ -1,0 +1,100 @@
+.page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  min-height: 64px;
+  margin-bottom: 18px;
+  padding: 8px 12px 14px;
+  border-bottom: 1px solid #dfe9eb;
+}
+
+.pageTitle {
+  margin: 0 !important;
+  color: #17323a !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.pageHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.headerActions :global(.ant-btn) {
+  border-radius: 7px;
+}
+
+.headerActions :global(.ant-btn-primary) {
+  color: #16333b;
+  background: #facc15;
+  border-color: #facc15;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.projectGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.projectCard {
+  overflow: hidden;
+  border: 1px solid #dfe9eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 5px 16px rgba(23, 50, 58, 0.05) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.projectCard:hover {
+  border-color: #b8d7d4 !important;
+  box-shadow: 0 10px 24px rgba(23, 50, 58, 0.1) !important;
+  transform: translateY(-2px);
+}
+
+.projectCard :global(.ant-card-body) {
+  padding: 14px;
+}
+
+.projectCard :global(.ant-card-meta-title) {
+  margin-bottom: 9px !important;
+}
+
+.projectName {
+  display: block;
+  max-width: 160px;
+  color: #27434b;
+  font-size: 14px;
+}
+
+.projectMeta {
+  font-size: 12px;
+}
+
+.emptyState {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #c5d6d7;
+  border-radius: 10px;
+  background: #f8fbfb;
+}
+
+@media (max-width: 640px) {
+  .pageTitle {
+    font-size: 20px !important;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .projectGrid {
+    grid-template-columns: 1fr;
+  }
+}

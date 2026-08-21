@@ -9,6 +9,7 @@ import { ragApi } from '@/api/rag';
 import { RagDataset, RagEmbeddingProvider } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useAppFeedback } from '@/utils/feedback';
+import styles from './DatasetsPage.module.css';
 
 const { Title } = Typography;
 
@@ -102,25 +103,28 @@ const DatasetsPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>知识库管理</Title>
-      <Card
-        title="我的知识库"
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建知识库</Button>
-          </Space>
-        }
-      >
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>知识库管理</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>管理文档集合，并用于检索增强生成</Typography.Text>
+        </div>
+        <Space className={styles.headerActions}>
+          <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建知识库</Button>
+        </Space>
+      </div>
+      <div className={styles.tableShell}>
+        <div className={styles.sectionLabel}>我的知识库</div>
         <Table
+          className={styles.datasetTable}
           rowKey="id"
           columns={columns}
           dataSource={table.records}
           loading={table.loading}
           pagination={false}
         />
-      </Card>
+      </div>
 
       <Modal
         title="新建知识库"

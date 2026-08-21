@@ -10,6 +10,7 @@ import StatusTag from '@/components/common/StatusTag';
 import PageLoading from '@/components/common/PageLoading';
 import ResultPreview, { parseResultUrls } from '@/components/common/ResultPreview';
 import dayjs from 'dayjs';
+import styles from './TaskDetailPage.module.css';
 
 const { Title, Paragraph } = Typography;
 
@@ -63,14 +64,14 @@ const TaskDetailPage: React.FC = () => {
   try { params = JSON.parse(task.requestParams || '{}') ?? {}; } catch { /* */ }
 
   return (
-    <div>
-      <Space style={{ marginBottom: 16 }}>
+    <div className={styles.page}>
+      <Space className={styles.pageToolbar}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tasks')}>返回列表</Button>
         <Button icon={<ReloadOutlined />} onClick={() => load()}>刷新</Button>
       </Space>
 
-      <Card title={<Title level={4} style={{ margin: 0 }}>任务详情</Title>} style={{ marginBottom: 24 }}>
-        <Descriptions bordered column={3} size="small">
+      <Card className={styles.summaryCard} title={<Title level={3} className={styles.pageTitle}>任务详情</Title>}>
+        <Descriptions className={styles.summaryDescriptions} bordered column={3} size="small">
           <Descriptions.Item label="任务ID">{task.id}</Descriptions.Item>
           <Descriptions.Item label="类型">{task.workflowType}</Descriptions.Item>
           <Descriptions.Item label="状态">
@@ -90,29 +91,31 @@ const TaskDetailPage: React.FC = () => {
 
       {/* 步骤 + 内嵌结果 */}
       {steps && steps.length > 0 && (
-        <Card title="执行步骤与结果" style={{ marginBottom: 24 }}>
+        <Card className={styles.sectionCard} title="执行步骤与结果">
           {steps.map((step) => (
             <Card
               key={step.id}
               size="small"
+              className={styles.stepCard}
               title={
                 <Space>
                   <span>步骤 {step.stepOrder}: {step.stepType}</span>
                   <StatusTag status={step.status} />
                 </Space>
               }
-              style={{ marginBottom: 12 }}
               extra={
-                <span style={{ fontSize: 12, color: '#999' }}>
+                <span className={styles.stepTime}>
                   {step.startedAt && `开始 ${dayjs(step.startedAt).format('HH:mm:ss')}`}
                   {step.finishedAt && ` → 完成 ${dayjs(step.finishedAt).format('HH:mm:ss')}`}
                 </span>
               }
             >
-              {step.errorMsg && <Alert type="error" message={step.errorMsg} style={{ marginBottom: 12 }} />}
-              <ResultPreview raw={step.output} />
+              {step.errorMsg && <Alert type="error" message={step.errorMsg} className={styles.stepError} />}
+              <div className={styles.previewFrame}>
+                <ResultPreview raw={step.output} />
+              </div>
               {step.status === 'PROCESSING' && parseResultUrls(step.output).length === 0 && (
-                <div style={{ textAlign: 'center', padding: 16 }}>
+                <div className={styles.stepLoading}>
                   <Spin />
                 </div>
               )}
@@ -123,9 +126,11 @@ const TaskDetailPage: React.FC = () => {
 
       {/* 任务级结果 */}
       {task.result && (
-        <Card title="最终结果" style={{ marginTop: 24 }}>
+        <Card className={styles.sectionCard} title="最终结果">
           {parseResultUrls(task.result).length > 0 ? (
-            <ResultPreview raw={task.result} />
+            <div className={styles.previewFrame}>
+              <ResultPreview raw={task.result} />
+            </div>
           ) : (
             (() => {
               try {
@@ -135,7 +140,7 @@ const TaskDetailPage: React.FC = () => {
                 return (
                   <div>
                     {Object.keys(meta).length > 0 && (
-                      <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
+                      <Descriptions className={styles.resultDescriptions} size="small" column={3} bordered>
                         {Object.entries(meta).map(([k, v]) => (
                           <Descriptions.Item key={k} label={k}>
                             {typeof v === 'object' ? JSON.stringify(v) : String(v)}

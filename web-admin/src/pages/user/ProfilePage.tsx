@@ -4,6 +4,7 @@ import { SaveOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@/stores/authStore';
 import { userApi } from '@/api/user';
 import { useAppFeedback } from '@/utils/feedback';
+import styles from './ProfilePage.module.css';
 
 const { Title } = Typography;
 
@@ -35,11 +36,16 @@ const ProfilePage: React.FC = () => {
   if (!user) return <Spin />;
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>个人信息</Title>
-      <Row gutter={24}>
-        <Col span={12}>
-          <Card title="基本信息">
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>个人信息</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>查看账号资料与当前租户归属</Typography.Text>
+        </div>
+      </div>
+      <Row gutter={[16, 16]} className={styles.profileGrid}>
+        <Col xs={24} lg={12}>
+          <Card className={styles.panel} title="基本信息">
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="用户ID">{user.id}</Descriptions.Item>
               <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
@@ -59,8 +65,9 @@ const ProfilePage: React.FC = () => {
             </Descriptions>
           </Card>
         </Col>
-        <Col span={12}>
+        <Col xs={24} lg={12}>
           <Card
+            className={styles.panel}
             title="编辑信息"
             extra={
               <Button type={editing ? 'default' : 'primary'} onClick={() => setEditing(!editing)}>

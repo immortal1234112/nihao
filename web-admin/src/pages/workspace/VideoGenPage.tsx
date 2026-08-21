@@ -40,6 +40,7 @@ import PromptTemplateModal from '@/components/workspace/PromptTemplateModal';
 import ResultPreview, { parseResultUrls } from '@/components/common/ResultPreview';
 import StatusTag from '@/components/common/StatusTag';
 import ArchiveToProjectModal from '@/components/create/ArchiveToProjectModal';
+import styles from './VideoGenPage.module.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -234,13 +235,13 @@ const VideoGenPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 16 }}>AI 视频生成</Title>
+    <div className={styles.page}>
+      <Title level={3} className={styles.pageTitle}>AI 视频生成</Title>
 
-      <Row gutter={16}>
+      <Row gutter={[16, 16]} className={styles.workspaceRow}>
         {/* 左栏：参考图（图生视频） */}
         <Col span={5}>
-          <Card size="small" title="参考图（图生视频）" style={{ height: '100%' }}>
+          <Card size="small" className={`${styles.workspaceCard} ${styles.referenceCard}`} title="参考图（图生视频）">
             <Flex vertical gap={12}>
               {refAsset ? (
                 <div>
@@ -282,16 +283,16 @@ const VideoGenPage: React.FC = () => {
                     <Flex gap={8} wrap>
                       {libraryAssets.map((a) => (
                         <Tooltip key={a.id} title={a.title}>
-                          <div
-                            onClick={() => setRefAssetId(a.id)}
-                            style={{
-                              width: 56,
-                              height: 56,
-                              borderRadius: 6,
-                              overflow: 'hidden',
-                              cursor: 'pointer',
-                              border: refAssetId === a.id ? '2px solid #1677ff' : '1px solid #f0f0f0',
-                            }}
+                            <div
+                              onClick={() => setRefAssetId(a.id)}
+                              className={`${styles.assetTile} ${refAssetId === a.id ? styles.assetTileSelected : ''}`}
+                              style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 6,
+                                overflow: 'hidden',
+                                cursor: 'pointer',
+                              }}
                           >
                             {a.file?.url ? (
                               <AuthImage src={a.file.url} alt={a.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} preview={false} />
@@ -313,13 +314,13 @@ const VideoGenPage: React.FC = () => {
                         <Tooltip key={f.id} title={`${f.originalName}（点击导入为参考图）`}>
                           <div
                             onClick={() => pickManagedFile(f)}
+                            className={styles.assetTile}
                             style={{
                               width: 56,
                               height: 56,
                               borderRadius: 6,
                               overflow: 'hidden',
                               cursor: 'pointer',
-                              border: '1px solid #f0f0f0',
                               opacity: importing ? 0.5 : 1,
                             }}
                           >
@@ -349,6 +350,7 @@ const VideoGenPage: React.FC = () => {
         <Col span={13}>
           <Card
             size="small"
+            className={`${styles.workspaceCard} ${styles.canvasCard}`}
             title={
               <Flex align="center" gap={8}>
                 <span>结果画布</span>
@@ -364,66 +366,72 @@ const VideoGenPage: React.FC = () => {
             }
             style={{ height: '100%' }}
           >
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: 60 }}>
-                <Spin tip="提交中…" />
-              </div>
-            ) : resultUrls.length > 0 ? (
-              <Flex vertical gap={12}>
-                <ResultPreview raw={resultRaw} />
-                <Flex gap={8} wrap>
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<FolderAddOutlined />}
-                    onClick={() => setArchiveTaskId(taskId)}
-                  >
-                    保存到项目
-                  </Button>
-                  <Button size="small" icon={<SyncOutlined />} onClick={createVariant}>
-                    创建变体
-                  </Button>
-                  <Button size="small" onClick={submitForReview}>
-                    提交审核
-                  </Button>
-                  {resultUrls.map((url) => (
+            <div className={styles.canvasStage}>
+              {loading ? (
+                <div className={styles.canvasEmpty}>
+                  <Spin tip="提交中…" />
+                </div>
+              ) : resultUrls.length > 0 ? (
+                <Flex vertical gap={12}>
+                  <div className={styles.resultFrame}>
+                    <ResultPreview raw={resultRaw} />
+                  </div>
+                  <Flex gap={8} wrap>
                     <Button
-                      key={url}
                       size="small"
-                      icon={<DownloadOutlined />}
-                      onClick={async () => {
-                        const ok = await downloadAuthFile(url, `generated-${Date.now()}.mp4`);
-                        if (ok) message.success('下载完成');
-                        else message.error('下载失败，请重试');
-                      }}
+                      type="primary"
+                      icon={<FolderAddOutlined />}
+                      onClick={() => setArchiveTaskId(taskId)}
                     >
-                      下载
+                      保存到项目
                     </Button>
-                  ))}
+                    <Button size="small" icon={<SyncOutlined />} onClick={createVariant}>
+                      创建变体
+                    </Button>
+                    <Button size="small" onClick={submitForReview}>
+                      提交审核
+                    </Button>
+                    {resultUrls.map((url) => (
+                      <Button
+                        key={url}
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        onClick={async () => {
+                          const ok = await downloadAuthFile(url, `generated-${Date.now()}.mp4`);
+                          if (ok) message.success('下载完成');
+                          else message.error('下载失败，请重试');
+                        }}
+                      >
+                        下载
+                      </Button>
+                    ))}
+                  </Flex>
+                  {archivedAssets.length > 0 && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      已自动归档 {archivedAssets.length} 个资产{projectId ? '到所选项目' : '到资产中心'}
+                    </Text>
+                  )}
                 </Flex>
-                {archivedAssets.length > 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    已自动归档 {archivedAssets.length} 个资产{projectId ? '到所选项目' : '到资产中心'}
-                  </Text>
-                )}
-              </Flex>
-            ) : taskStatus && !TERMINAL_STATUSES.has(taskStatus) ? (
-              <div style={{ textAlign: 'center', padding: 60 }}>
-                <Spin tip="视频生成中，通常需要几分钟…" />
-              </div>
-            ) : (
-              <Empty description="提交生成后，结果将在此展示" style={{ padding: 60 }}>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  视频生成耗时较长，完成后自动归档为资产
-                </Text>
-              </Empty>
-            )}
+              ) : taskStatus && !TERMINAL_STATUSES.has(taskStatus) ? (
+                <div className={styles.canvasEmpty}>
+                  <Spin tip="视频生成中，通常需要几分钟…" />
+                </div>
+              ) : (
+                <div className={styles.canvasEmpty}>
+                  <Empty description="提交生成后，结果将在此展示">
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      视频生成耗时较长，完成后自动归档为资产
+                    </Text>
+                  </Empty>
+                </div>
+              )}
+            </div>
           </Card>
         </Col>
 
         {/* 右栏：参数面板 */}
         <Col span={6}>
-          <Card size="small" title="参数面板">
+          <Card size="small" className={`${styles.workspaceCard} ${styles.parameterCard}`} title="参数面板">
             <Form
               form={form}
               layout="vertical"

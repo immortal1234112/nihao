@@ -4,6 +4,7 @@ import { Card, Form, Input, Select, InputNumber, Button, Row, Col, Typography, S
 import { SendOutlined, ClearOutlined } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
 import { useAppFeedback } from '@/utils/feedback';
+import styles from './BatchGenPage.module.css';
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -40,11 +41,14 @@ const BatchGenPage: React.FC = () => {
   const engineType = Form.useWatch('engineType', form);
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>批量生成</Title>
-      <Row gutter={24}>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <Title level={3} className={styles.pageTitle}>批量生成</Title>
+        <Typography.Text type="secondary" className={styles.pageHint}>使用相同参数一次提交多个生成任务</Typography.Text>
+      </div>
+      <Row gutter={[16, 16]} className={styles.layoutRow}>
         <Col span={16}>
-          <Card>
+          <Card className={`${styles.workspaceCard} ${styles.formCard}`} title="生成配置">
             <Form form={form} layout="vertical" onFinish={onFinish}
               initialValues={{ engineType: 'IMAGE', batchCount: 4, size: '1024x1024', quality: 'standard' }}>
               <Form.Item name="prompt" label="提示词" rules={[{ required: true, message: '请输入提示词' }]}>
@@ -105,8 +109,8 @@ const BatchGenPage: React.FC = () => {
                   </Col>
                 </Row>
               )}
-              <Form.Item>
-                <Space>
+              <Form.Item className={styles.formActions}>
+                <Space wrap>
                   <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={loading}>
                     提交批量生成
                   </Button>
@@ -117,8 +121,8 @@ const BatchGenPage: React.FC = () => {
           </Card>
         </Col>
         <Col span={8}>
-          <Card title="批量生成说明">
-            <ul>
+          <Card className={`${styles.workspaceCard} ${styles.infoCard}`} title="批量生成说明">
+            <ul className={styles.infoList}>
               <li>批量生成可一次提交多个相同参数的任务</li>
               <li>图片批量最多 100 张，视频批量最多 10 个</li>
               <li>每个子任务独立消耗配额</li>

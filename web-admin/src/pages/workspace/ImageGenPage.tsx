@@ -41,6 +41,7 @@ import PromptTemplateModal from '@/components/workspace/PromptTemplateModal';
 import ResultPreview, { parseResultUrls } from '@/components/common/ResultPreview';
 import StatusTag from '@/components/common/StatusTag';
 import ArchiveToProjectModal from '@/components/create/ArchiveToProjectModal';
+import styles from './ImageGenPage.module.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -314,13 +315,13 @@ const ImageGenPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 16 }}>AI 图片生成</Title>
+    <div className={styles.page}>
+      <Title level={3} className={styles.pageTitle}>AI 图片生成</Title>
 
-      <Row gutter={16}>
+      <Row gutter={[16, 16]} className={styles.workspaceRow}>
         {/* ===== 左栏：素材与参考图 ===== */}
         <Col span={5}>
-          <Card size="small" title="素材与参考图" style={{ height: '100%' }}>
+          <Card size="small" className={`${styles.workspaceCard} ${styles.referenceCard}`} title="素材与参考图">
             <Flex vertical gap={12}>
               {refAssets.length > 0 ? (
                 <div>
@@ -409,6 +410,7 @@ const ImageGenPage: React.FC = () => {
                           <Tooltip key={a.id} title={`${a.title}${selIdx >= 0 ? `（第 ${selIdx + 1} 张）` : '（点击选为参考图）'}`}>
                             <div
                               onClick={() => toggleRefAsset(a.id)}
+                              className={`${styles.assetTile} ${selIdx >= 0 ? styles.assetTileSelected : ''}`}
                               style={{
                                 width: 56,
                                 height: 56,
@@ -493,6 +495,7 @@ const ImageGenPage: React.FC = () => {
         <Col span={13}>
           <Card
             size="small"
+            className={`${styles.workspaceCard} ${styles.canvasCard}`}
             title={
               <Flex align="center" gap={8}>
                 <span>结果画布</span>
@@ -508,69 +511,72 @@ const ImageGenPage: React.FC = () => {
             }
             style={{ height: '100%' }}
           >
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: 60 }}>
-                <Spin tip="提交中…" />
-              </div>
-            ) : resultUrls.length > 0 ? (
-              <Flex vertical gap={12}>
-                <ResultPreview raw={resultRaw} />
-                <Flex gap={8} wrap>
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<FolderAddOutlined />}
-                    onClick={() => setArchiveTaskId(taskId)}
-                  >
-                    保存到项目
-                  </Button>
-                  <Button size="small" icon={<SyncOutlined />} onClick={createVariant}>
-                    创建变体
-                  </Button>
-                  <Button size="small" onClick={submitForReview}>
-                    提交审核
-                  </Button>
-                  {resultUrls.map((url) => (
+            <div className={styles.canvasStage}>
+              {loading ? (
+                <div className={styles.canvasEmpty}>
+                  <Spin tip="提交中…" />
+                </div>
+              ) : resultUrls.length > 0 ? (
+                <Flex vertical gap={12}>
+                  <div className={styles.resultFrame}>
+                    <ResultPreview raw={resultRaw} />
+                  </div>
+                  <Flex gap={8} wrap>
                     <Button
-                      key={url}
                       size="small"
-                      icon={<DownloadOutlined />}
-                      onClick={async () => {
-                        const ok = await downloadAuthFile(url, `generated-${Date.now()}.png`);
-                        if (ok) message.success('下载完成');
-                        else message.error('下载失败，请重试');
-                      }}
+                      type="primary"
+                      icon={<FolderAddOutlined />}
+                      onClick={() => setArchiveTaskId(taskId)}
                     >
-                      下载
+                      保存到项目
                     </Button>
-                  ))}
+                    <Button size="small" icon={<SyncOutlined />} onClick={createVariant}>
+                      创建变体
+                    </Button>
+                    <Button size="small" onClick={submitForReview}>
+                      提交审核
+                    </Button>
+                    {resultUrls.map((url) => (
+                      <Button
+                        key={url}
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        onClick={async () => {
+                          const ok = await downloadAuthFile(url, `generated-${Date.now()}.png`);
+                          if (ok) message.success('下载完成');
+                          else message.error('下载失败，请重试');
+                        }}
+                      >
+                        下载
+                      </Button>
+                    ))}
+                  </Flex>
+                  {archivedAssets.length > 0 && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      已自动归档 {archivedAssets.length} 个资产{projectId ? '到所选项目' : '到资产中心'}
+                    </Text>
+                  )}
                 </Flex>
-                {archivedAssets.length > 0 && (
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    已自动归档 {archivedAssets.length} 个资产{projectId ? '到所选项目' : '到资产中心'}
-                  </Text>
-                )}
-              </Flex>
-            ) : taskStatus && !TERMINAL_STATUSES.has(taskStatus) ? (
-              <div style={{ textAlign: 'center', padding: 60 }}>
-                <Spin tip="生成中，完成后自动显示…" />
-              </div>
-            ) : (
-              <Empty
-                description="提交生成后，结果将在此展示"
-                style={{ padding: 60 }}
-              >
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  结果完成后自动归档为资产，可保存到项目 / 提交审核
-                </Text>
-              </Empty>
-            )}
+              ) : taskStatus && !TERMINAL_STATUSES.has(taskStatus) ? (
+                <div className={styles.canvasEmpty}>
+                  <Spin tip="生成中，完成后自动显示…" />
+                </div>
+              ) : (
+                <div className={styles.canvasEmpty}>
+                  <Empty description="提交生成后，结果将在此展示">
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      结果完成后自动归档为资产，可保存到项目 / 提交审核
+                    </Text>
+                  </Empty>
+                </div>
+              )}
+            </div>
           </Card>
         </Col>
 
         {/* ===== 右栏：参数面板 ===== */}
         <Col span={6}>
-          <Card size="small" title="参数面板">
+          <Card size="small" className={`${styles.workspaceCard} ${styles.parameterCard}`} title="参数面板">
             <Form
               form={form}
               layout="vertical"

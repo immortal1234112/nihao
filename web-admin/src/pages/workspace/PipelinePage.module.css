@@ -1,0 +1,16 @@
+.page { max-width: 1600px; margin: 0 auto; }
+.pageHeader { min-height: 58px; margin-bottom: 16px; padding: 8px 12px 14px; border-bottom: 1px solid #dfe9eb; }
+.pageTitle { margin: 0 !important; color: #17323a !important; font-size: 22px !important; line-height: 1.25 !important; }
+.pageHint { display: block; margin-top: 4px; font-size: 12px; }
+.panel { height: 100%; border-color: #dfe9eb !important; border-radius: 10px !important; box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04); }
+.panel :global(.ant-card-head) { min-height: 54px; border-bottom-color: #edf2f2; }
+.panel :global(.ant-card-head-title) { color: #28434b; font-size: 14px; }
+.panel :global(.ant-input), .panel :global(.ant-select-selector), .panel :global(.ant-input-number) { border-color: #d9e5e7 !important; border-radius: 7px !important; }
+.panel :global(.ant-input:focus), .panel :global(.ant-input-focused), .panel :global(.ant-select-focused .ant-select-selector) { border-color: #0f766e !important; box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1) !important; }
+.panel :global(.ant-btn-primary) { color: #16333b; background: #facc15; border-color: #facc15; box-shadow: none; font-weight: 700; }
+.stepsSection { margin-bottom: 24px; }
+.stepsHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.stepsTitle { color: #28434b; font-size: 14px; font-weight: 700; }
+.panel :global(.ant-steps-item-title) { color: #314c54; }
+.panel :global(.ant-steps-item-description) { color: #71838a; }
+@media (max-width: 720px) { .pageTitle { font-size: 20px !important; } .stepsHeader { align-items: flex-start; flex-direction: column; } }

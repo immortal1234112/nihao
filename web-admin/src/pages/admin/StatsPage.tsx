@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Typography, Spin } from 'antd';
 import { adminApi } from '@/api/admin';
 import { TaskStats } from '@/types/api';
+import styles from './StatsPage.module.css';
 
 const { Title } = Typography;
 
@@ -28,12 +29,15 @@ const StatsPage: React.FC = () => {
   ] : [];
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>系统统计</Title>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <Title level={3} className={styles.pageTitle}>系统统计</Title>
+        <Typography.Text type="secondary" className={styles.pageHint}>查看当前平台任务处理概况</Typography.Text>
+      </div>
       <Row gutter={[16, 16]}>
         {chartData.map((item) => (
-          <Col key={item.key} span={8}>
-            <Card>
+          <Col key={item.key} xs={24} sm={12} xl={8}>
+            <Card className={styles.statCard}>
               <Statistic title={item.label} value={item.value} valueStyle={{ color: item.color }} />
             </Card>
           </Col>

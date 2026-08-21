@@ -3,6 +3,7 @@ import { FileOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons
 import { AssetRow } from '@/types/api';
 import { AuthImage, AuthVideo } from '@/components/common/AuthMedia';
 import AssetStatusTag from './AssetStatusTag';
+import styles from './AssetGrid.module.css';
 
 const { Paragraph, Text } = Typography;
 
@@ -40,7 +41,7 @@ interface AssetGridProps {
 const AssetThumb: React.FC<{ asset: AssetRow }> = ({ asset }) => {
   const url = asset.file?.url;
   if (asset.assetType === 'IMAGE' && url) {
-    return <AuthImage src={url} alt={asset.title} preview={false} style={{ width: '100%', height: 160, objectFit: 'cover' }} />;
+    return <AuthImage src={url} alt={asset.title} preview={false} className={styles.mediaThumb} />;
   }
   if (asset.assetType === 'VIDEO' && url) {
     return (
@@ -51,23 +52,17 @@ const AssetThumb: React.FC<{ asset: AssetRow }> = ({ asset }) => {
         loop
         playsInline
         preload="auto"
-        style={{ width: '100%', height: 160, objectFit: 'cover' }}
+        className={styles.mediaThumb}
       />
     );
   }
   if (asset.assetType === 'TEXT') {
     return (
       <div
-        style={{
-          height: 160,
-          padding: 12,
-          background: '#f6ffed',
-          borderBottom: '1px solid #e8f5e9',
-          overflow: 'hidden',
-        }}
+        className={styles.textThumb}
       >
         <Paragraph
-          style={{ fontSize: 12, whiteSpace: 'pre-wrap', marginBottom: 0 }}
+          className={styles.textPreview}
           ellipsis={{ rows: 7, tooltip: asset.contentText || asset.title }}
         >
           {asset.contentText || asset.title}
@@ -78,16 +73,7 @@ const AssetThumb: React.FC<{ asset: AssetRow }> = ({ asset }) => {
   const icon = asset.assetType === 'AUDIO' ? <SoundOutlined /> : asset.assetType === 'FILE' ? <FileOutlined /> : <FileTextOutlined />;
   return (
     <div
-      style={{
-        height: 160,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#fafafa',
-        borderBottom: '1px solid #f0f0f0',
-        fontSize: 40,
-        color: '#bbb',
-      }}
+      className={styles.fileThumb}
     >
       {icon}
     </div>
@@ -98,40 +84,25 @@ const AssetThumb: React.FC<{ asset: AssetRow }> = ({ asset }) => {
  * 资产卡片网格 — 项目工作台资产 Tab 与资产中心共用。
  */
 const AssetGrid: React.FC<AssetGridProps> = ({ assets, onOpen, renderActions, emptyText }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+  <div className={styles.grid}>
     {assets.map((a) => (
       <div
         key={a.id}
         onClick={() => onOpen(a)}
-        style={{
-          borderRadius: 12,
-          overflow: 'hidden',
-          background: '#fff',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          cursor: 'pointer',
-          transition: 'transform .2s, box-shadow .2s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'none';
-          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
-        }}
+        className={styles.card}
       >
         <AssetThumb asset={a} />
-        <div style={{ padding: '10px 12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div className={styles.cardBody}>
+          <div className={styles.cardTop}>
             <AssetStatusTag status={a.status} />
             <span onClick={(e) => e.stopPropagation()}>{renderActions?.(a)}</span>
           </div>
           <Tooltip title={a.title}>
-            <Text strong style={{ fontSize: 13, display: 'block' }} ellipsis>
+            <Text strong className={styles.cardTitle} ellipsis>
               {a.title}
             </Text>
           </Tooltip>
-          <div style={{ marginTop: 4 }}>
+          <div className={styles.cardTags}>
             <Tag color={ASSET_TYPE_LABEL[a.assetType]?.color ?? 'default'}>
               {ASSET_TYPE_LABEL[a.assetType]?.text ?? a.assetType}
             </Tag>
@@ -143,7 +114,7 @@ const AssetGrid: React.FC<AssetGridProps> = ({ assets, onOpen, renderActions, em
       </div>
     ))}
     {assets.length === 0 && (
-      <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#999', padding: 40 }}>
+      <div className={styles.gridEmpty}>
         {emptyText ?? '暂无资产'}
       </div>
     )}

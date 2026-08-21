@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Row, Col, Card, Statistic, Typography, Table, Button } from 'antd';
+import { Button, Table, Typography } from 'antd';
 import {
   PictureOutlined,
   VideoCameraOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  PlusOutlined,
 } from '@ant-design/icons';
 import { taskApi } from '@/api/task';
 import { adminApi } from '@/api/admin';
@@ -15,6 +14,7 @@ import { AgentTask, TaskStats, QuotaInfo } from '@/types/api';
 import StatusTag from '@/components/common/StatusTag';
 import { useAuthStore } from '@/stores/authStore';
 import dayjs from 'dayjs';
+import styles from './DashboardPage.module.css';
 
 const { Title } = Typography;
 
@@ -73,76 +73,77 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>首页仪表盘</Title>
+    <div className={styles.page}>
+      <section className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <div className={styles.eyebrow}>AI AGENT CREATIVE WORKSPACE</div>
+          <Title className={styles.heroTitle}>你好，{user?.username || '创作者'}</Title>
+          <span className={styles.heroSubTitle}>从一个想法开始，把提示词变成图片、视频和可复用的创作资产。</span>
+        </div>
+        <div className={styles.heroActions}>
+          <Button type="primary" icon={<PictureOutlined />} onClick={() => navigate('/workspace/image')}>创建图片</Button>
+          <Button icon={<VideoCameraOutlined />} onClick={() => navigate('/workspace/video')}>创建视频</Button>
+          <Button icon={<ClockCircleOutlined />} onClick={() => navigate('/tasks')}>查看任务</Button>
+        </div>
+      </section>
 
-      {isAdmin && stats && (
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={4}><Card><Statistic title="总任务" value={stats.total} /></Card></Col>
-          <Col span={4}><Card><Statistic title="待处理" value={stats.pending} valueStyle={{ color: '#faad14' }} /></Card></Col>
-          <Col span={4}><Card><Statistic title="处理中" value={stats.processing} valueStyle={{ color: '#1677ff' }} /></Card></Col>
-          <Col span={4}><Card><Statistic title="已完成" value={stats.done} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-          <Col span={4}><Card><Statistic title="失败" value={stats.failed} valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-          <Col span={4}><Card><Statistic title="已取消" value={stats.cancelled} /></Card></Col>
-        </Row>
-      )}
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <Title className={styles.sectionTitle}>创作概览</Title>
+          <span className={styles.sectionHint}>{isAdmin ? '当前租户任务状态' : '你的创作配额与任务状态'}</span>
+        </div>
+        <div className={styles.metricGrid}>
+          <div className={styles.metric}><div className={styles.metricLabel}>图片配额</div><div className={styles.metricValue}>{imageQuota?.remaining ?? '-'}<span>剩余</span></div></div>
+          <div className={styles.metric}><div className={styles.metricLabel}>视频配额</div><div className={styles.metricValue}>{videoQuota?.remaining ?? '-'}<span>剩余</span></div></div>
+          <div className={styles.metric}><div className={styles.metricLabel}>进行中任务</div><div className={styles.metricValue}>{stats?.processing ?? '-'}<span>个</span></div></div>
+          <div className={styles.metric}><div className={styles.metricLabel}>已完成任务</div><div className={styles.metricValue}>{stats?.done ?? '-'}<span>个</span></div></div>
+        </div>
+      </section>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card hoverable onClick={() => navigate('/workspace/image')}>
-            <Statistic title="图片生成配额剩余" value={imageQuota?.remaining ?? '-'} prefix={<PictureOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card hoverable onClick={() => navigate('/workspace/video')}>
-            <Statistic title="视频生成配额剩余" value={videoQuota?.remaining ?? '-'} prefix={<VideoCameraOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="进行中任务" value={stats?.processing ?? '-'} prefix={<ClockCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="已完成任务" value={stats?.done ?? '-'} prefix={<CheckCircleOutlined />} />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card
-            title="快速开始"
-            actions={[
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/workspace/image')}>图片生成</Button>,
-              <Button icon={<PlusOutlined />} onClick={() => navigate('/workspace/video')}>视频生成</Button>,
-              <Button icon={<PlusOutlined />} onClick={() => navigate('/workspace/batch')}>批量生成</Button>,
-            ]}
-          >
-            <p>选择一种创作方式开始生成 AI 内容</p>
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card
-            title="最近任务"
-            extra={<Button type="link" onClick={() => navigate('/tasks')}>查看全部</Button>}
-          >
-            <Table
-              dataSource={recentTasks}
-              columns={columns}
-              rowKey="id"
-              loading={loading}
-              size="small"
-              pagination={false}
-              onRow={(record) => ({
-                onClick: () => navigate(`/tasks/${record.id}`),
-                style: { cursor: 'pointer' },
-              })}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <section className={styles.section}>
+        <div className={styles.contentGrid}>
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <Title className={styles.panelTitle}>快速开始</Title>
+              <span className={styles.sectionHint}>选择一个创作入口</span>
+            </div>
+            <div className={styles.quickGrid}>
+              <div className={styles.quickAction} onClick={() => navigate('/workspace/image')}>
+                <span className={styles.quickIcon}><PictureOutlined /></span>
+                <span className={styles.quickTitle}>图片生成</span>
+                <span className={styles.quickDescription}>从文字和参考图开始</span>
+              </div>
+              <div className={styles.quickAction} onClick={() => navigate('/workspace/video')}>
+                <span className={styles.quickIcon}><VideoCameraOutlined /></span>
+                <span className={styles.quickTitle}>视频生成</span>
+                <span className={styles.quickDescription}>让画面动起来</span>
+              </div>
+              <div className={styles.quickAction} onClick={() => navigate('/workspace/pipeline')}>
+                <span className={styles.quickIcon}><CheckCircleOutlined /></span>
+                <span className={styles.quickTitle}>流水线创作</span>
+                <span className={styles.quickDescription}>组合多个生成步骤</span>
+              </div>
+            </div>
+          </div>
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <Title className={styles.panelTitle}>最近任务</Title>
+              <Button type="link" onClick={() => navigate('/tasks')}>查看全部</Button>
+            </div>
+            <div className={styles.tableWrap}>
+              <Table
+                dataSource={recentTasks}
+                columns={columns}
+                rowKey="id"
+                loading={loading}
+                size="small"
+                pagination={false}
+                onRow={(record) => ({ onClick: () => navigate(`/tasks/${record.id}`), style: { cursor: 'pointer' } })}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

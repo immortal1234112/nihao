@@ -5,6 +5,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { auditApi } from '@/api/audit';
 import { AuditLog } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
+import styles from './AuditLogPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -72,13 +73,16 @@ const AuditLogPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>审计日志</Title>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>审计日志</Title>
+          <Text type="secondary" className={styles.pageHint}>按用户、操作类型和时间范围查询系统操作记录</Text>
+        </div>
         <Button icon={<ReloadOutlined />} onClick={table.refresh}>刷新</Button>
-      </Flex>
+      </div>
 
-      <Flex wrap gap={8} align="center" style={{ marginBottom: 16 }}>
+      <Flex className={styles.filterBar} wrap gap={8} align="center">
         <Input.Search
           placeholder="用户ID"
           allowClear
@@ -117,15 +121,9 @@ const AuditLogPage: React.FC = () => {
         </Button>
       </Flex>
 
-      <Table
-        dataSource={table.records}
-        columns={columns}
-        rowKey="id"
-        loading={table.loading}
-        size="middle"
-        pagination={table.pagination}
-        locale={{ emptyText: '暂无审计日志' }}
-      />
+      <div className={styles.tableShell}>
+        <Table className={styles.auditTable} dataSource={table.records} columns={columns} rowKey="id" loading={table.loading} size="middle" pagination={table.pagination} locale={{ emptyText: '暂无审计日志' }} />
+      </div>
     </div>
   );
 };

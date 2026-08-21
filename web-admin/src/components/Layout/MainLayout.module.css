@@ -1,13 +1,108 @@
 .logo {
-  height: 64px;
+  height: 72px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
   color: #fff;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
+  letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 20px;
+}
+
+.logoMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  color: #082f49;
+  background: #facc15;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.shell {
+  min-height: 100vh;
+  background: #f3f6f8;
+  transition: margin-left 0.2s;
+}
+
+.header {
+  height: 72px;
+  padding: 0 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid #e6ecef;
+  backdrop-filter: blur(12px);
+}
+
+.menuButton {
+  width: 38px;
+  height: 38px;
+  color: #52616b;
+  border-radius: 10px;
+}
+
+.menuButton:hover {
+  color: #0f766e !important;
+  background: #e7f5f2 !important;
+}
+
+.eyebrow {
+  display: block;
+  color: #91a0a9;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 1.4px;
+}
+
+.pageTitle {
+  margin: 2px 0 0 !important;
+  color: #17252d !important;
+  font-size: 17px !important;
+  line-height: 1.2 !important;
+}
+
+.userButton {
+  height: 44px;
+  padding: 0 8px 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #34454f;
+  border-radius: 12px;
+}
+
+.userButton:hover {
+  background: #f0f5f6 !important;
+}
+
+.content {
+  min-height: calc(100vh - 72px);
+  padding: 32px;
+}
+
+@media (max-width: 760px) {
+  .header {
+    padding: 0 16px;
+  }
+
+  .content {
+    padding: 20px 16px;
+  }
+
+  .userButton span {
+    display: none;
+  }
 }

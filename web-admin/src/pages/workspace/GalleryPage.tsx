@@ -7,6 +7,7 @@ import { AgentTask } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
 import { parseResultUrls } from '@/components/common/ResultPreview';
 import { AuthImage, AuthVideo } from '@/components/common/AuthMedia';
+import styles from './GalleryPage.module.css';
 
 /** 从任务 requestParams JSON 中解析引擎类型（IMAGE/VIDEO） */
 function getEngineType(task: AgentTask): string | null {
@@ -57,9 +58,12 @@ const GalleryPage: React.FC = () => {
   }, [works]);
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>作品画廊</Typography.Title>
+    <div className={styles.page}>
+      <Flex justify="space-between" align="center" wrap gap={12} className={styles.pageHeader}>
+        <div>
+          <Typography.Title level={3} className={styles.pageTitle}>作品画廊</Typography.Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>浏览已生成的图片与视频作品</Typography.Text>
+        </div>
         <Flex align="center" gap={12}>
           <Segmented
             value={typeFilter}
@@ -77,22 +81,24 @@ const GalleryPage: React.FC = () => {
       </Flex>
 
       {table.loading && works.length === 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+        <div className={styles.loadingGrid}>
           {Array.from({ length: 8 }, (_, i) => (
-            <div key={i} style={{ borderRadius: 12, overflow: 'hidden', background: '#fff' }}>
-              <Skeleton.Image active style={{ width: '100%', height: 200 }} />
-              <div style={{ padding: 12 }}>
+            <div key={i} className={styles.loadingCard}>
+              <Skeleton.Image active className={styles.loadingImage} />
+              <div className={styles.loadingBody}>
                 <Skeleton active paragraph={{ rows: 1 }} title={{ width: '70%' }} />
               </div>
             </div>
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Empty description="还没有可展示的作品，去创作页生成一个吧" style={{ marginTop: 80 }}>
+        <div className={styles.emptyState}>
+          <Empty description="还没有可展示的作品，去创作页生成一个吧">
           <Typography.Link onClick={() => navigate('/workspace/image')}>前往图片生成</Typography.Link>
-        </Empty>
+          </Empty>
+        </div>
       ) : (
-        <div style={{ columnCount: 4, columnGap: 16, columnWidth: 240 }}>
+        <div className={styles.galleryGrid}>
           {filtered.map((task) => (
             <GalleryCard key={task.id} task={task} onOpen={() => navigate(`/tasks/${task.id}`)} />
           ))}
@@ -117,31 +123,14 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
   return (
     <div
       onClick={onOpen}
-      style={{
-        breakInside: 'avoid',
-        marginBottom: 16,
-        borderRadius: 12,
-        overflow: 'hidden',
-        background: '#fff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        cursor: 'pointer',
-        transition: 'transform .2s, box-shadow .2s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = 'translateY(-2px)';
-        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = 'none';
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
-      }}
+      className={styles.galleryCard}
     >
-      <div style={{ position: 'relative' }}>
+      <div className={styles.mediaStack}>
         {/* 图片不开启独立预览：点击任意位置都跳转任务详情（与卡片 onClick 行为一致） */}
         {urls.map((url, i) =>
           isVideo ? (
             /* 视频：固定 16:9 容器避免瀑布流卡片高度塌陷错乱；静音自动播放保证有画面（不黑屏） */
-            <div key={i} style={{ aspectRatio: '16 / 9', background: '#000' }}>
+            <div key={i} className={styles.videoFrame}>
               <AuthVideo
                 src={url}
                 muted
@@ -149,7 +138,7 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
                 loop
                 playsInline
                 preload="auto"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                className={styles.video}
               />
             </div>
           ) : (
@@ -157,29 +146,13 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ task, onOpen }) => {
               key={i}
               src={url}
               alt={title || '作品'}
-              style={{ width: '100%', display: 'block' }}
+              className={styles.image}
               preview={false}
             />
           )
         )}
         {title && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              padding: '18px 12px 8px',
-              background: 'linear-gradient(transparent, rgba(0,0,0,0.55))',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 500,
-              textShadow: '0 1px 3px rgba(0,0,0,0.5)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
+          <div className={styles.galleryTitle}>
             {title}
           </div>
         )}

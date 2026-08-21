@@ -3,6 +3,7 @@ import { Card, Descriptions, Tag, Typography, Spin, Empty } from 'antd';
 import { useAuthStore } from '@/stores/authStore';
 import { tenantApi } from '@/api/tenant';
 import { Tenant } from '@/types/api';
+import styles from './TenantInfoPage.module.css';
 
 const { Title } = Typography;
 
@@ -24,9 +25,14 @@ const TenantInfoPage: React.FC = () => {
   if (!tenant) return <Empty description="租户信息不可用" />;
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>租户信息</Title>
-      <Card>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>租户信息</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>查看当前账号所属租户及资源配置</Typography.Text>
+        </div>
+      </div>
+      <Card className={styles.panel}>
         <Descriptions bordered column={2}>
           <Descriptions.Item label="租户ID">{tenant.id}</Descriptions.Item>
           <Descriptions.Item label="租户名称">{tenant.name}</Descriptions.Item>

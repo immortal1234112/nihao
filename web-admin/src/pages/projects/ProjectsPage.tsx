@@ -22,6 +22,7 @@ import { projectApi } from '@/api/project';
 import { ProjectRow } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useAuthStore } from '@/stores/authStore';
+import styles from './ProjectsPage.module.css';
 
 const { Text } = Typography;
 
@@ -65,10 +66,13 @@ const ProjectsPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
+    <div className={styles.page}>
+      <Flex justify="space-between" align="center" wrap gap={12} className={styles.pageHeader}>
         <Flex align="center" gap={12}>
-          <Typography.Title level={4} style={{ margin: 0 }}>项目</Typography.Title>
+          <div>
+            <Typography.Title level={3} className={styles.pageTitle}>项目</Typography.Title>
+            <Text type="secondary" className={styles.pageHint}>管理创作目标、成员和项目资产</Text>
+          </div>
           <Segmented
             value={scope}
             onChange={(v) => setScope(v as 'mine' | 'all')}
@@ -78,7 +82,7 @@ const ProjectsPage: React.FC = () => {
             ]}
           />
         </Flex>
-        <Flex align="center" gap={12}>
+        <Flex align="center" gap={12} className={styles.headerActions}>
           <Tooltip title="刷新">
             <ReloadOutlined onClick={table.refresh} style={{ cursor: 'pointer' }} />
           </Tooltip>
@@ -89,43 +93,30 @@ const ProjectsPage: React.FC = () => {
       </Flex>
 
       {table.loading && table.records.length === 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+        <div className={styles.projectGrid}>
           {Array.from({ length: 6 }, (_, i) => (
-            <Card key={i}>
+            <Card key={i} className={styles.projectCard}>
               <Skeleton active paragraph={{ rows: 2 }} />
             </Card>
           ))}
         </div>
       ) : table.records.length === 0 ? (
-        <Empty description="还没有项目，点击右上角新建一个吧" style={{ marginTop: 80 }} />
+        <div className={styles.emptyState}>
+          <Empty description="还没有项目，点击右上角新建一个吧" />
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+        <div className={styles.projectGrid}>
           {table.records.map((p) => (
             <Card
               key={p.id}
+              className={styles.projectCard}
               hoverable
               onClick={() => navigate(`/projects/${p.id}`)}
-              cover={
-                <div
-                  style={{
-                    height: 100,
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontSize: 28,
-                    fontWeight: 600,
-                  }}
-                >
-                  {p.name.slice(0, 1)}
-                </div>
-              }
             >
               <Card.Meta
                 title={
                   <Flex justify="space-between" align="center">
-                    <Text strong ellipsis={{ tooltip: p.name }} style={{ maxWidth: 160 }}>
+                    <Text strong ellipsis={{ tooltip: p.name }} className={styles.projectName}>
                       {p.name}
                     </Text>
                     {p.status === 'ARCHIVED' ? (
@@ -138,15 +129,15 @@ const ProjectsPage: React.FC = () => {
                 description={
                   <Flex vertical gap={4}>
                     <Flex gap={16}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Text type="secondary" className={styles.projectMeta}>
                         <FileImageOutlined /> {p.assetCount} 资产
                       </Text>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Text type="secondary" className={styles.projectMeta}>
                         <TeamOutlined /> {p.memberCount} 成员
                       </Text>
                     </Flex>
                     {p.deadline && (
-                      <Text type="secondary" style={{ fontSize: 12 }}>
+                      <Text type="secondary" className={styles.projectMeta}>
                         截止 {dayjs(p.deadline).format('YYYY-MM-DD')}
                       </Text>
                     )}

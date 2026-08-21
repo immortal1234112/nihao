@@ -1,0 +1,12 @@
+.page { max-width: 1600px; margin: 0 auto; }
+.pageHeader { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; min-height: 58px; margin-bottom: 16px; padding: 8px 12px 14px; border-bottom: 1px solid #dfe9eb; }
+.pageTitle { margin: 0 !important; color: #17323a !important; font-size: 22px !important; line-height: 1.25 !important; }
+.pageHint { display: block; margin-top: 4px; font-size: 12px; }
+.headerActions :global(.ant-btn) { border-radius: 7px; }
+.headerActions :global(.ant-btn-primary) { color: #16333b; background: #facc15; border-color: #facc15; box-shadow: none; font-weight: 700; }
+.tableShell { overflow: hidden; border: 1px solid #dfe9eb; border-radius: 10px; background: #fff; box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04); }
+.sectionLabel { padding: 16px 18px 12px; color: #28434b; font-size: 14px; font-weight: 700; }
+.datasetTable :global(.ant-table-thead > tr > th) { background: #f7faf9; color: #52656d; font-size: 12px; font-weight: 700; }
+.datasetTable :global(.ant-table-tbody > tr > td) { color: #40565d; font-size: 13px; }
+.datasetTable :global(.ant-table-tbody > tr:hover > td) { background: #f2f9f8 !important; }
+@media (max-width: 720px) { .pageHeader { align-items: flex-start; flex-direction: column; } .pageTitle { font-size: 20px !important; } .tableShell { overflow-x: auto; } .datasetTable { min-width: 850px; } }

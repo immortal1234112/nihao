@@ -19,6 +19,7 @@ import { ApiKey } from '@/types/api';
 import { useRequest } from '@/hooks/useRequest';
 import { useAppFeedback } from '@/utils/feedback';
 import dayjs from 'dayjs';
+import styles from './ApiKeyPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -129,13 +130,22 @@ const ApiKeyPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>
         API Key 管理
-      </Title>
+          </Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>管理用于外部服务调用的访问密钥</Typography.Text>
+        </div>
+        <Button className={styles.primaryButton} type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+          创建 API Key
+        </Button>
+      </div>
 
       {newKey && (
         <Alert
+          className={styles.keyAlert}
           type="warning"
           showIcon
           closable
@@ -157,17 +167,12 @@ const ApiKeyPage: React.FC = () => {
               <Text type="secondary">{newKey.hint}</Text>
             </Space>
           }
-          style={{ marginBottom: 16 }}
         />
       )}
 
-      <div style={{ marginBottom: 16, textAlign: 'right' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-          创建 API Key
-        </Button>
+      <div className={styles.tableShell}>
+        <Table className={styles.keyTable} dataSource={keys ?? []} columns={columns} rowKey="id" loading={loading} />
       </div>
-
-      <Table dataSource={keys ?? []} columns={columns} rowKey="id" loading={loading} />
 
       <Modal
         title="创建 API Key"

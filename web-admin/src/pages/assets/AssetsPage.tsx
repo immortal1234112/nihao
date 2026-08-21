@@ -24,6 +24,7 @@ import { useAuthStore } from '@/stores/authStore';
 import AssetGrid, { ASSET_TYPE_LABEL, DERIVATION_LABEL } from '@/components/assets/AssetGrid';
 import AssetDetailDrawer from '@/components/assets/AssetDetailDrawer';
 import AssetStatusTag from '@/components/assets/AssetStatusTag';
+import styles from './AssetsPage.module.css';
 
 const { Text, Title } = Typography;
 
@@ -81,10 +82,10 @@ const AssetsPage: React.FC = () => {
   };
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" wrap gap={8} style={{ marginBottom: 12 }}>
+    <div className={styles.page}>
+      <Flex justify="space-between" align="center" wrap gap={8} className={styles.pageHeader}>
         <Flex align="center" gap={12}>
-          <Title level={4} style={{ margin: 0 }}>资产中心</Title>
+          <Title level={3} className={styles.pageTitle}>资产中心</Title>
           <Segmented
             value={reviewOnly ? 'review' : 'all'}
             onChange={(v) => setReviewOnly(v === 'review')}
@@ -110,7 +111,7 @@ const AssetsPage: React.FC = () => {
       </Flex>
 
       {/* 过滤栏 */}
-      <Flex gap={8} wrap style={{ marginBottom: 16 }}>
+      <Flex gap={8} wrap className={styles.filterBar}>
         <Select
           allowClear
           placeholder="项目"
@@ -159,34 +160,37 @@ const AssetsPage: React.FC = () => {
       </Flex>
 
       {table.loading && table.records.length === 0 ? (
-        <Empty description="加载中…" style={{ marginTop: 80 }} />
+        <div className={styles.emptyState}><Empty description="加载中…" /></div>
       ) : view === 'grid' ? (
-        <AssetGrid
-          assets={table.records}
-          onOpen={(a) => setOpenAssetId(a.id)}
-          emptyText={reviewOnly ? '没有待审核资产' : '还没有资产，去创作页生成或上传素材吧'}
-          renderActions={(a) =>
-            reviewOnly && a.status === 'UNDER_REVIEW' ? (
-              <Space size={4} onClick={(e) => e.stopPropagation()}>
-                <Tooltip title="通过">
-                  <Button
-                    size="small"
-                    type="primary"
-                    icon={<CheckOutlined />}
-                    onClick={() => quickReview(a, true)}
-                  />
-                </Tooltip>
-                <Tooltip title="驳回">
-                  <Button size="small" danger icon={<CloseOutlined />} onClick={() => quickReview(a, false)} />
-                </Tooltip>
-              </Space>
-            ) : a.starred ? (
-              <StarOutlined style={{ color: '#faad14' }} />
-            ) : null
-          }
-        />
+        <div className={styles.gridSurface}>
+          <AssetGrid
+            assets={table.records}
+            onOpen={(a) => setOpenAssetId(a.id)}
+            emptyText={reviewOnly ? '没有待审核资产' : '还没有资产，去创作页生成或上传素材吧'}
+            renderActions={(a) =>
+              reviewOnly && a.status === 'UNDER_REVIEW' ? (
+                <Space size={4} onClick={(e) => e.stopPropagation()}>
+                  <Tooltip title="通过">
+                    <Button
+                      size="small"
+                      type="primary"
+                      icon={<CheckOutlined />}
+                      onClick={() => quickReview(a, true)}
+                    />
+                  </Tooltip>
+                  <Tooltip title="驳回">
+                    <Button size="small" danger icon={<CloseOutlined />} onClick={() => quickReview(a, false)} />
+                  </Tooltip>
+                </Space>
+              ) : a.starred ? (
+                <StarOutlined style={{ color: '#d99b00' }} />
+              ) : null
+            }
+          />
+        </div>
       ) : (
         <Table<AssetRow>
+          className={styles.assetTable}
           rowKey="id"
           size="small"
           dataSource={table.records}

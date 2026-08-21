@@ -7,6 +7,7 @@ import {
   ApiOutlined,
 } from '@ant-design/icons';
 import { userApi } from '@/api/user';
+import styles from './QuotaPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -54,10 +55,15 @@ const QuotaPage: React.FC = () => {
   const hasData = Object.keys(quotas).length > 0;
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>配额管理</Title>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>配额管理</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>查看图片、视频、存储和 API 调用资源使用情况</Typography.Text>
+        </div>
+      </div>
       {!hasData ? (
-        <Empty description="暂无配额数据" />
+        <div className={styles.emptyState}><Empty description="暂无配额数据" /></div>
       ) : (
         <Row gutter={[16, 16]}>
           {quotaCards.map((qc) => {
@@ -65,22 +71,22 @@ const QuotaPage: React.FC = () => {
             if (!q) return null;
             const percent = q.limit > 0 ? Math.round((q.used / q.limit) * 100) : 0;
             return (
-              <Col key={qc.type} span={6}>
-                <Card>
-                  <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <div style={{ fontSize: 32, color: '#1677ff' }}>{qc.icon}</div>
-                    <Title level={5} style={{ marginTop: 8 }}>
+              <Col key={qc.type} xs={24} sm={12} xl={6}>
+                <Card className={styles.quotaCard}>
+                  <div className={styles.quotaHeading}>
+                    <div className={styles.quotaIcon}>{qc.icon}</div>
+                    <Title level={5} className={styles.quotaTitle}>
                       {qc.label}
                     </Title>
                   </div>
                   <Progress
                     percent={percent}
+                    strokeColor={percent > 80 ? '#e06b54' : '#0f766e'}
                     status={percent > 80 ? 'exception' : 'active'}
                   />
-                  <div style={{ textAlign: 'center', marginTop: 8 }}>
-                    <Text type="secondary">
-                      {q.used} / {q.limit} (剩余 {q.remaining})
-                    </Text>
+                  <div className={styles.quotaNumbers}>
+                    <span><strong>{q.used}</strong> 已使用</span>
+                    <Text type="secondary">剩余 {q.remaining} / {q.limit}</Text>
                   </div>
                 </Card>
               </Col>

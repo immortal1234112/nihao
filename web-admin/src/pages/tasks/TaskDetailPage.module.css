@@ -1,0 +1,136 @@
+.page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.pageToolbar {
+  margin-bottom: 16px;
+}
+
+.pageToolbar :global(.ant-btn) {
+  border-radius: 7px;
+}
+
+.summaryCard,
+.sectionCard {
+  margin-bottom: 20px;
+  border: 1px solid #dfe9eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04) !important;
+  overflow: hidden;
+}
+
+.summaryCard :global(.ant-card-head),
+.sectionCard :global(.ant-card-head) {
+  min-height: 52px;
+  padding: 0 18px;
+  background: #fbfdfd;
+  border-bottom-color: #e8eff0;
+}
+
+.summaryCard :global(.ant-card-head-title),
+.sectionCard :global(.ant-card-head-title) {
+  color: #27434b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.summaryCard :global(.ant-card-body),
+.sectionCard :global(.ant-card-body) {
+  padding: 18px;
+}
+
+.pageTitle {
+  margin: 0 !important;
+  color: #17323a !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.summaryDescriptions :global(.ant-descriptions-item-label),
+.resultDescriptions :global(.ant-descriptions-item-label) {
+  color: #63767d;
+  font-size: 12px;
+}
+
+.summaryDescriptions :global(.ant-descriptions-item-content),
+.resultDescriptions :global(.ant-descriptions-item-content) {
+  color: #40565d;
+  font-size: 13px;
+}
+
+.stepCard {
+  margin-bottom: 12px;
+  border: 1px solid #e1ebec !important;
+  border-radius: 8px !important;
+  background: #f8fbfb;
+}
+
+.stepCard:last-child {
+  margin-bottom: 0;
+}
+
+.stepCard :global(.ant-card-head) {
+  min-height: 44px;
+  padding: 0 14px;
+  background: #f1f7f6;
+  border-bottom-color: #e1ebec;
+}
+
+.stepCard :global(.ant-card-head-title) {
+  color: #40565d;
+  font-size: 13px;
+}
+
+.stepCard :global(.ant-card-body) {
+  padding: 14px;
+}
+
+.stepTime {
+  color: #87979c;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.stepError {
+  margin-bottom: 12px;
+}
+
+.previewFrame {
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid #e2ebec;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.stepLoading {
+  display: flex;
+  justify-content: center;
+  padding: 18px;
+}
+
+.resultDescriptions {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 720px) {
+  .summaryDescriptions :global(.ant-descriptions-view),
+  .resultDescriptions :global(.ant-descriptions-view) {
+    overflow-x: auto;
+  }
+
+  .summaryDescriptions,
+  .resultDescriptions {
+    min-width: 620px;
+  }
+
+  .summaryCard :global(.ant-card-body),
+  .sectionCard :global(.ant-card-body) {
+    overflow-x: auto;
+  }
+
+  .stepTime {
+    display: none;
+  }
+}

@@ -1,0 +1,93 @@
+.page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  min-height: 58px;
+  margin-bottom: 16px;
+  padding: 8px 12px 14px;
+  border-bottom: 1px solid #dfe9eb;
+}
+
+.pageTitle {
+  margin: 0 !important;
+  color: #17323a !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.pageHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.quotaCard {
+  height: 100%;
+  border-color: #dfe9eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04);
+}
+
+.quotaHeading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.quotaIcon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: #0f766e;
+  background: #e7f4f1;
+  border-radius: 9px;
+  font-size: 20px;
+}
+
+.quotaTitle {
+  margin: 0 !important;
+  color: #28434b !important;
+}
+
+.quotaCard :global(.ant-progress-inner) {
+  background: #edf2f2;
+}
+
+.quotaNumbers {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  color: #61737a;
+  font-size: 12px;
+}
+
+.quotaNumbers strong {
+  color: #28434b;
+  font-size: 18px;
+}
+
+.emptyState {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dfe9eb;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+@media (max-width: 720px) {
+  .pageTitle {
+    font-size: 20px !important;
+  }
+
+  .quotaNumbers {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

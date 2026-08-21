@@ -7,6 +7,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { useAppFeedback } from '@/utils/feedback';
 import { tokenStorage } from '@/utils/token';
 import dayjs from 'dayjs';
+import styles from './FileListPage.module.css';
 
 const { Title } = Typography;
 
@@ -105,25 +106,32 @@ const FileListPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>文件管理</Title>
-        <Space>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>文件管理</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>管理上传文件，并在创作页中作为参考素材使用</Typography.Text>
+        </div>
+        <Space className={styles.headerActions}>
           <Button icon={<ReloadOutlined />} onClick={table.refresh}>刷新</Button>
           <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadOpen(true)}>上传文件</Button>
         </Space>
       </div>
 
-      <Table
-        dataSource={table.records}
-        columns={columns}
-        rowKey="id"
-        loading={table.loading}
-        pagination={table.pagination}
-      />
+      <div className={styles.tableShell}>
+        <Table
+          className={styles.fileTable}
+          dataSource={table.records}
+          columns={columns}
+          rowKey="id"
+          loading={table.loading}
+          pagination={table.pagination}
+        />
+      </div>
 
-      <Modal title="上传文件" open={uploadOpen} onCancel={() => setUploadOpen(false)} footer={null}>
+      <Modal className={styles.uploadModal} title="上传文件" open={uploadOpen} onCancel={() => setUploadOpen(false)} footer={null}>
         <Upload.Dragger
+          className={styles.uploadDragger}
           customRequest={({ file, onSuccess, onError }) => {
             handleUpload(
               file as unknown as File,
@@ -133,9 +141,9 @@ const FileListPage: React.FC = () => {
           }}
           showUploadList={false}
         >
-          <p><UploadOutlined style={{ fontSize: 48 }} /></p>
+          <p><UploadOutlined className={styles.uploadIcon} /></p>
           <p>点击或拖拽文件到此处上传</p>
-          <p style={{ color: '#999' }}>支持任意格式文件</p>
+          <p className={styles.uploadHint}>支持任意格式文件</p>
         </Upload.Dragger>
       </Modal>
     </div>

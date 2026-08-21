@@ -6,6 +6,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { useAppFeedback } from '@/utils/feedback';
 import StatusTag from '@/components/common/StatusTag';
 import dayjs from 'dayjs';
+import styles from './ReviewPage.module.css';
 
 const { Title } = Typography;
 
@@ -53,18 +54,17 @@ const ReviewPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>任务审核</Title>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>任务审核</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>处理需要人工确认的任务</Typography.Text>
+        </div>
         <Button icon={<ReloadOutlined />} onClick={table.refresh}>刷新</Button>
       </div>
-      <Table
-        dataSource={table.records}
-        columns={columns}
-        rowKey="id"
-        loading={table.loading}
-        pagination={table.pagination}
-      />
+      <div className={styles.tableShell}>
+        <Table className={styles.reviewTable} dataSource={table.records} columns={columns} rowKey="id" loading={table.loading} pagination={table.pagination} />
+      </div>
     </div>
   );
 };

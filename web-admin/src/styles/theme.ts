@@ -2,28 +2,29 @@ import type { ThemeConfig } from 'antd';
 
 /**
  * 全局主题 token。
- * 主色 #6366f1（靛蓝）与登录页品牌渐变色一致，统一全站视觉。
+ * 主色采用青绿色作为工作台强调色，搭配暖黄色品牌标记，避免全站只剩单一紫色。
  * 暗色模式预留：后续可在此处按 isDark 分支切换 token，配合 ConfigProvider 的 algorithm。
  */
 export const themeConfig: ThemeConfig = {
   token: {
-    colorPrimary: '#6366f1',
-    colorInfo: '#6366f1',
+    colorPrimary: '#0f766e',
+    colorInfo: '#0f766e',
     borderRadius: 8,
-    colorBgLayout: '#f5f6fa',
+    colorBgLayout: '#f3f6f8',
     fontFamily:
       "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
   },
   components: {
     Layout: {
-      siderBg: '#141420',
+      siderBg: '#102a33',
       headerBg: '#ffffff',
       headerHeight: 56,
     },
     Menu: {
-      darkItemBg: '#141420',
-      darkSubMenuItemBg: '#10101a',
-      darkItemSelectedBg: 'rgba(99,102,241,0.85)',
+      darkItemBg: '#102a33',
+      darkSubMenuItemBg: '#0d222a',
+      darkItemSelectedBg: '#0f766e',
+      darkItemHoverBg: '#17404a',
     },
     Table: {
       headerBg: '#fafafa',

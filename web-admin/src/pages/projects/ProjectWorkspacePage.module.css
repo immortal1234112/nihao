@@ -1,0 +1,224 @@
+.page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.loadingState {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 32px;
+  border: 1px solid #e2ebec;
+  border-radius: 10px;
+  background: #fbfdfd;
+}
+
+.projectHeader {
+  min-height: 72px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #dfe9eb;
+  border-radius: 10px;
+  background: #fbfdfd;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04);
+}
+
+.backButton {
+  color: #0f766e;
+}
+
+.projectHeading {
+  min-width: 0;
+}
+
+.projectTitle {
+  margin: 0 !important;
+  color: #17323a !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.projectMeta {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.projectTabs :global(.ant-tabs-nav) {
+  min-width: 112px;
+  padding: 8px;
+  border: 1px solid #dfe9eb;
+  border-radius: 10px;
+  background: #f4f8f8;
+}
+
+.projectTabs :global(.ant-tabs-tab) {
+  margin: 0 !important;
+  padding: 10px 12px;
+  border-radius: 7px;
+  color: #63767d;
+}
+
+.projectTabs :global(.ant-tabs-tab-active) {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(23, 50, 58, 0.06);
+}
+
+.projectTabs :global(.ant-tabs-tab-btn) {
+  color: inherit;
+  font-size: 13px;
+}
+
+.projectTabs :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.projectTabs :global(.ant-tabs-ink-bar) {
+  display: none;
+}
+
+.projectTabs :global(.ant-tabs-content-holder) {
+  min-width: 0;
+  padding-left: 16px;
+}
+
+.overviewRow {
+  align-items: stretch;
+}
+
+.workspaceCard {
+  height: 100%;
+  border: 1px solid #dfe9eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04) !important;
+  overflow: hidden;
+}
+
+.workspaceCard :global(.ant-card-head) {
+  min-height: 48px;
+  padding: 0 16px;
+  background: #fbfdfd;
+  border-bottom-color: #e8eff0;
+}
+
+.workspaceCard :global(.ant-card-head-title) {
+  color: #27434b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.workspaceCard :global(.ant-card-body) {
+  padding: 16px;
+}
+
+.briefCard,
+.timelineCard {
+  min-height: 430px;
+}
+
+.briefCard :global(.ant-descriptions-item-label) {
+  color: #71838a;
+  font-size: 12px;
+}
+
+.briefCard :global(.ant-descriptions-item-content) {
+  color: #27434b;
+  font-size: 13px;
+}
+
+.timelineCard :global(.ant-timeline-item-content) {
+  color: #40565d;
+  font-size: 13px;
+}
+
+.timelineCard :global(.ant-timeline-item-tail) {
+  border-inline-start-color: #d9e5e5;
+}
+
+.tabPanel {
+  min-width: 0;
+}
+
+.assetToolbar {
+  min-height: 44px;
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border: 1px solid #e1ebec;
+  border-radius: 8px;
+  background: #f7faf9;
+}
+
+.assetToolbar :global(.ant-tag-checkable) {
+  margin-inline-end: 0;
+  padding: 3px 9px;
+  border-radius: 6px;
+  color: #63767d;
+}
+
+.assetToolbar :global(.ant-tag-checkable-checked) {
+  color: #0f766e;
+  background: #dff3ef;
+}
+
+.memberToolbar {
+  min-height: 42px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid #e1ebec;
+  border-radius: 8px;
+  background: #f7faf9;
+}
+
+.memberHint {
+  font-size: 12px;
+}
+
+.memberTable :global(.ant-table) {
+  overflow: hidden;
+  border: 1px solid #e1ebec;
+  border-radius: 8px;
+}
+
+.memberTable :global(.ant-table-thead > tr > th) {
+  background: #f7faf9;
+  color: #52656d;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .projectTabs :global(.ant-tabs-content-holder) {
+    padding-left: 12px;
+  }
+
+  .overviewRow :global(.ant-col) {
+    width: 100%;
+  }
+
+  .briefCard,
+  .timelineCard {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .projectHeader {
+    align-items: flex-start;
+  }
+
+  .projectTitle {
+    font-size: 20px !important;
+  }
+
+  .projectTabs :global(.ant-tabs-nav) {
+    min-width: 92px;
+    padding: 5px;
+  }
+
+  .projectTabs :global(.ant-tabs-tab) {
+    padding: 8px 9px;
+  }
+
+  .projectTabs :global(.ant-tabs-content-holder) {
+    padding-left: 8px;
+  }
+}

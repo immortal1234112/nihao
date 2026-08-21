@@ -61,6 +61,20 @@ woshijavagaoshou/
 
 常用参数：`start.bat -SkipInfra`（跳过 Docker）、`start.bat -SkipBuild`（跳过编译，快速重启服务）。
 
+启动后可用 PowerShell 检查本地端口是否全部就绪：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File local-smoke.ps1
+```
+
+如果还启动了本地推理服务：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File local-smoke.ps1 -IncludeInference
+```
+
+检查失败时，优先查看 `logs\` 下对应服务的日志。
+
 AI 推理服务需单独启动：`inference\start.bat`（端口 7860）。
 
 ### 1. 启动基础设施
@@ -235,5 +249,3 @@ mvn spring-boot:run -pl video-engine &
 | 图片 / 视频生成 | 表单勾选「知识库增强」并选库，检索结果自动丰富提示词 |
 | 流水线 | 步骤类型选「知识库检索」，检索结果注入后续生成步骤 |
 | 开发者 | `POST /api/v1/rag/search {datasetId, query, topK}` 编程调用 |
-
-

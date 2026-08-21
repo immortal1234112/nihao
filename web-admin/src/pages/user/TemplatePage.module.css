@@ -1,0 +1,102 @@
+.page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.pageHeader {
+  min-height: 64px;
+  margin-bottom: 16px;
+  padding: 8px 12px 14px;
+  border-bottom: 1px solid #dfe9eb;
+}
+
+.pageTitle {
+  margin: 0 !important;
+  color: #17323a !important;
+  font-size: 22px !important;
+  line-height: 1.25 !important;
+}
+
+.pageHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.headerActions :global(.ant-btn) {
+  border-radius: 7px;
+}
+
+.headerActions :global(.ant-btn-primary) {
+  color: #16333b;
+  background: #facc15;
+  border-color: #facc15;
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.tableShell {
+  overflow: hidden;
+  border: 1px solid #dfe9eb;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04);
+}
+
+.templateTable :global(.ant-table-thead > tr > th) {
+  background: #f7faf9;
+  color: #52656d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.templateTable :global(.ant-table-tbody > tr > td) {
+  color: #40565d;
+  font-size: 13px;
+}
+
+.templateTable :global(.ant-table-tbody > tr:hover > td) {
+  background: #f2f9f8 !important;
+}
+
+.templateForm {
+  margin-top: 16px;
+}
+
+.templateForm :global(.ant-form-item-label > label) {
+  color: #52656d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.templateForm :global(.ant-input),
+.templateForm :global(.ant-select-selector) {
+  border-color: #d9e5e7 !important;
+  border-radius: 7px !important;
+}
+
+.templateForm :global(.ant-input:focus),
+.templateForm :global(.ant-input-focused),
+.templateForm :global(.ant-select-focused .ant-select-selector) {
+  border-color: #0f766e !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1) !important;
+}
+
+@media (max-width: 720px) {
+  .pageTitle {
+    font-size: 20px !important;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .tableShell {
+    overflow-x: auto;
+  }
+
+  .templateTable {
+    min-width: 760px;
+  }
+}

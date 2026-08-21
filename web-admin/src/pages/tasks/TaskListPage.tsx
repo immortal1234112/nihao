@@ -8,6 +8,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { useAppFeedback } from '@/utils/feedback';
 import StatusTag from '@/components/common/StatusTag';
 import dayjs from 'dayjs';
+import styles from './TaskListPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -119,12 +120,16 @@ const TaskListPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>任务管理</Title>
-        <Space>
+    <div className={styles.page}>
+      <Flex justify="space-between" align="center" wrap gap={12} className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>任务管理</Title>
+          <Text type="secondary" className={styles.pageHint}>查看生成任务状态与执行结果</Text>
+        </div>
+        <Space wrap className={styles.headerActions}>
           <Select
-            allowClear placeholder="全部状态" style={{ width: 120 }} value={statusFilter}
+            className={styles.statusSelect}
+            allowClear placeholder="全部状态" value={statusFilter}
             onChange={(v) => setStatusFilter(v)}
             options={[
               { value: 'PENDING', label: '等待中' },
@@ -142,19 +147,22 @@ const TaskListPage: React.FC = () => {
           </Popconfirm>
         </Space>
       </Flex>
-      <Table
-        dataSource={table.records}
-        columns={columns}
-        rowKey="id"
-        loading={table.loading}
-        size="middle"
-        pagination={table.pagination}
-        onRow={(record) => ({
-          onClick: () => navigate(`/tasks/${record.id}`),
-          style: { cursor: 'pointer' },
-        })}
-        locale={{ emptyText: '暂无任务数据' }}
-      />
+      <div className={styles.tableShell}>
+        <Table
+          className={styles.taskTable}
+          dataSource={table.records}
+          columns={columns}
+          rowKey="id"
+          loading={table.loading}
+          size="middle"
+          pagination={table.pagination}
+          onRow={(record) => ({
+            onClick: () => navigate(`/tasks/${record.id}`),
+            className: styles.clickableRow,
+          })}
+          locale={{ emptyText: '暂无任务数据' }}
+        />
+      </div>
     </div>
   );
 };

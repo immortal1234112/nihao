@@ -54,6 +54,7 @@ import AssetDetailDrawer from '@/components/assets/AssetDetailDrawer';
 import AssetStatusTag from '@/components/assets/AssetStatusTag';
 import ProjectCreatePanel from '@/components/create/ProjectCreatePanel';
 import StatusTag from '@/components/common/StatusTag';
+import styles from './ProjectWorkspacePage.module.css';
 
 const { Text, Title } = Typography;
 
@@ -178,7 +179,7 @@ const ProjectWorkspacePage: React.FC = () => {
 
   if (loading || !detail) {
     return (
-      <div style={{ padding: 40 }}>
+      <div className={styles.loadingState}>
         <Skeleton active paragraph={{ rows: 6 }} />
       </div>
     );
@@ -187,19 +188,24 @@ const ProjectWorkspacePage: React.FC = () => {
   const timelineGroups = timeline ? groupTimeline(timeline.events) : [];
 
   return (
-    <div>
+    <div className={styles.page}>
       {/* 头部 */}
-      <Flex align="center" gap={12} style={{ marginBottom: 16 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/projects')} />
-        <Title level={4} style={{ margin: 0 }}>{detail.name}</Title>
-        {detail.status === 'ARCHIVED' ? <Tag>已归档</Tag> : <Tag color="processing">进行中</Tag>}
-        <Text type="secondary" style={{ fontSize: 12 }}>
-          {detail.memberCount} 成员 · {detail.assetCount} 资产
-          {detail.deadline && ` · 截止 ${dayjs(detail.deadline).format('YYYY-MM-DD')}`}
-        </Text>
+      <Flex align="center" gap={12} className={styles.projectHeader}>
+        <Button className={styles.backButton} type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/projects')} />
+        <div className={styles.projectHeading}>
+          <Flex align="center" gap={10} wrap>
+            <Title level={3} className={styles.projectTitle}>{detail.name}</Title>
+            {detail.status === 'ARCHIVED' ? <Tag>已归档</Tag> : <Tag color="processing">进行中</Tag>}
+          </Flex>
+          <Text type="secondary" className={styles.projectMeta}>
+            {detail.memberCount} 成员 · {detail.assetCount} 资产
+            {detail.deadline && ` · 截止 ${dayjs(detail.deadline).format('YYYY-MM-DD')}`}
+          </Text>
+        </div>
       </Flex>
 
       <Tabs
+        className={styles.projectTabs}
         tabPosition="left"
         items={[
           {
@@ -304,10 +310,11 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   const navigate = useNavigate();
 
   return (
-    <Row gutter={24}>
+    <Row gutter={[16, 16]} className={styles.overviewRow}>
       {/* 简报卡片 */}
       <Col span={10}>
         <Card
+          className={`${styles.workspaceCard} ${styles.briefCard}`}
           title="创作简报"
           size="small"
           extra={
@@ -334,7 +341,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
       </Col>
       {/* 时间线 */}
       <Col span={14}>
-        <Card title="项目时间线" size="small" extra={<Text type="secondary" style={{ fontSize: 12 }}>任务与资产按时间聚合</Text>}>
+        <Card className={`${styles.workspaceCard} ${styles.timelineCard}`} title="项目时间线" size="small" extra={<Text type="secondary" style={{ fontSize: 12 }}>任务与资产按时间聚合</Text>}>
           {groups.length === 0 ? (
             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有活动，去「创作」Tab 生成第一个作品吧" />
           ) : (
@@ -432,8 +439,8 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ projectId, onOpen, refreshKey, on
   );
 
   return (
-    <div>
-      <Flex gap={8} wrap style={{ marginBottom: 12 }}>
+    <div className={styles.tabPanel}>
+      <Flex gap={8} wrap className={styles.assetToolbar}>
         <Tag.CheckableTag checked={!typeFilter} onChange={() => setTypeFilter(undefined)}>
           全部
         </Tag.CheckableTag>
@@ -517,8 +524,8 @@ const MembersTab: React.FC<MembersTabProps> = ({ projectId, members, canManage, 
 
   return (
     <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 12 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>
+      <Flex justify="space-between" align="center" className={styles.memberToolbar}>
+        <Text type="secondary" className={styles.memberHint}>
           项目角色与租户角色正交：项目内按项目角色授权，租户管理员可管理任意项目
         </Text>
         {canManage && (
@@ -528,6 +535,7 @@ const MembersTab: React.FC<MembersTabProps> = ({ projectId, members, canManage, 
         )}
       </Flex>
       <Table<ProjectMember>
+        className={styles.memberTable}
         rowKey="id"
         dataSource={members}
         size="small"

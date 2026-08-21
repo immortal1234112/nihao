@@ -1,0 +1,115 @@
+.authPage {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px;
+  background: #f3f6f8;
+}
+
+.authPage :global(.particle-background) {
+  opacity: 0.18;
+}
+
+.authPanel {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  padding: 40px;
+  border: 1px solid #dfe9eb;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 50px rgba(23, 50, 58, 0.1);
+}
+
+.registerPanel {
+  width: min(440px, 100%);
+  padding-block: 34px;
+}
+
+.brandBlock {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.brandMark {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  place-items: center;
+  color: #ffffff;
+  background: #0f766e;
+  border-radius: 14px;
+  box-shadow: 0 8px 22px rgba(15, 118, 110, 0.22);
+  font-size: 24px;
+}
+
+.brandTitle {
+  margin: 0 0 4px !important;
+  color: #17323a !important;
+  font-weight: 700 !important;
+  letter-spacing: 0;
+}
+
+.brandSubtitle {
+  font-size: 14px;
+}
+
+.authInput {
+  height: 46px;
+  color: #28434b !important;
+  background: #ffffff !important;
+  border-color: #d9e5e7 !important;
+  border-radius: 7px !important;
+}
+
+.authInput :global(.ant-input),
+.authInput :global(.ant-input-password) {
+  color: #28434b !important;
+  background: transparent !important;
+}
+
+.authInput:global(.ant-input-affix-wrapper-focused),
+.authInput:global(.ant-input-affix-wrapper:focus) {
+  border-color: #0f766e !important;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.1) !important;
+}
+
+.authInput :global(.anticon) {
+  color: #789098;
+}
+
+.submitButton {
+  height: 46px;
+  color: #16333b !important;
+  background: #facc15 !important;
+  border-color: #facc15 !important;
+  border-radius: 7px !important;
+  box-shadow: none !important;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.footerText {
+  text-align: center;
+}
+
+.authLink {
+  margin-left: 4px;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .authPage {
+    padding: 16px;
+  }
+
+  .authPanel,
+  .registerPanel {
+    padding: 28px 22px;
+  }
+}

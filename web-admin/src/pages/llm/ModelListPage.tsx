@@ -3,6 +3,7 @@ import { Card, Row, Col, Tag, Typography, Spin, Alert, Descriptions, Space } fro
 import { CheckCircleOutlined, CloseCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import { llmApi } from '@/api/llm';
 import { LlmModel } from '@/types/api';
+import styles from './ModelListPage.module.css';
 
 const { Title, Text } = Typography;
 
@@ -34,22 +35,26 @@ const ModelListPage: React.FC = () => {
   const llmModels = models.filter(m => m.provider !== 'image' && m.provider !== 'video');
 
   return (
-    <div>
-      <Title level={4} style={{ marginBottom: 24 }}>
-        <RobotOutlined style={{ marginRight: 8 }} />模型广场
-        <Text type="secondary" style={{ fontSize: 14, marginLeft: 12 }}>
-          共 {llmModels.filter(m => m.available).length}/{llmModels.length} 个可用
-        </Text>
-      </Title>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>
+            <RobotOutlined className={styles.titleIcon} />模型广场
+          </Title>
+          <Text type="secondary" className={styles.pageHint}>
+            已配置并可用于 AI 能力的模型：{llmModels.filter(m => m.available).length}/{llmModels.length}
+          </Text>
+        </div>
+      </div>
       {llmModels.length === 0 ? (
-        <Alert type="info" message="暂无可用的 AI 模型" description="请在 Nacos 或 application.yml 中配置模型的 API Key 后重启服务" />
+        <Alert className={styles.emptyAlert} type="info" message="暂无可用的 AI 模型" description="请在 Nacos 或 application.yml 中配置模型的 API Key 后重启服务" />
       ) : (
         <Row gutter={[16, 16]}>
           {llmModels.map((model) => {
             const pn = providerNames[model.provider] || { name: model.provider, color: '#666' };
             return (
-              <Col key={`${model.provider}-${model.model}`} span={8}>
-                <Card
+              <Col key={`${model.provider}-${model.model}`} xs={24} sm={12} xl={8}>
+                <Card className={styles.modelCard}
                   title={
                     <Space>
                       <span style={{ color: pn.color, fontWeight: 600 }}>{pn.name}</span>

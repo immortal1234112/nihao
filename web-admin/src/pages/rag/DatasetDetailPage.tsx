@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Card, Table, Button, Upload, Typography, Popconfirm, Space,
-  Tag, Drawer, Input, Slider, Alert, Spin, Progress, Row,
+  Tag, Drawer, Input, Slider, Alert, Spin, Progress, Row, Col,
 } from 'antd';
 import {
   ArrowLeftOutlined, UploadOutlined, ReloadOutlined, EyeOutlined, DeleteOutlined,
@@ -10,6 +10,7 @@ import {
 import { ragApi } from '@/api/rag';
 import { RagDataset, RagDocument, RagChunk, RagSearchResult } from '@/types/api';
 import { useAppFeedback } from '@/utils/feedback';
+import styles from './DatasetDetailPage.module.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -166,19 +167,24 @@ const DatasetDetailPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Space style={{ marginBottom: 16 }} align="center">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/rag/datasets')}>返回</Button>
-        <Title level={4} style={{ margin: 0 }}>{dataset?.name || '知识库详情'}</Title>
-        {dataset && (
-          <Text type="secondary">
-            {dataset.embeddingModel} · {dataset.dimension} 维 · {dataset.docCount} 文档 / {dataset.chunkCount} 分块
-          </Text>
-        )}
-      </Space>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <Space align="center">
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/rag/datasets')}>返回</Button>
+          <div>
+            <Title level={3} className={styles.pageTitle}>{dataset?.name || '知识库详情'}</Title>
+            {dataset && (
+              <Text type="secondary" className={styles.pageHint}>
+                {dataset.embeddingModel} · {dataset.dimension} 维 · {dataset.docCount} 文档 / {dataset.chunkCount} 分块
+              </Text>
+            )}
+          </div>
+        </Space>
+      </div>
 
-      <Row gutter={16} style={{ display: 'flex', gap: 16 }}>
-        <Card title="文档管理" style={{ flex: 1 }} extra={
+      <Row gutter={[16, 16]} className={styles.contentGrid}>
+        <Col flex="1 1 680px">
+        <Card className={styles.panel} title="文档管理" extra={
           <Upload beforeUpload={handleUpload} showUploadList={false} accept=".txt,.md">
             <Button type="primary" icon={<UploadOutlined />} loading={uploading}>上传文档</Button>
           </Upload>
@@ -190,6 +196,7 @@ const DatasetDetailPage: React.FC = () => {
             message="v1 仅支持 txt/md 纯文本（≤2MB），上传后自动解析分块与向量化"
           />
           <Table
+            className={styles.documentTable}
             rowKey="id"
             columns={docColumns}
             dataSource={documents}
@@ -197,8 +204,10 @@ const DatasetDetailPage: React.FC = () => {
             pagination={{ pageSize: 10 }}
           />
         </Card>
+        </Col>
 
-        <Card title="测试检索" style={{ width: 360 }}>
+        <Col flex="0 1 360px">
+        <Card className={styles.panel} title="测试检索">
           <TextArea
             rows={3}
             placeholder="输入检索内容，验证知识库检索质量..."
@@ -219,7 +228,7 @@ const DatasetDetailPage: React.FC = () => {
                 <Text type="secondary"> 未找到相关内容（知识库可能为空）</Text>
               )}
               {searchResult.chunks.map((ref) => (
-                <Card key={ref.chunkId} size="small" style={{ marginTop: 8 }}>
+                <Card key={ref.chunkId} className={styles.resultCard} size="small">
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     [{ref.documentName}] 相似度 {(ref.similarity * 100).toFixed(1)}%
                   </Text>
@@ -231,6 +240,7 @@ const DatasetDetailPage: React.FC = () => {
             </div>
           )}
         </Card>
+        </Col>
       </Row>
 
       <Drawer
@@ -243,7 +253,7 @@ const DatasetDetailPage: React.FC = () => {
           <Spin style={{ display: 'block', margin: '40px auto' }} />
         ) : (
           chunkDrawer.chunks.map((c) => (
-            <Card key={c.id} size="small" style={{ marginBottom: 8 }}>
+            <Card key={c.id} className={styles.chunkCard} size="small">
               <Text type="secondary" style={{ fontSize: 12 }}>分块 #{c.chunkIndex}</Text>
               <div style={{ fontSize: 13, marginTop: 4, whiteSpace: 'pre-wrap' }}>{c.content}</div>
             </Card>

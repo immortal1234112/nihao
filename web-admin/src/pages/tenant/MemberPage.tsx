@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { tenantApi } from '@/api/tenant';
 import { TenantMember } from '@/types/api';
 import { useAppFeedback } from '@/utils/feedback';
+import styles from './MemberPage.module.css';
 
 const { Title } = Typography;
 
@@ -73,12 +74,17 @@ const MemberPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>成员管理</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>添加成员</Button>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>成员管理</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>管理当前租户中的成员与角色</Typography.Text>
+        </div>
+        <Button className={styles.primaryButton} type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>添加成员</Button>
       </div>
-      <Table dataSource={members} columns={columns} rowKey="userId" loading={loading} />
+      <div className={styles.tableShell}>
+        <Table className={styles.memberTable} dataSource={members} columns={columns} rowKey="userId" loading={loading} />
+      </div>
 
       <Modal title="添加成员" open={modalOpen} onCancel={() => setModalOpen(false)} footer={null}>
         <Form form={form} layout="vertical" onFinish={handleAdd}>

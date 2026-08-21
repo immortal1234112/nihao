@@ -6,6 +6,7 @@ import { PromptTemplate, PromptTemplateForm } from '@/types/api';
 import { usePagination } from '@/hooks/usePagination';
 import { useAppFeedback } from '@/utils/feedback';
 import { useAuthStore } from '@/stores/authStore';
+import styles from './TemplatePage.module.css';
 
 const { Title } = Typography;
 
@@ -109,24 +110,30 @@ const TemplatePage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>我的模板</Title>
-        <Flex gap={8}>
+    <div className={styles.page}>
+      <Flex justify="space-between" align="center" wrap gap={12} className={styles.pageHeader}>
+        <div>
+          <Title level={3} className={styles.pageTitle}>我的模板</Title>
+          <Typography.Text type="secondary" className={styles.pageHint}>保存常用提示词，快速复用到图片和视频创作</Typography.Text>
+        </div>
+        <Flex gap={8} className={styles.headerActions}>
           <Button icon={<ReloadOutlined />} onClick={table.refresh}>刷新</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建模板</Button>
         </Flex>
       </Flex>
 
-      <Table
-        dataSource={table.records}
-        columns={columns}
-        rowKey="id"
-        loading={table.loading}
-        size="middle"
-        pagination={table.pagination}
-        locale={{ emptyText: '还没有自己的模板，点右上角「新建模板」创建' }}
-      />
+      <div className={styles.tableShell}>
+        <Table
+          className={styles.templateTable}
+          dataSource={table.records}
+          columns={columns}
+          rowKey="id"
+          loading={table.loading}
+          size="middle"
+          pagination={table.pagination}
+          locale={{ emptyText: '还没有自己的模板，点右上角「新建模板」创建' }}
+        />
+      </div>
 
       <Modal
         title={editing ? '编辑模板' : '新建模板'}
@@ -137,7 +144,7 @@ const TemplatePage: React.FC = () => {
         width={640}
         destroyOnHidden
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} layout="vertical" className={styles.templateForm}>
           <Form.Item name="name" label="模板名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="例如：黄昏城市剪影" maxLength={50} />
           </Form.Item>

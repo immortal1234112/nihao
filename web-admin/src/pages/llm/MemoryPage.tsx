@@ -4,6 +4,7 @@ import { DeleteOutlined, ReloadOutlined, PlusOutlined, EditOutlined } from '@ant
 import { llmApi } from '@/api/llm';
 import { MemoryItem } from '@/types/api';
 import type { ColumnsType } from 'antd/es/table';
+import styles from './MemoryPage.module.css';
 
 const { Text } = Typography;
 
@@ -136,38 +137,41 @@ const MemoryPage: React.FC = () => {
   ];
 
   const table = (
-    <Table<MemoryItem>
-      rowKey="id"
-      columns={columns}
-      dataSource={records}
-      loading={loading}
-      pagination={{
-        current: page,
-        pageSize: size,
-        total,
-        showSizeChanger: true,
-        showTotal: (t) => `共 ${t} 条记忆`,
-        onChange: (p, s) => { setPage(p); setSize(s); },
-      }}
-    />
+    <div className={styles.tableShell}>
+      <Table<MemoryItem>
+        className={styles.memoryTable}
+        rowKey="id"
+        columns={columns}
+        dataSource={records}
+        loading={loading}
+        pagination={{
+          current: page,
+          pageSize: size,
+          total,
+          showSizeChanger: true,
+          showTotal: (t) => `共 ${t} 条记忆`,
+          onChange: (p, s) => { setPage(p); setSize(s); },
+        }}
+      />
+    </div>
   );
 
   return (
-    <Card
-      title="记忆管理"
-      extra={
-        <Space>
+    <div className={styles.page}>
+      <div className={styles.pageHeader}>
+        <div>
+          <Typography.Title level={3} className={styles.pageTitle}>记忆管理</Typography.Title>
+          <Text type="secondary" className={styles.pageHint}>{DESCRIPTIONS[activeCategory]}</Text>
+        </div>
+        <Space className={styles.headerActions}>
           {activeCategory === 'LONG_TERM' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>添加记忆</Button>
           )}
           <Button icon={<ReloadOutlined />} onClick={load}>刷新</Button>
         </Space>
-      }
-    >
-      <div style={{ marginBottom: 12 }}>
-        <Text type="secondary">{DESCRIPTIONS[activeCategory]}</Text>
       </div>
       <Tabs
+        className={styles.tabs}
         activeKey={activeCategory}
         onChange={(k) => { setActiveCategory(k as MemoryCategory); setPage(1); }}
         items={[
@@ -208,7 +212,7 @@ const MemoryPage: React.FC = () => {
           </Form.Item>
         </Form>
       </Modal>
-    </Card>
+    </div>
   );
 };
 
