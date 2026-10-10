@@ -28,6 +28,21 @@ public interface LLMAdapter {
         return chat(systemPrompt, List.of(), userMessage, options);
     }
 
+    /**
+     * 流式对话。
+     * <p>
+     * 默认实现回退到阻塞 {@link #chat}，并把整段答案作为<b>单个</b> delta 发出——
+     * 未实现真流式的适配器（Claude / Gemini 的请求格式与 OpenAI 不兼容）无需任何改动
+     * 即可获得「可用但不逐字」的行为。真流式由 {@code AbstractOpenAiCompatAdapter} 覆写。
+     */
+    default void chatStream(String systemPrompt, List<ChatMessage> history, String userMessage,
+                            Map<String, Object> options, StreamHandler handler) {
+        String full = chat(systemPrompt, history, userMessage, options);
+        if (full != null && !full.isEmpty()) {
+            handler.onDelta(full);
+        }
+    }
+
     /** 健康检查 */
     boolean healthCheck();
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.platform.core.config.ModelConfigService;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
+import okio.BufferedSource;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
@@ -100,30 +101,10 @@ public abstract class AbstractOpenAiCompatAdapter implements LLMAdapter {
             String effectiveBaseUrl = configService.getBaseUrl(provider(), baseUrl());
             String effectiveModel = configService.getModel(provider(), model());
 
-            // 构建 OpenAI 兼容的消息体
-            List<Map<String, String>> messages = new ArrayList<>();
-            if (systemPrompt != null && !systemPrompt.isEmpty()) {
-                messages.add(Map.of("role", "system", "content", systemPrompt));
-            }
-            history.forEach(h -> messages.add(Map.of("role", h.role(), "content", h.content())));
-            messages.add(Map.of("role", "user", "content", userMessage));
-
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("model", effectiveModel);
-            body.put("messages", messages);
-            if (supportsTemperatureParams()) {
-                body.put("temperature", resolveTemperature(options));
-                body.put("max_tokens", resolveMaxTokens(options));
-            }
-
-            String json = objectMapper.writeValueAsString(body);
-
-            Request request = new Request.Builder()
-                    .url(effectiveBaseUrl + chatCompletionsPath())
-                    .post(RequestBody.create(json, MediaType.parse("application/json")))
-                    .header("Authorization", authHeader(effectiveApiKey, effectiveApiSecret))
-                    .header("Content-Type", "application/json")
-                    .build();
+            String json = objectMapper.writeValueAsString(
+                    buildBody(systemPrompt, history, userMessage, options, effectiveModel, false));
+            Request request = buildRequest(effectiveBaseUrl + chatCompletionsPath(), json,
+                    effectiveApiKey, effectiveApiSecret);
 
             log.debug("{} call: model={}, prompt={}...", provider(), effectiveModel,
                     userMessage.substring(0, Math.min(30, userMessage.length())));
@@ -141,6 +122,178 @@ public abstract class AbstractOpenAiCompatAdapter implements LLMAdapter {
             log.error("{} call failed: {}", provider(), e.getMessage());
             throw new RuntimeException(provider() + " 调用失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 真流式对话（OpenAI 兼容 SSE）：{@code stream=true} + 逐行读 {@code data:} 帧。
+     * <p>
+     * 覆盖 8/10 个厂商；Claude（Messages API）与 Gemini（generateContent）请求格式不同，
+     * 走 {@link LLMAdapter#chatStream} 的 default 兜底（整段作为单个 delta）。
+     * <p>
+     * 关键：<b>不设整调用 timeout</b>——OkHttp 的 readTimeout 是「每次读」的空闲超时，
+     * 保留它可避免长回答被误杀；总时长由调用方的墙钟上限（chat.stream.max-duration-ms）控制。
+     */
+    @Override
+    public void chatStream(String systemPrompt, List<ChatMessage> history, String userMessage,
+                           Map<String, Object> options, StreamHandler handler) {
+        String effectiveApiKey = configService.getApiKey(provider(), apiKey());
+        String effectiveApiSecret = configService.getApiSecret(provider(), apiSecret());
+        String effectiveBaseUrl = configService.getBaseUrl(provider(), baseUrl());
+        String effectiveModel = configService.getModel(provider(), model());
+
+        try {
+            String json = objectMapper.writeValueAsString(
+                    buildBody(systemPrompt, history, userMessage, options, effectiveModel, true));
+            Request request = buildRequest(effectiveBaseUrl + chatCompletionsPath(), json,
+                    effectiveApiKey, effectiveApiSecret);
+
+            log.debug("{} stream call: model={}", provider(), effectiveModel);
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String respBody = response.body() != null ? response.body().string() : "";
+                    log.error("{} API error {}: {}", provider(), response.code(), respBody);
+                    throw new RuntimeException(provider() + " API error " + response.code() + ": " + respBody);
+                }
+                if (response.body() == null) {
+                    throw new RuntimeException(provider() + " 流式响应为空");
+                }
+                if (!isEventStream(response)) {
+                    // 兜底①：中转网关忽略 stream=true，直接回了整套 JSON
+                    log.info("{} ignored stream=true, falling back to whole-body response", provider());
+                    emitWholeBody(response.body().string(), handler);
+                    return;
+                }
+                readSseStream(response, handler);
+            }
+        } catch (IOException e) {
+            log.error("{} stream call failed: {}", provider(), e.getMessage());
+            throw new RuntimeException(provider() + " 流式调用失败: " + e.getMessage(), e);
+        }
+    }
+
+    // ==================== 请求构建（同步/流式共用） ====================
+
+    /**
+     * 构建 OpenAI 兼容请求体。
+     *
+     * @param stream 附加 {@code "stream": true}（部分厂商对流式请求的参数校验与同步不同）
+     */
+    protected Map<String, Object> buildBody(String systemPrompt, List<ChatMessage> history, String userMessage,
+                                            Map<String, Object> options, String effectiveModel, boolean stream) {
+        List<Map<String, String>> messages = new ArrayList<>();
+        if (systemPrompt != null && !systemPrompt.isEmpty()) {
+            messages.add(Map.of("role", "system", "content", systemPrompt));
+        }
+        history.forEach(h -> messages.add(Map.of("role", h.role(), "content", h.content())));
+        messages.add(Map.of("role", "user", "content", userMessage));
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", effectiveModel);
+        body.put("messages", messages);
+        if (supportsTemperatureParams()) {
+            body.put("temperature", resolveTemperature(options));
+            body.put("max_tokens", resolveMaxTokens(options));
+        }
+        if (stream) {
+            body.put("stream", true);
+        }
+        return body;
+    }
+
+    protected Request buildRequest(String url, String json, String apiKey, String apiSecret) {
+        return new Request.Builder()
+                .url(url)
+                .post(RequestBody.create(json, MediaType.parse("application/json")))
+                .header("Authorization", authHeader(apiKey, apiSecret))
+                .header("Content-Type", "application/json")
+                .build();
+    }
+
+    // ==================== 流式解析 ====================
+
+    private boolean isEventStream(Response response) {
+        String contentType = response.header("Content-Type");
+        return contentType != null && contentType.toLowerCase().contains("text/event-stream");
+    }
+
+    /** 逐行解析 SSE 帧；单帧解析失败只跳过，绝不中断整条流 */
+    private void readSseStream(Response response, StreamHandler handler) throws IOException {
+        BufferedSource source = response.body().source();
+        StringBuilder rawFallback = new StringBuilder();
+        boolean sawDataFrame = false;
+        String line;
+        while ((line = source.readUtf8Line()) != null) {
+            if (handler.isCancelled()) {
+                log.info("{} stream cancelled by caller, stop reading", provider());
+                return;
+            }
+            if (line.isEmpty() || line.charAt(0) == ':') {
+                continue;   // 事件分隔符 / 心跳注释帧（如 ": keep-alive"）
+            }
+            if (!line.startsWith("data:")) {
+                rawFallback.append(line);   // 非 SSE 行：留作兜底②
+                continue;
+            }
+            String payload = line.substring(5).trim();
+            if (payload.isEmpty()) {
+                continue;
+            }
+            sawDataFrame = true;
+            if ("[DONE]".equals(payload)) {
+                break;
+            }
+            String delta = extractDelta(payload);
+            if (delta != null && !delta.isEmpty()) {
+                handler.onDelta(delta);
+            }
+        }
+        // 兜底②：头部声明是 SSE 但一个 data 帧都没有（网关带错 Content-Type）→ 按整段 JSON 再解析
+        if (!sawDataFrame && rawFallback.length() > 0) {
+            log.info("{} sent event-stream header but no data frame, falling back", provider());
+            emitWholeBody(rawFallback.toString(), handler);
+        }
+    }
+
+    /** 把整段响应体按非流式 JSON 解析，作为单个 delta 发出 */
+    private void emitWholeBody(String body, StreamHandler handler) {
+        String content = extractContent(body);
+        if (content != null && !content.isEmpty()) {
+            handler.onDelta(content);
+        }
+    }
+
+    /**
+     * 取一个 SSE 帧的增量文本：{@code choices[0].delta.content}。
+     * 容忍首帧 role-only（delta 无 content）、空 data、非法 JSON —— 均返回 null 交由调用方跳过。
+     */
+    protected String extractDelta(String payload) {
+        try {
+            Map<String, Object> map = objectMapper.readValue(payload, Map.class);
+            List<Map<String, Object>> choices = asList(map.get("choices"));
+            if (choices == null || choices.isEmpty()) {
+                return null;
+            }
+            Map<String, Object> delta = asMap(choices.get(0).get("delta"));
+            if (delta == null) {
+                return null;
+            }
+            Object content = delta.get("content");
+            return content == null ? null : String.valueOf(content);
+        } catch (Exception e) {
+            log.debug("{} stream chunk parse skipped: {}", provider(), e.getMessage());
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> asList(Object o) {
+        return o instanceof List ? (List<Map<String, Object>>) o : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object o) {
+        return o instanceof Map ? (Map<String, Object>) o : null;
     }
 
     @Override

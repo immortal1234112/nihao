@@ -1,0 +1,148 @@
+# =====================================================================
+#  AI Agent Platform —— 生产基础设施编排
+#
+#  与根目录 docker-compose.yml（开发环境）的区别:
+#    1. 内存参数按 2C2G 调优（开发版用的是 MySQL/RabbitMQ 默认值, 会多吃 200MB+）
+#    2. 端口只绑 127.0.0.1 —— Java 服务跑在宿主机上, 不需要对外暴露数据库
+#    3. Nacos 放进可选 profile, 极简档不启动
+#       （SearXNG 已整体移除: 实测常驻 1GB 且中文检索质量不佳, 联网搜索功能已关闭）
+#    4. 加了 healthcheck, deploy.sh 靠它判断"真的就绪"而不是"端口开了"
+#
+#  用法:
+#    极简档 (lite):   docker compose -f docker-compose.infra.yml up -d
+#    完整档 (full):   docker compose -f docker-compose.infra.yml --profile full up -d
+#
+#  ⚠️ 凭据从同目录的 .env 读取（由 remote-install.sh 首次部署时随机生成）。
+#     不要把这个文件放在仓库根目录 —— 会和开发环境的 .env 混淆。
+# =====================================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai-mysql
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD 未设置, 请检查 deploy/.env}
+    command:
+      # ---- 2C2G 内存调优（默认值会吃 400MB+, 这里压到 ~250MB）----
+      - --innodb-buffer-pool-size=128M
+      # performance_schema 默认开启且常驻约 100MB, 小机器上完全不值得
+      - --performance-schema=OFF
+      - --max-connections=50
+      # 每次事务提交刷盘改为每秒一次: 崩溃可能丢最后 1 秒数据, 换取明显更低的 IO
+      - --innodb-flush-log-at-trx-commit=2
+      - --table-open-cache=64
+      - --tmp-table-size=16M
+      - --max-heap-table-size=16M
+      # 关掉 binlog: 本部署不需要主从复制/时间点恢复, 能省磁盘和 IO
+      - --skip-log-bin
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # ★ 关键: 端口映射先于 mysqld 就绪, 必须用 mysqladmin ping 探真实可用性
+      #   （开发版 start.ps1 就是踩过这个坑才改成 ping 的）
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    # 网关限流、会话、WS 连接状态都在这。实测只占 7MB, maxmemory 只作为兜底阀门。
+    # noeviction 而非 allkeys-lru: 这个实例里存的是登录态, 被 LRU 淘汰 = 用户莫名掉线,
+    # 宁可写满报错也不要静默丢会话。
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD 未设置, 请检查 deploy/.env}
+      --maxmemory 128mb
+      --maxmemory-policy noeviction
+      --save ""
+      --appendonly no
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: ai-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      # 管理台只绑本机: 需要时用 SSH 隧道访问 ssh -L 15672:127.0.0.1:15672 user@server
+      - "127.0.0.1:${RABBITMQ_MGMT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER 未设置, 请检查 deploy/.env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD 未设置, 请检查 deploy/.env}
+      # 内存水位阀: 相对值写法兼容性最好（绝对值 MiB 后缀在新旧版本间有差异）。
+      # 这是保护阀不是容量配置 —— 实测 RabbitMQ 实际只用 150MB 左右。
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: "0.3"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    container_name: ai-minio
+    restart: unless-stopped
+    ports:
+      # 只绑本机: 文件对外访问走 storage-service 的 /api/v1/public/files/** 网关路由
+      # （PublicFileController 拼的是网关地址, 不是 MinIO 直链）, 浏览器永远不会直连 MinIO。
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER 未设置, 请检查 deploy/.env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD 未设置, 请检查 deploy/.env}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 20s
+
+  # -------------------------------------------------------------------
+  #  以下两个仅在完整档 (profile=full) 启用 —— 极简档下 deploy.sh 不会拉起它们
+  # -------------------------------------------------------------------
+
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: ai-nacos
+    profiles: ["full"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NACOS_PORT:-8848}:8848"
+      - "127.0.0.1:9848:9848"
+    environment:
+      MODE: standalone
+      # ★ 默认是 -Xms512m -Xmx512m, 实测常驻 1.2GB。
+      #   压到 256m 能降到约 500MB, 但仍是大头 —— 这就是极简档不用它的原因。
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+    volumes:
+      - nacos_data:/home/nacos/data
+
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:
+  minio_data:
+  nacos_data:

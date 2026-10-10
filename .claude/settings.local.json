@@ -99,7 +99,9 @@
       "Read(//tmp/**)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\)['data']['task']; print\\(f'Status: {d[\\\\\"status\\\\\"]}'\\); r=d.get\\('result'\\); print\\(f'Result: {str\\(r\\)[:300] if r else \\\\\"none\\\\\"}'\\)\")",
       "Bash(sed -n '/<build>/,/<\\\\/build>/p' agent-core/pom.xml)",
-      "Bash(sed -n '/<build>/,/<\\\\/build>/p' user-service/pom.xml)"
+      "Bash(sed -n '/<build>/,/<\\\\/build>/p' user-service/pom.xml)",
+      "Bash(curl -s -m 10 -X POST https://7842d141.r7.cpolar.cn/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"immortal\",\"password\":\"wkg8259112\"}')",
+      "mcp__playwright__browser_evaluate"
     ]
   }
 }

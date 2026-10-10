@@ -58,4 +58,3 @@ meme:
   template-cache-ttl: 600
   template-api: https://justmeme.wtf/api/v1/templates
   qwen-prompt-model: qwen-turbo
-  fallback-templates-enabled: true

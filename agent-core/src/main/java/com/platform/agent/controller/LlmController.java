@@ -2,6 +2,7 @@ package com.platform.agent.controller;
 
 import com.platform.agent.adapter.LLMAdapter;
 import com.platform.agent.chat.service.ChatService;
+import com.platform.agent.chat.service.ChatStreamService;
 import com.platform.agent.service.PromptEnhancerService;
 import com.platform.core.base.Result;
 import com.platform.core.exception.BizException;
@@ -10,7 +11,9 @@ import com.platform.web.context.TenantContext;
 import com.platform.web.context.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +32,7 @@ public class LlmController {
 
     private final List<LLMAdapter> llmAdapters;
     private final ChatService chatService;
+    private final ChatStreamService chatStreamService;
     private final PromptEnhancerService promptEnhancerService;
 
     /**
@@ -93,5 +97,21 @@ public class LlmController {
             log.error("Prompt enhance failed: {}", e.getMessage(), e);
             return Result.fail(500, "润色失败，请稍后重试");
         }
+    }
+
+    /**
+     * 流式对话（SSE）。事件协议见 {@link ChatStreamService}。
+     * <p>
+     * 与 /chat 的差异仅在「怎么把结果给出去」：上下文组装、持久化、记忆提取全部复用同一套代码。
+     * 本方法必须立刻返回 emitter —— 流水线在 chatStreamExecutor 上跑，不占用 Tomcat 线程。
+     * <p>
+     * 注意：错误不走 {@code Result}（流一旦开始就无法改状态码），一律以 {@code event: error} 帧下发。
+     * 仅在<b>流建立前</b>的失败（如未鉴权）才会返回非 SSE 响应体。
+     */
+    @AuditLog(action = "LLM_CHAT_STREAM")
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(@RequestBody Map<String, Object> request) {
+        // ThreadLocal 只在本线程（Tomcat）有效：必须在此刻取出并显式传参，工作线程拿不到
+        return chatStreamService.stream(request, UserContext.getUserId(), TenantContext.get());
     }
 }

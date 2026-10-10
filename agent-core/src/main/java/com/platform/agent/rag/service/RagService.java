@@ -231,9 +231,15 @@ public class RagService {
         if (refs == null || refs.isEmpty()) {
             return "";
         }
+        // 过滤掉 WEB 来源（联网搜索已下线，但调用方可能传入含存量 WEB 引用的列表），
+        // 它们不该出现在 [参考资料] 段里。
+        List<RagReference> ragRefs = refs.stream().filter(r -> !r.isWeb()).toList();
+        if (ragRefs.isEmpty()) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder("\n\n[参考资料]（请优先依据以下资料回答，引用时标注来源文档名）\n");
-        for (int i = 0; i < refs.size(); i++) {
-            RagReference r = refs.get(i);
+        for (int i = 0; i < ragRefs.size(); i++) {
+            RagReference r = ragRefs.get(i);
             sb.append(i + 1).append(". [来源: ").append(r.getDocumentName()).append("] ")
                     .append(r.getContent()).append("\n");
         }

@@ -1,0 +1,80 @@
+# =====================================================================
+#  AI Agent Platform —— systemd 模板单元
+#
+#  安装位置: /etc/systemd/system/ai-agent@.service
+#  由 deploy.sh 自动安装, 无需手工复制。
+#
+#  用法（%i 是实例名, 即服务名）:
+#    systemctl start  ai-agent@gateway
+#    systemctl status ai-agent@agent-core
+#    journalctl -u ai-agent@agent-core -f
+#
+#  @ 模板的好处: 7 个服务共用一份定义, 加服务/改内存参数只改一处,
+#  不会出现"改了 5 个 unit 漏了 2 个"的漂移。
+# =====================================================================
+
+[Unit]
+Description=AI Agent Platform - %i
+Documentation=file:/opt/ai-agent/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+# Docker 起来基础设施才有 MySQL/Redis/MQ; 但不用 Requires —— 否则
+# docker 重启会连带把全部业务服务拉停, 恢复慢且没必要。
+RequiresMountsFor=/opt/ai-agent
+
+[Service]
+Type=simple
+
+# 两个 env 文件分工明确:
+#   .env          仅存密钥, 首次部署生成后永不覆盖（改了会导致连不上已有数据卷/存量 token 全失效）
+#   services.env  每次部署重新生成, 放端口/主机/静态服务发现等派生配置
+EnvironmentFile=/opt/ai-agent/.env
+EnvironmentFile=/opt/ai-agent/services.env
+
+WorkingDirectory=/opt/ai-agent
+
+# %i 由 systemd 替换为实例名; 脚本内部据此挑选 jar 和 JVM 参数
+ExecStart=/opt/ai-agent/bin/run-service.sh %i
+
+Restart=on-failure
+# 15s 而非默认 100ms: 服务启动失败通常是基础设施没就绪,
+# 快速重试只会刷爆日志, 还可能撞上 MySQL 的连接风暴保护
+RestartSec=15
+# 5 分钟内重启超过 10 次就放弃, 避免崩溃循环拖垮 2G 的小机器
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+# 优雅停机: Spring Boot 收到 SIGTERM 会走 shutdown hook 关连接池、注销服务
+KillSignal=SIGTERM
+TimeoutStopSec=60
+
+# 日志走文件而非 journald —— 2C2G 上 journald 的磁盘占用和压缩开销不划算。
+# 排障用 tail -f /opt/ai-agent/logs/<service>.log
+StandardOutput=append:/opt/ai-agent/logs/%i.log
+StandardError=append:/opt/ai-agent/logs/%i.log
+
+# 基础加固: 服务只需读自己的目录, 不需要提权
+NoNewPrivileges=true
+PrivateTmp=true
+
+# ---------------------------------------------------------------------
+#  可选: 单服务内存硬上限
+#
+#  默认不启用。若某天出现单个服务内存失控把整机拖死（表现为 SSH 都卡），
+#  可以给那个服务加 drop-in:
+#
+#    mkdir -p /etc/systemd/system/ai-agent@agent-core.service.d
+#    cat > /etc/systemd/system/ai-agent@agent-core.service.d/memory.conf <<'EOF'
+#    [Service]
+#    MemoryMax=480M
+#    MemoryHigh=400M
+#    EOF
+#    systemctl daemon-reload && systemctl restart ai-agent@agent-core
+#
+#  MemoryHigh 是软限（超过后内核优先回收该 cgroup 的页, 变慢但不杀进程）,
+#  MemoryMax 是硬限（超过直接 OOM kill 该服务, systemd 会按 Restart 策略拉起）。
+#  两个都设, 让失控时是"这个服务重启"而不是"整机卡死"。
+# ---------------------------------------------------------------------
+
+[Install]
+WantedBy=multi-user.target

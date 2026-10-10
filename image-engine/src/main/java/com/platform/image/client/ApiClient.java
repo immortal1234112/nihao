@@ -106,10 +106,4 @@ public class ApiClient {
         }
     }
 
-    /**
-     * 获取底层的 OkHttpClient（供 RetryPolicy 等使用）。
-     */
-    public OkHttpClient getHttpClient() {
-        return httpClient;
-    }
 }

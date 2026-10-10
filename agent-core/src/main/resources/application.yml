@@ -74,6 +74,18 @@ rag:
 chat:
   max-history-tokens: 4096   # 历史截断预算（小窗口模型需下调）
   token-ratio: 0.9           # 字符→token 粗估
+  stream:
+    # SseEmitter 超时（显式指定，不能依赖默认：Spring MVC 无配置时继承 Tomcat 30s 异步超时）
+    timeout-ms: 300000
+    # 心跳注释帧间隔：必须小于任何中间代理的 idle 超时（nginx proxy_read_timeout 默认 60s）
+    heartbeat-ms: 15000
+    # 单次生成的墙钟上限：防跑飞的模型长期占住 chat-stream 线程
+    max-duration-ms: 180000
+
+# 联网搜索（Web Search）已整体下线（2026-09-17）：
+#   原自建 SearXNG 常驻 1GB（uwsgi 多 worker）性价比极低，且 cn.bing.com 后端对
+#   中文长句只匹配开头几个字，检索质量不可用。search 模块（provider 目录、
+#   adapter、SearchController）与 model_config 种子数据已一并删除。
 memory:
   enabled: true
   extract-provider: ''       # 空=复用会话 provider

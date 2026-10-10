@@ -27,7 +27,12 @@ import java.util.Map;
  * 多轮对话编排服务：
  * 会话解析/新建 → 持久化 user 消息 → 加载历史 → 记忆注入 → RAG 增强 → 截断 → 调模型
  * → 持久化 assistant 消息（含引用）→ 异步触发记忆提取。
- * 历史截断策略：token 粗估 ceil(len×ratio)，预算内新→旧贪心，保底最近 2 条，丢弃悬空 assistant 开头（Claude 要求首条为 user）。
+ * <p>
+ * 流水线的前半段（组装上下文）抽在 {@link #prepare}，同步 {@link #chat} 与流式
+ * {@code ChatStreamService} 共用——两条路径只有「怎么调模型」不同，上下文组装完全一致。
+ * <p>
+ * 历史截断策略：token 粗估 ceil(len×ratio)，预算内新→旧贪心，保底最近 2 条，
+ * 丢弃悬空 assistant 开头（Claude 要求首条为 user）。
  */
 @Slf4j
 @Service
@@ -47,7 +52,71 @@ public class ChatService {
     @Value("${chat.token-ratio:0.9}")
     private double tokenRatio;
 
+    // ==================== 阶段事件（同步路径不发，流式路径转 SSE） ====================
+
+    /**
+     * 流水线阶段事件：流式路径用它告诉前端「上下文已组装完，模型开始产出了」，
+     * 让首个 token 到达前的那几秒有明确文案而不是空转。
+     */
+    public record ChatPhaseEvent(String phase, String status, int count, String message) {
+        public static ChatPhaseEvent start(String phase) {
+            return new ChatPhaseEvent(phase, "start", 0, null);
+        }
+
+        public static ChatPhaseEvent done(String phase, int count) {
+            return new ChatPhaseEvent(phase, "done", count, null);
+        }
+
+        public static ChatPhaseEvent failed(String phase, String message) {
+            return new ChatPhaseEvent(phase, "failed", 0, message);
+        }
+    }
+
+    /** 流水线准备结果：步骤 1~5 的全部产物，交给调用方执行「怎么调模型」 */
+    public record PreparedContext(
+            ChatConversation conversation,
+            LLMAdapter adapter,
+            String systemPrompt,
+            List<ChatMessage> history,
+            String userMessage,
+            Map<String, Object> options,
+            List<RagReference> references) {
+    }
+
+    // ==================== 同步对话 ====================
+
     public Map<String, Object> chat(Map<String, Object> request, String userId, String tenantId) {
+        PreparedContext ctx = prepare(request, userId, tenantId);
+
+        long start = System.currentTimeMillis();
+        String response = ctx.adapter().chat(ctx.systemPrompt(), ctx.history(), ctx.userMessage(), ctx.options());
+        long duration = System.currentTimeMillis() - start;
+
+        com.platform.agent.chat.entity.ChatMessage assistantMsg =
+                persistAssistant(ctx.conversation(), userId, tenantId, response, ctx.references());
+        afterTurn(ctx.conversation(), ctx.adapter().provider(), userId, tenantId,
+                ctx.userMessage(), response, ctx.history());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("conversationId", ctx.conversation().getId());
+        result.put("title", ctx.conversation().getTitle());
+        result.put("messageId", assistantMsg.getId());
+        result.put("model", ctx.adapter().modelName());
+        result.put("provider", ctx.adapter().provider());
+        result.put("content", response);
+        result.put("durationMs", duration);
+        result.put("references", ctx.references());
+        return result;
+    }
+
+    // ==================== 流水线准备（同步/流式共用） ====================
+
+    /**
+     * 执行步骤 1~5：会话解析 → 存 user 消息 → 加载历史 → 记忆注入 → RAG → 截断。
+     * <p>
+     * RAG 是「增强」不是「阻塞」：失败时 catch 降级，不影响回答。
+     */
+    public PreparedContext prepare(Map<String, Object> request, String userId, String tenantId) {
         String provider = (String) request.getOrDefault("provider", "deepseek");
         String systemPrompt = (String) request.get("systemPrompt");
         String message = (String) request.get("message");
@@ -84,11 +153,13 @@ public class ChatService {
             history.add(new ChatMessage(m.getRole(), m.getContent()));
         }
 
-        // 4. 记忆注入（失败降级不影响对话），顺序：[长期记忆] 在前 [参考资料] 在后
+        // 4. 记忆注入（失败降级不影响对话）
         String effectiveSystemPrompt = memoryService.enhanceSystemPrompt(userId, tenantId, message, systemPrompt);
 
-        // 5. RAG 知识库增强（可选）
-        List<RagReference> references = List.of();
+        // 引用列表：落库到同一条 references_json
+        List<RagReference> references = new ArrayList<>();
+
+        // 5. RAG 知识库增强（可选；失败降级不阻塞回答，与记忆注入同一降级范式）
         if (datasetId != null && !datasetId.isBlank()) {
             try {
                 RagSearchRequest searchRequest = new RagSearchRequest();
@@ -96,9 +167,10 @@ public class ChatService {
                 searchRequest.setQuery(message);
                 searchRequest.setTopK(topKNum != null ? topKNum.intValue() : 3);
                 RagSearchResult searchResult = ragService.search(userId, tenantId, searchRequest);
-                references = searchResult.getChunks();
+                List<RagReference> ragRefs = searchResult.getChunks();
+                references.addAll(ragRefs);
                 effectiveSystemPrompt = (effectiveSystemPrompt == null ? "" : effectiveSystemPrompt)
-                        + ragService.buildReferencePrompt(references);
+                        + ragService.buildReferencePrompt(ragRefs);
             } catch (Exception e) {
                 log.warn("RAG retrieval degraded for chat: {}", e.getMessage());
             }
@@ -110,44 +182,43 @@ public class ChatService {
         @SuppressWarnings("unchecked")
         Map<String, Object> options = (Map<String, Object>) request.get("options");
 
-        // 7. 调模型
-        long start = System.currentTimeMillis();
-        String response = adapter.chat(effectiveSystemPrompt, history, message, options);
-        long duration = System.currentTimeMillis() - start;
+        return new PreparedContext(conversation, adapter, effectiveSystemPrompt, history,
+                message, options, references);
+    }
 
-        // 8. 持久化 assistant 消息（含 RAG 引用 JSON）
+    // ==================== 流水线收尾（同步/流式共用） ====================
+
+    /** 持久化 assistant 消息（含引用 JSON） */
+    com.platform.agent.chat.entity.ChatMessage persistAssistant(ChatConversation conversation, String userId,
+                                                                String tenantId, String content,
+                                                                List<RagReference> references) {
         com.platform.agent.chat.entity.ChatMessage assistantMsg = new com.platform.agent.chat.entity.ChatMessage();
         assistantMsg.setConversationId(conversation.getId());
         assistantMsg.setUserId(userId);
         assistantMsg.setTenantId(tenantId);
         assistantMsg.setRole(com.platform.agent.chat.entity.ChatMessage.ROLE_ASSISTANT);
-        assistantMsg.setContent(response);
+        assistantMsg.setContent(content);
         assistantMsg.setReferencesJson(JsonUtils.toJson(references));
-        assistantMsg.setTokenCount(estimateTokens(response));
+        assistantMsg.setTokenCount(estimateTokens(content));
         messageMapper.insert(assistantMsg);
+        return assistantMsg;
+    }
 
-        // 9. 更新会话计数（updatedAt 显式刷新：strictUpdateFill 不覆盖非 null 字段）
+    /** 更新会话计数 + 异步记忆提取 */
+    void afterTurn(ChatConversation conversation, String provider, String userId, String tenantId,
+                   String userMessage, String answer, List<ChatMessage> history) {
+        // updatedAt 显式刷新：strictUpdateFill 不覆盖非 null 字段
         conversation.setMessageCount((conversation.getMessageCount() == null ? 0 : conversation.getMessageCount()) + 2);
         conversation.setUpdatedAt(java.time.LocalDateTime.now());
         conversationMapper.updateById(conversation);
 
-        // 10. 异步记忆提取（显式传参，@Async 线程无 ThreadLocal；history 已截断，取尾部多轮作提取上下文）
+        // 异步记忆提取（显式传参，@Async 线程无 ThreadLocal；history 已截断，取尾部多轮作提取上下文）
         try {
-            extractProcessor.extractAsync(userId, tenantId, provider, message, response, conversation.getId(), history);
+            extractProcessor.extractAsync(userId, tenantId, provider, userMessage, answer,
+                    conversation.getId(), history);
         } catch (Exception e) {
             log.warn("Memory extract trigger failed (ignored): {}", e.getMessage());
         }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("conversationId", conversation.getId());
-        result.put("title", conversation.getTitle());
-        result.put("messageId", assistantMsg.getId());
-        result.put("model", adapter.modelName());
-        result.put("provider", adapter.provider());
-        result.put("content", response);
-        result.put("durationMs", duration);
-        result.put("references", references);
-        return result;
     }
 
     // ==================== 私有 ====================

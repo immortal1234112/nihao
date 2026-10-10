@@ -358,6 +358,52 @@ export interface RagReference {
   similarity: number;
   documentId: string;
   documentName: string;
+  /** 引用来源：'WEB' + url/site 仅为渲染**存量**历史消息保留（联网搜索已下线）；
+   *  'RAG' 或 undefined = 知识库（更早的存量数据无此字段） */
+  sourceType?: 'RAG' | 'WEB';
+  /** 网页地址，仅 sourceType='WEB' */
+  url?: string;
+  /** 站点名，仅 sourceType='WEB' */
+  site?: string;
+}
+
+// ========== 流式对话（SSE）事件载荷 ==========
+
+/** 首帧：会话已就绪，前端可立刻高亮侧栏并刷新会话列表 */
+export interface ChatStreamMeta {
+  conversationId: string;
+  title: string;
+  provider: string;
+  model: string;
+}
+
+/** 流水线阶段变化：目前只有 generate = 模型开始生成 */
+export interface ChatStreamPhase {
+  phase: 'generate';
+  status: 'start' | 'done' | 'failed';
+  count: number;
+  message?: string | null;
+}
+
+export interface ChatStreamReferences {
+  references: RagReference[];
+  /** 存量历史消息的引用里可能含 WEB 来源，故计数保留 */
+  webCount: number;
+  ragCount: number;
+}
+
+/** 收尾帧：content 是服务端权威全文，用它覆盖本地累积串可免疫漏帧/渲染漂移 */
+export interface ChatStreamDone {
+  messageId: string;
+  conversationId: string;
+  durationMs: number;
+  content: string;
+  references: RagReference[];
+}
+
+export interface ChatStreamError {
+  code: number;
+  message: string;
 }
 
 export interface RagSearchResult {

@@ -70,6 +70,17 @@ spring:
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/open/**
+        # SSE 流式对话：必须排在 llm 之前（路由按定义顺序匹配，Path=/api/v1/llm/** 会先命中它）。
+        # metadata.response-timeout=-1 → NettyRoutingFilter 视为无超时不套 Flux.timeout，
+        # 否则全局 httpclient.response-timeout: 30s 是**整条响应**的总时长上限（不是 idle），
+        # 长回答会在第 30 秒被掐断并转成 504。
+        # 超时兜底改由后端承担：SseEmitter 300s + 15s 心跳注释帧（见 chat.stream.* 配置）。
+        - id: llm-stream
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/llm/chat/stream
+          metadata:
+            response-timeout: -1
         - id: llm
           uri: lb://agent-core
           predicates:

@@ -1,0 +1,35 @@
+/* 桌面宠物容器 */
+.desktop-pet {
+  position: fixed;
+  width: 120px;
+  height: 120px;
+  z-index: 9999;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.05s ease;
+  pointer-events: auto;
+}
+
+.desktop-pet.dragging {
+  cursor: grabbing;
+  transform: scale(1.08);
+}
+
+.desktop-pet:hover {
+  transform: scale(1.03);
+}
+
+/* 宠物图片 */
+.pet-image {
+  width: 120px;
+  height: 120px;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgba(255, 182, 193, 0.4));
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* 拖动时的效果 */
+.desktop-pet.dragging .pet-image {
+  filter: drop-shadow(0 8px 20px rgba(255, 182, 193, 0.6));
+}
