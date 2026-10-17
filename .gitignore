@@ -55,6 +55,10 @@ inference/models/
 ### 本地验证产物（截图 / 临时脚本，不入库） ###
 output/
 
+### 部署打包产物（build-local.ps1 生成，300MB+） ###
+.deploy-release.tar.gz
+.deploy-staging/
+
 ### Secrets ###
 .jwt-secret
 .internal-token

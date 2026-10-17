@@ -58,13 +58,31 @@ echo "[run-service] JVM     : ${JVM_OPTS}"
 echo "[run-service] 配置文件: ${ROOT}/config/application.yml"
 
 # ---------------------------------------------------------------------
-# 3. 启动
+# 3. 端口覆盖（只有 gateway 需要）
+#
+#  gateway 的 jar 内 application.yml 写的是 server.port=8080，但 nginx 要
+#  独占对外端口 PUBLIC_PORT。二者若相同，nginx 的 /api 反代就会打回自己，
+#  形成请求头不断累积的死循环（表现：400 Request Header Or Cookie Too Large）。
+#  所以由 services.env 的 PORT_GATEWAY 显式指定 gateway 的内部端口。
+#
+#  其他服务的端口不需要覆盖 —— 它们只被 gateway 通过静态服务发现表访问，
+#  而那张表写在 config/application.yml 里，与各自的 jar 默认值一致。
+# ---------------------------------------------------------------------
+APP_ARGS=""
+if [ "${SVC}" = "gateway" ] && [ -n "${PORT_GATEWAY:-}" ]; then
+  APP_ARGS="--server.port=${PORT_GATEWAY}"
+  echo "[run-service] 端口    : gateway 使用内部端口 ${PORT_GATEWAY}（对外由 nginx 承接）"
+fi
+
+# ---------------------------------------------------------------------
+# 4. 启动
 #
 #  --spring.config.additional-location 的优先级**高于** jar 内的 application.yml,
 #  所以 config/application.yml 里的静态服务发现、Nacos 开关能覆盖打包默认值。
 #
-#  $JVM_OPTS 故意不加引号 —— 需要按空格拆成多个 JVM 参数。
+#  $JVM_OPTS / ${APP_ARGS} 故意不加引号 —— 需要按空格拆成多个参数。
 # ---------------------------------------------------------------------
 exec java ${JVM_OPTS} \
   -jar "${JAR}" \
-  --spring.config.additional-location="file:${ROOT}/config/"
+  --spring.config.additional-location="file:${ROOT}/config/" \
+  ${APP_ARGS}

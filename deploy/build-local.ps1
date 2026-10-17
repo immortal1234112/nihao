@@ -88,8 +88,15 @@ $Root    = $Conf['REMOTE_ROOT']
 $Target  = "$($Conf['SERVER_USER'])@$($Conf['SERVER_HOST'])"
 
 # SSH 参数集中在这里，避免每个调用点重复
-$SshArgs = @('-p', $SshPort, '-o', 'ServerAliveInterval=30')
-$ScpArgs = @('-P', $SshPort, '-o', 'ServerAliveInterval=30')
+#
+# StrictHostKeyChecking=accept-new：
+#   首次连接自动接受并写入 known_hosts，不再弹
+#   "Are you sure you want to continue connecting (yes/no/[fingerprint])?"。
+#   语义是"新主机自动信任，但主机密钥变了仍然拒绝"（区别于 no 的全放行），
+#   对首次部署既省事又不丢中间人防护。
+#   需要 OpenSSH 7.6+；Windows 自带的是 9.x，满足。
+$SshArgs = @('-p', $SshPort, '-o', 'ServerAliveInterval=30', '-o', 'StrictHostKeyChecking=accept-new')
+$ScpArgs = @('-P', $SshPort, '-o', 'ServerAliveInterval=30', '-o', 'StrictHostKeyChecking=accept-new')
 if ($Conf.ContainsKey('SSH_KEY') -and $Conf['SSH_KEY']) {
     $SshArgs += @('-i', $Conf['SSH_KEY'])
     $ScpArgs += @('-i', $Conf['SSH_KEY'])

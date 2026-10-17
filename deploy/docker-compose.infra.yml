@@ -84,9 +84,15 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER 未设置, 请检查 deploy/.env}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD 未设置, 请检查 deploy/.env}
-      # 内存水位阀: 相对值写法兼容性最好（绝对值 MiB 后缀在新旧版本间有差异）。
-      # 这是保护阀不是容量配置 —— 实测 RabbitMQ 实际只用 150MB 左右。
-      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: "0.3"
+      # ⚠️ 不要设 RABBITMQ_VM_MEMORY_HIGH_WATERMARK。
+      #    较新的 RabbitMQ（3.12.x 后期补丁起）把这个环境变量标记为 deprecated，
+      #    且**检测到废弃变量会直接拒绝启动**，日志刷：
+      #      error: RABBITMQ_VM_MEMORY_HIGH_WATERMARK is set but deprecated
+      #      error: deprecated environment variables detected
+      #    容器表现为无限 Restarting，healthcheck 永远不过。
+      #    改用默认水位阀 vm_memory_high_watermark.relative=0.4
+      #    （1.7G 机器上约 700MB；实测 RabbitMQ 只用 150MB，够用）。
+      #    真要调整，走配置文件挂载，不要用环境变量。
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:

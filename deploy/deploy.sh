@@ -246,6 +246,15 @@ CORS_ALLOWED_ORIGINS=${base}
 #   注意: 部分厂商要求 https, 未备案阶段只有 http+IP 时可能被拒。
 STORAGE_ENGINE_BASE_URL=${base}
 
+# ---------------------------------------------------------------------
+# gateway 的内部监听端口（供 run-service.sh 以 --server.port 注入）
+#
+# 为什么不复用 jar 内 application.yml 的 8080：nginx 要监听 PUBLIC_PORT，
+# 而它又要反代到这里；两者相等就是端口自环（详见 deploy.conf 第 7 节注释）。
+# 显式传 --server.port 让 gateway 让位，nginx 才能独占 PUBLIC_PORT。
+# ---------------------------------------------------------------------
+PORT_GATEWAY=${PORT_GATEWAY}
+
 # OpenAPI 接口是否需要 API Key。公网部署保持 true。
 REQUIRE_API_KEY=true
 
@@ -525,10 +534,10 @@ svc_start() {
     sleep 2
   done < <(enabled_services)
 
-  c_info "等待 Gateway(8080) 就绪"
+  c_info "等待 Gateway(${PORT_GATEWAY}) 就绪"
   local ok=false
   for _ in $(seq 1 60); do
-    if (echo > /dev/tcp/127.0.0.1/8080) >/dev/null 2>&1; then ok=true; break; fi
+    if (echo > /dev/tcp/127.0.0.1/${PORT_GATEWAY}) >/dev/null 2>&1; then ok=true; break; fi
     sleep 2
   done
   if [ "${ok}" = "true" ]; then

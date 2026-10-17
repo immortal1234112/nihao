@@ -156,7 +156,14 @@ systemctl enable nginx >/dev/null 2>&1 || true
 # =====================================================================
 c_info "创建目录 ${ROOT}"
 mkdir -p "${ROOT}"/{apps,web,config,logs,downloads,sql,bin,systemd,nginx}
-chmod 750 "${ROOT}"
+
+# ⚠️ ROOT 必须是 755，不能是 750。
+#    nginx 的 worker 进程以 www-data 运行，要从 ${ROOT}/web 读静态文件，
+#    而进入该目录需要 ROOT 的 x 位。设成 750 时 nginx 直接回 500
+#    （error.log 里往往什么都不记，因为失败发生在路径解析阶段）。
+#    安全性不靠目录权限保证：真正敏感的是 .env / services.env，
+#    它们本身是 600（见 deploy.sh 的 chmod 600），www-data 依然读不到。
+chmod 755 "${ROOT}"
 chmod 755 "${ROOT}"/{apps,web,sql,bin,systemd,nginx}
 # config/ 和 logs/ 只有 root 能看：config 里有配置，logs 里有用户 prompt 明文
 chmod 750 "${ROOT}"/{config,logs}
