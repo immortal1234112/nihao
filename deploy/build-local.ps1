@@ -180,9 +180,21 @@ foreach ($f in $DeployFiles) {
     $p = Join-Path $DeployDir $f
     if (Test-Path $p) { Copy-Item $p $StagingDir -Force } else { Warn "  缺少 deploy/$f" }
 }
-Copy-Item (Join-Path $DeployDir 'bin\run-service.sh')    (Join-Path $StagingDir 'bin')    -Force
-Copy-Item (Join-Path $DeployDir 'systemd\ai-agent@.service') (Join-Path $StagingDir 'systemd') -Force
-Copy-Item (Join-Path $DeployDir 'nginx\ai-agent.conf')   (Join-Path $StagingDir 'nginx')  -Force
+# 这三个是"有就上传、没有就警告"的，但 run-service.sh 不一样：
+# 它是 systemd 的 ExecStart 目标，缺了会导致所有服务起不来。
+# 所以单独用 Die 硬失败，而不是 Warn 后继续打出个残缺的包。
+$RequiredFiles = @(
+    @{ Path = 'bin\run-service.sh';           Dst = 'bin'     },
+    @{ Path = 'systemd\ai-agent@.service';    Dst = 'systemd' },
+    @{ Path = 'nginx\ai-agent.conf';          Dst = 'nginx'   }
+)
+foreach ($rf in $RequiredFiles) {
+    $src = Join-Path $DeployDir $rf.Path
+    if (-not (Test-Path $src)) {
+        Die "缺少 deploy/$($rf.Path) —— 它是部署必需文件（systemd 启动器/单元/nginx 站点），不能打残缺包"
+    }
+    Copy-Item $src (Join-Path $StagingDir $rf.Dst) -Force
+}
 
 # =====================================================================
 #  4. 打包

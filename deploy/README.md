@@ -40,11 +40,55 @@
 | 服务发现 | Spring Cloud `SimpleDiscoveryClient`（静态表） | Nacos |
 | 内容审核 | 关闭（提示词不过滤敏感词） | security-service |
 | 视频生成 | 关闭 | video-engine |
-| 实测常驻 | ~1.8 GB | ~4.5 GB |
+| 实测常驻 | ~1.7 GB | ~4.5 GB |
 
 切换档位只需要改 [deploy.conf](deploy.conf) 里的 `PROFILE`，重跑 `./deploy.sh all`。
 **代码一行都不用改** —— 静态服务发现是 `spring-cloud-commons` 自带的能力，
 `lb://` 路由、Feign、Gateway 全部照常工作。
+
+### 2C2G 内存账本（lite 档）
+
+2G 内存跑这套是**贴着上限**的。下面是逐项实测值，部署前先对照自己的机器：
+
+| 项 | 常驻 | 说明 |
+|---|---|---|
+| `gateway` | 150 MB | 堆 128m + Netty 堆外 96m |
+| `user-service` | 180 MB | 堆 192m |
+| `agent-core` | 280 MB | 堆 320m，Metaspace 160m（类最多） |
+| `image-engine` | 180 MB | 堆 192m |
+| `storage-service` | 170 MB | 堆 160m |
+| **5 个 JVM 小计** | **960 MB** | |
+| `mysql` | 250 MB | buffer pool 压到 128m、关 performance_schema 与 binlog |
+| `rabbitmq` | 150 MB | 水位阀 0.3 |
+| `minio` | 80 MB | |
+| `redis` | 10 MB | maxmemory 128m 只是兜底阀 |
+| **4 个容器小计** | **490 MB** | |
+| Ubuntu + systemd + nginx | 215 MB | |
+| **合计** | **~1665 MB** | 占 2048 MB 的 **81%** |
+| **余量** | **~383 MB** | 靠 4G swap 兜底 |
+
+> 余量只有 ~380 MB，这不是"绰绰有余"而是"刚好够用"。
+> 所以 `install` 阶段会强制配 **4G swap**（`vm.swappiness=20`），
+> 每个服务还有 systemd `MemoryMax` 硬限——失控时只杀那一个服务，不会拖着整机 OOM。
+
+**如果要更多余量**，按影响从大到小：
+
+1. 关掉 `image-engine`（省 180 MB）——但图片生成就没了，通常不值得
+2. `agent-core` 堆降到 256m（省 64 MB）——对话长了更容易 OOM
+3. 升配到 4C4G 改 `PROFILE="medium"`（多 2 个服务但余量反而更大）
+
+### 2C2G 的 JVM 防御参数
+
+[deploy.conf](deploy.conf) 的 `JVM_BASE` 里有几条是**小内存机器专用的保命项**，不要删：
+
+| 参数 | 作用 |
+|---|---|
+| `-XX:+ExitOnOutOfMemoryError` | 堆耗尽时立刻退出，由 systemd 拉起。不加会疯狂 GC + 换页，swap 打满、SSH 卡死，整机假死 |
+| `-XX:ActiveProcessorCount=2` | 强制 JVM 按 2 核算线程池。云主机上可能读到 16 核，ForkJoinPool/GC 线程会按 16 开，白吃内存 |
+| `-XX:-UsePerfData` | 关掉 hsperfdata 写入，每个 JVM 省几 MB，5 个就是几十 MB |
+| `-XX:MaxDirectMemorySize` | 限制 Netty/OkHttp 的堆外内存（默认等于 Xmx，会突破物理内存） |
+| `-XX:+UseSerialGC` | 2 核 + 小堆下比 G1 更省（G1 要维护记忆集和并发标记线程） |
+| `-Dfile.encoding=UTF-8` | Linux locale 可能是 POSIX/C，不加中文会乱码 |
 
 ---
 
@@ -202,19 +246,64 @@ journalctl -u ai-agent@agent-core -n 100 --no-pager
 | 提交任务报 `QUOTA_UNAVAILABLE` | `INTERNAL_AUTH_TOKEN` 为空 → 内部接口 401（失败关闭） | 检查 `/opt/ai-agent/services.env`，重跑 `./deploy.sh config` |
 | 提交任务报 `AUDIT_UNAVAILABLE` | security-service 关了但降级开关没开 | 重跑 `./deploy.sh config`（会按档位自动推导 `PROMPT_AUDIT_DEGRADE_ALLOWED=true`） |
 | 容器全在但服务连不上数据库 | MySQL 端口不对 | `services.env` 里 `MYSQL_PORT` 必须是 3306（jar 内默认值是开发用的 3307） |
+| 中文显示成 `é»˜è®¤` 这类乱码 | 数据写入时字符集不对（双重编码） | 见下方「中文乱码」一节 |
+
+### 中文乱码
+
+两类完全不同的问题，别混：
+
+**① 数据层面的双重编码**（页面上的中文变 `é»˜è®¤`）
+
+用 `docker exec mysql mysql < file.sql` 导入含中文的脚本时，客户端
+`character_set_client` 默认 `latin1`，会把 UTF-8 字节当 Latin-1 收下再编码一次。
+
+预防：所有 `sql/*.sql` 开头已有 `SET NAMES utf8mb4`，导入命令也要带参数：
+
+```bash
+docker exec -i ai-mysql mysql -uroot -p"$PW" --default-character-set=utf8mb4 < sql/xxx.sql
+```
+
+`./deploy.sh db` 已经带了该参数，正常部署不会踩到。
+
+已经坏了的，用这条 SQL 还原：
+
+```sql
+UPDATE 表名 SET 列名 = CONVERT(CAST(CONVERT(列名 USING latin1) AS BINARY) USING utf8mb4)
+WHERE 列名 LIKE '%Ã%' OR 列名 LIKE '%é%';
+```
+
+判断依据：「默认」的正确 UTF-8 十六进制是 `E9BB98E8AEA4`，坏掉的是
+`C3A9C2BBCB9CC3A8C2AEC2A4`（每个字节都被多编码了一次）。
+
+**② JVM 层面的编码**
+
+`JVM_BASE` 里已加 `-Dfile.encoding=UTF-8`。如果你的老部署没有这条，
+日志或接口返回里的中文会是 `?`。重跑 `./deploy.sh config` 后 restart 即可。
 
 ### 经常被 OOM 杀掉 / SSH 卡
 
 ```bash
 free -h
-vmstat 1 5        # 看 si/so 列，长期不为 0 说明真的不够用
+vmstat 1 5                    # 看 si/so 列，长期不为 0 说明真的不够用
+systemctl status 'ai-agent@*' # 看哪个服务被 OOM kill 过
+dmesg -T | grep -i 'killed process'   # 内核 OOM 记录
+journalctl -u ai-agent@agent-core -n 50 --no-pager
 ```
 
-2C2G 跑这套是贴着极限的。已经做的缓解：JVM 显式限堆、每个服务有 `MemoryMax`
-上限（一个服务失控时只杀它而不是整机）、4G swap。
+2C2G 跑这套是贴着极限的（~1665 MB / 2048 MB）。已经做的缓解：
 
-如果长期靠 swap 撑着，说明该升配了 —— 升到 4C4G 后把 `deploy.conf` 的
-`PROFILE` 改成 `medium`，重跑 `./deploy.sh all` 就行。
+| 措施 | 位置 | 作用 |
+|---|---|---|
+| JVM 显式限堆 | `deploy.conf` 的 `JVM_OPTS_*` | 不让 JVM 按物理内存自动扩张 |
+| `-XX:+ExitOnOutOfMemoryError` | `JVM_BASE` | 堆耗尽时快退，避免拖死整机 |
+| `-XX:ActiveProcessorCount=2` | `JVM_BASE` | 防云主机误报核数导致线程池过大 |
+| 每个服务 `MemoryMax` | `systemd/ai-agent@.service` | 失控时只杀那一个服务 |
+| 4G swap + `swappiness=20` | `remote-install.sh` | 兜底，且不早换出 JVM 热堆 |
+| MySQL 调优 | `docker-compose.infra.yml` | buffer pool 128m、关 perf_schema/binlog，省 ~150 MB |
+
+**判断该升配的信号**：`vmstat 1 5` 的 si/so 长期不为 0，或者
+`systemctl status` 里频繁出现 `status=9/KILL`。升到 4C4G 改 `PROFILE="medium"`
+重跑 `./deploy.sh all` —— 多 2 个服务但余量反而更大。
 
 ### 前端能开，任务进度条不动
 
@@ -312,13 +401,41 @@ docker run --rm -v ai-agent_minio_data:/data -v ~:/backup alpine \
 
 ---
 
-## 9. 已知限制
+## 9. 已知限制（lite / 2C2G 档）
+
+**功能层面**
 
 - **内容审核已关闭**。极简档没有 security-service，提示词不做敏感词过滤。
   云端模型厂商有自己的审核兜底，但那是第二道防线，不等于合规。
+- **视频生成不可用**。video-engine 不启动，前端选视频会失败。
 - **审计日志不再落库**。没有消费者，队列里的消息 1 小时后自动过期
   （`deploy.sh` 会自动给队列加 TTL 策略）。升到完整档会自动取消该策略。
+- **提示词自动翻译默认关闭**。`PROMPT_ENHANCE_ENABLED=false`（省一次 LLM 调用
+  和几秒等待）。配好 LLM provider 后可改成 `true` 重跑 `./deploy.sh config`。
+
+**架构层面**
+
 - **单点无冗余**。Redis 挂了整个网关会不可用（网关鉴权要查 Redis 黑名单），
   MySQL 挂了全平台不可用。这是单机 2C2G 的必然代价。
 - **静态服务发现不会自动感知实例上下线**。改端口/加减服务后必须重跑
   `./deploy.sh config`。
+- **Nacos 不可用**。`lite`/`medium` 档用 `SimpleDiscoveryClient` 静态表替代；
+  只有 `full` 档才起 Nacos（它本身要 ~500 MB，2G 机器装不下）。
+
+**2C2G 特有的性能约束**
+
+| 约束 | 表现 | 缓解 |
+|---|---|---|
+| 内存余量仅 ~380 MB | 高峰期靠 swap，IO 变慢 | 4G swap + `swappiness=20` + 每服务 `MemoryMax` |
+| 只有 2 核 | 并发对话/生成会排队 | `-XX:ActiveProcessorCount=2` 避免线程池虚开；RAG 文档解析串行 |
+| 首次启动慢 | 5 个 JVM 逐个启动要 1~2 分钟 | 耐心等；`./deploy.sh status` 看进度 |
+| Maven 不能在服务器编译 | 编译期 1.5G+ 会和运行中服务抢内存 | `BUILD_ON_SERVER=false`，本地构建后上传 |
+| 长回答流式较慢 | 2 核上模型输出 token 速率受限 | SSE 已配 `proxy_buffering off`，不会"憋一大段再吐" |
+| RAG 检索是应用层全量余弦 | 知识库 >2000 分块时明显变慢 | `rag.search.max-candidates` 调小，或控制单库文档量 |
+
+**内存紧张时的取舍顺序**（按影响从小到大）
+
+1. 关 `PROMPT_ENHANCE_ENABLED`（已默认关）—— 几乎无感
+2. `agent-core` 堆 320m → 256m —— 对话窗口变短
+3. 关 `image-engine` —— 省 180 MB，但图片生成没了
+4. 升级到 4C4G 用 `medium` 档 —— 根本解法

@@ -15,6 +15,9 @@ out/
 bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
+# 例外: 部署包里的服务启动器 —— systemd 的 ExecStart 指向它,
+# 缺失会导致所有服务起不来（曾因这条 Eclipse 规则被误忽略）
+!deploy/bin/
 
 ### NetBeans ###
 /nbproject/private/

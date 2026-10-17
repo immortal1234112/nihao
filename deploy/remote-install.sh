@@ -249,11 +249,15 @@ if [ -f "${UNIT_SRC}" ]; then
     [ -n "${opts}" ] || continue
     xmx="$(printf '%s' "${opts}" | sed -n 's/.*-Xmx\([0-9]\+\)m.*/\1/p')"
     [ -n "${xmx}" ] || continue
-    case "${opts}" in
-      *JVM_MEDIUM*) headroom=320 ;;   # -Xmx 之外要给 Metaspace(160) + 线程栈 + CodeCache
-      *)            headroom=260 ;;   # -Xmx 之外要给 Metaspace(128) + 线程栈 + CodeCache
-    esac
-    max=$((xmx + headroom))
+
+    # headroom = Metaspace + 线程栈 + CodeCache + 少量堆外。
+    # 从 opts 里实际解析 MaxMetaspaceSize，而不是靠匹配变量名 ——
+    # 之前写成 case *JVM_MEDIUM* 是错的：opts 是展开后的字面量，
+    # 不含 "JVM_MEDIUM" 这个变量名，该分支永远不会命中。
+    meta="$(printf '%s' "${opts}" | sed -n 's/.*-XX:MaxMetaspaceSize=\([0-9]\+\)m.*/\1/p')"
+    [ -n "${meta}" ] || meta=128
+    # 128/160(Metaspace) + 64(线程栈: 约 100 线程 × 512k) + 48(CodeCache) + 18(杂项)
+    max=$((xmx + meta + 130))
 
     dropin_dir="/etc/systemd/system/ai-agent@${svc}.service.d"
     mkdir -p "${dropin_dir}"

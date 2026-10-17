@@ -261,6 +261,17 @@ REQUIRE_API_KEY=true
 # ---------------------------------------------------------------------
 PROMPT_AUDIT_DEGRADE_ALLOWED=$([ "${ENABLE_SECURITY_SERVICE}" = "true" ] && echo false || echo true)
 
+# 配额降级开关 —— 保持失败关闭（false）。
+#
+# 与审核开关的区别: 配额服务在 user-service 里, 三档部署都启用, 不存在"档位关了
+# 它"的情况, 所以不能按 ENABLE_* 推导。这里显式写 false 并说明原因, 避免运维
+# 看到上面那条推导后困惑"为什么这个没有开关"。
+#
+# ⚠️ 保持 false 是有意的: 降级放行意味着**不扣配额也不校验余额**, 等于免费无限
+#    生成。只有当 user-service 不可用（登录也会一起挂）时才会触发, 那时放行
+#    生成反而更危险。真要临时放开, 在服务器上手工改 services.env 后 restart。
+QUOTA_DEGRADE_ALLOWED=false
+
 # ---------------------------------------------------------------------
 # 联网搜索已整体下线（含自建 SearXNG 容器、search 模块与 model_config 种子行）,
 # 这里不再需要任何开关。重启该功能要同时恢复代码、种子数据与部署编排。
@@ -270,6 +281,17 @@ PROMPT_AUDIT_DEGRADE_ALLOWED=$([ "${ENABLE_SECURITY_SERVICE}" = "true" ] && echo
 # Linux 上必须覆盖, 否则该功能会往一个不存在的目录写。
 VIDEO_DOWNLOAD_DIR=${ROOT}/downloads
 VIDEO_DOWNLOAD_ENABLED=false
+
+# ---------------------------------------------------------------------
+# 提示词自动翻译（中文 → 英文, 生成模型对英文理解更佳）
+#
+# 默认 true, 但 2C2G 上有两个顾虑:
+#   1. 每次提交任务都多一次 LLM 调用, 占 agent-core 的堆和线程
+#   2. 若服务器上还没配任何 LLM provider, 这次调用必然失败（虽有降级不报错,
+#      但每次白等几秒超时）
+# 所以默认关掉; 配好 LLM provider 后想开启, 改成 true 重跑 ./deploy.sh config。
+# ---------------------------------------------------------------------
+PROMPT_ENHANCE_ENABLED=false
 
 # ---------------------------------------------------------------------
 # JVM 参数（按服务区分, run-service.sh 按服务名取对应的那个）
@@ -402,10 +424,13 @@ apply_sql() {
   done
   [ "${ready}" = "true" ] || c_die "MySQL 90 秒内未就绪, 请查看: docker logs ai-mysql"
 
-  # 顺序不能变: init 建库 → model_config 种子 → rag → chat → prompt → phase1
+  # 顺序不能变: init 建库 → model_config 种子 → rag → chat → prompt → phase1 → memory_space
   # 全部脚本幂等（IF NOT EXISTS / INSERT IGNORE / information_schema 条件 ALTER）,
   # 重复执行无副作用, 所以每次部署都跑一遍是安全的。
-  local files=(init.sql model_config.sql rag.sql chat.sql prompt_template.sql phase1_project_asset.sql)
+  #
+  # ⚠️ 新增 sql/*.sql 时必须同步加到这里 —— 否则新表不会建, 对应功能运行时报
+  #    "Table doesn't exist"。memory_space.sql（记忆空间）就是补加的一例。
+  local files=(init.sql model_config.sql rag.sql chat.sql prompt_template.sql phase1_project_asset.sql memory_space.sql)
   # shellcheck disable=SC2034
   local f
   for f in "${files[@]}"; do

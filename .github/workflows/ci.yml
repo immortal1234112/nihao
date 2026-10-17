@@ -7,6 +7,69 @@ on:
     branches: [master]
 
 jobs:
+  deploy-sanity:
+    name: Deploy (脚本语法 + 完整性 + 编码)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash 语法检查
+        run: |
+          set -e
+          for f in deploy/deploy.sh deploy/remote-install.sh deploy/bin/run-service.sh; do
+            bash -n "$f" && echo "OK  $f"
+          done
+
+      - name: deploy.conf 可加载且变量齐全
+        run: |
+          set -e
+          bash -c '
+            source deploy/deploy.conf
+            [ "$PROFILE" = "lite" ] || [ "$PROFILE" = "medium" ] || [ "$PROFILE" = "full" ]
+            for svc in gateway user-service agent-core image-engine storage-service; do
+              var="JVM_OPTS_${svc//-/_}"
+              [ -n "${!var}" ] || { echo "缺少 $var"; exit 1; }
+              echo "${!var}" | grep -q -- "-XX:+ExitOnOutOfMemoryError" || { echo "$svc 缺 OOM 快退参数"; exit 1; }
+            done
+            echo "OK  deploy.conf 变量齐全"
+          '
+
+      - name: 部署必需文件都在仓库里
+        # 曾经 deploy/bin/run-service.sh 被 .gitignore 的 Eclipse `bin/` 规则
+        # 误忽略，导致换台机器 clone 后部署必然失败（systemd 找不到 ExecStart）
+        run: |
+          set -e
+          for f in \
+            deploy/deploy.sh deploy/deploy.conf deploy/remote-install.sh \
+            deploy/docker-compose.infra.yml deploy/build-local.ps1 \
+            deploy/bin/run-service.sh deploy/systemd/ai-agent@.service deploy/nginx/ai-agent.conf \
+            sql/init.sql sql/memory_space.sql
+          do
+            git ls-files --error-unmatch "$f" >/dev/null 2>&1 \
+              || { echo "缺失或未被 git 跟踪: $f"; exit 1; }
+          done
+          echo "OK  部署必需文件齐全"
+
+      - name: 编码检查（ps1 需 BOM，shell/sql 禁 BOM）
+        # build-local.ps1 必须带 UTF-8 BOM：Windows PowerShell 5.1 无 BOM 时按
+        # GBK 解析 .ps1，中文注释里的引号会引发莫名的语法错误。
+        # shell 脚本则相反：带 BOM 会让 `#!/usr/bin/env bash` 失效。
+        run: |
+          set -e
+          check_bom() {
+            head -c3 "$1" | od -An -tx1 | tr -d ' \n' | grep -q '^efbbbf$'
+          }
+          for f in deploy/build-local.ps1 start.ps1; do
+            [ -f "$f" ] || continue
+            check_bom "$f" || { echo "$f 缺少 UTF-8 BOM"; exit 1; }
+            echo "OK  $f 有 BOM"
+          done
+          for f in deploy/deploy.sh deploy/remote-install.sh deploy/bin/run-service.sh sql/*.sql; do
+            [ -f "$f" ] || continue
+            if check_bom "$f"; then echo "$f 不应有 BOM（会让 shebang/SET NAMES 失效）"; exit 1; fi
+          done
+          echo "OK  无多余 BOM"
+
   backend-test:
     name: Backend (unit tests + compile)
     runs-on: ubuntu-latest
