@@ -524,11 +524,30 @@ svc_start() {
 
   local svc
   while read -r svc; do
-    c_info "启动 ${svc}"
-    # enable --now: 顺带建立开机自启。服务器重启后这套要能自己回来,
-    # 单独 systemctl start 的话重启就全没了。
-    systemctl enable --now "ai-agent@${svc}" >/dev/null 2>&1 || \
-      systemctl start "ai-agent@${svc}"
+    # ⚠️ 已在运行的服务不能只靠 `systemctl enable --now` —— 它对 active 的服务
+    #    是空操作。上传了新 jar 之后跑 ./deploy.sh start，会"以为部署了但跑的是
+    #    旧代码"，日志里也看不出任何异常。
+    #    这里用 jar 的 mtime 与 /proc/<pid> 的 mtime（即进程启动时刻）比较：
+    #      jar 更新  -> 重启
+    #      jar 未变  -> 保持不动（避免无谓重启健康服务）
+    local state pid jar
+    state="$(systemctl is-active "ai-agent@${svc}" 2>/dev/null || true)"
+    if [ "${state}" = "active" ]; then
+      jar="$(find "${ROOT}/apps" -maxdepth 1 -name "${svc}-*.jar" -print -quit 2>/dev/null || true)"
+      pid="$(systemctl show "ai-agent@${svc}" -p MainPID --value 2>/dev/null || echo 0)"
+      if [ -n "${jar}" ] && [ "${pid}" != "0" ] && [ -d "/proc/${pid}" ] && [ "${jar}" -nt "/proc/${pid}" ]; then
+        c_info "重启 ${svc}（jar 比运行中的进程新）"
+        systemctl restart "ai-agent@${svc}"
+      else
+        c_info "${svc} 已在运行且 jar 无更新，保持不动"
+      fi
+    else
+      c_info "启动 ${svc}"
+      # enable --now: 顺带建立开机自启。服务器重启后这套要能自己回来,
+      # 单独 systemctl start 的话重启就全没了。
+      systemctl enable --now "ai-agent@${svc}" >/dev/null 2>&1 || \
+        systemctl start "ai-agent@${svc}"
+    fi
     # 逐个起来时给 JVM 一点时间, 避免 5 个 JVM 同时启动抢 CPU 和内存
     # （2 核机器上同时起 5 个 Spring Boot 会明显互相拖慢）
     sleep 2

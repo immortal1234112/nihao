@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Service
@@ -23,6 +24,28 @@ public class ModelConfigService {
     private ModelConfigMapper mapper;
     private final ConcurrentHashMap<String, ModelConfig> cache = new ConcurrentHashMap<>();
 
+    /**
+     * model-config.cache-ttl-ms：缓存自动过期时间（毫秒），默认 60 秒。
+     * <p>
+     * 为什么需要它 —— 这是跨进程一致性问题：
+     * 缓存在**每个 JVM 进程内各存一份**，@PostConstruct 时加载一次。
+     * 管理后台保存 API Key 时走的是 agent-core 的 AdminController →
+     * saveConfig() → refreshCache()，**只刷新了 agent-core 自己的缓存**。
+     * image-engine / video-engine 是独立进程，缓存仍是启动时的旧值，
+     * 于是即使 Key 已入库，引擎的 healthCheck() 依旧返回 false，
+     * 生成任务直接报 "No available generation model"。
+     * <p>
+     * 表现为"对话能用、图片/视频不能用"，且必须重启引擎才恢复，极难反查。
+     * 加 TTL 后每个进程最多 60 秒自动追上，无需重启。
+     */
+    @Value("${model-config.cache-ttl-ms:60000}")
+    private long cacheTtlMs;
+
+    /** 上次成功加载的时间戳（0 = 从未加载） */
+    private volatile long lastLoadAt = 0L;
+    /** 保证同一进程内只有一个线程在重载，避免并发打库 */
+    private final ReentrantLock reloadLock = new ReentrantLock();
+
     /** model-config.crypto-key：AES 加密密钥（≥16 字符）；未配置时保持明文模式（兼容存量部署） */
     @Value("${model-config.crypto-key:}")
     private String cryptoKey;
@@ -34,14 +57,21 @@ public class ModelConfigService {
             return;
         }
         try {
-            cache.clear();
             List<ModelConfig> configs = mapper.selectList(
                 new LambdaQueryWrapper<ModelConfig>().eq(ModelConfig::getEnabled, 1)
             );
+            int before = cache.size();
+            cache.clear();
             for (ModelConfig c : configs) {
                 cache.put(c.getProvider(), c);
             }
-            log.info("ModelConfig cache loaded: {} providers", cache.size());
+            lastLoadAt = System.currentTimeMillis();
+            // 只在数量变化时打 INFO，避免 TTL 刷新把日志刷满
+            if (before != cache.size() || before == 0) {
+                log.info("ModelConfig cache loaded: {} providers", cache.size());
+            } else {
+                log.debug("ModelConfig cache refreshed: {} providers", cache.size());
+            }
         } catch (Exception e) {
             log.warn("ModelConfigService: model_config table not available in current database, using fallback mode. ({})", e.getMessage());
         }
@@ -51,16 +81,40 @@ public class ModelConfigService {
         loadCache();
     }
 
+    /**
+     * 缓存过期则重载（懒加载，无 @Scheduled 依赖）。
+     * 每次读配置前调一次：只是一次时间戳比较，开销可忽略；
+     * 真正打库最多每 {@code cacheTtlMs} 一次。
+     */
+    private void maybeReload() {
+        if (mapper == null) return;                 // 网关等无数据源进程
+        if (cacheTtlMs <= 0) return;                // 显式关闭自动刷新
+        long now = System.currentTimeMillis();
+        if (now - lastLoadAt < cacheTtlMs) return;
+        if (!reloadLock.tryLock()) return;          // 已有线程在刷，本次用旧值
+        try {
+            // 二次检查：拿到锁时可能已被别的线程刷过
+            if (System.currentTimeMillis() - lastLoadAt >= cacheTtlMs) {
+                loadCache();
+            }
+        } finally {
+            reloadLock.unlock();
+        }
+    }
+
     public ModelConfig getConfig(String provider) {
+        maybeReload();
         return cache.get(provider);
     }
 
     public boolean isEnabled(String provider) {
+        maybeReload();
         ModelConfig c = cache.get(provider);
         return c != null && c.getApiKey() != null && !c.getApiKey().isBlank();
     }
 
     public String getApiKey(String provider, String fallback) {
+        maybeReload();
         ModelConfig c = cache.get(provider);
         if (c != null && c.getApiKey() != null && !c.getApiKey().isBlank()) {
             return decryptIfNeeded(c.getApiKey());
@@ -69,6 +123,7 @@ public class ModelConfigService {
     }
 
     public String getApiSecret(String provider, String fallback) {
+        maybeReload();
         ModelConfig c = cache.get(provider);
         if (c != null && c.getApiSecret() != null && !c.getApiSecret().isBlank()) {
             return decryptIfNeeded(c.getApiSecret());
@@ -77,6 +132,7 @@ public class ModelConfigService {
     }
 
     public String getBaseUrl(String provider, String fallback) {
+        maybeReload();
         ModelConfig c = cache.get(provider);
         if (c != null && c.getBaseUrl() != null && !c.getBaseUrl().isBlank()) {
             return c.getBaseUrl();
@@ -85,6 +141,7 @@ public class ModelConfigService {
     }
 
     public String getModel(String provider, String fallback) {
+        maybeReload();
         ModelConfig c = cache.get(provider);
         if (c != null && c.getModel() != null && !c.getModel().isBlank()) {
             return c.getModel();

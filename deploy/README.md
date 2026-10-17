@@ -222,10 +222,36 @@ SQL 迁移 + 重启全部服务）。
 ```bash
 ./deploy.sh status            # 看状态
 ./deploy.sh logs agent-core   # 跟日志
-./deploy.sh restart
+./deploy.sh restart           # 强制重启全部服务
 ./deploy.sh doctor            # 只做预检和审计队列治理，不重启
 ./deploy.sh admin <用户名>     # 提权管理员
 ```
+
+### `start` / `restart` / `all` 的区别（重要）
+
+| 命令 | 对**已在运行**的服务 | 什么时候用 |
+|---|---|---|
+| `start` | **jar 比进程新才重启**，否则跳过 | 传了新 jar 后最省事的做法 |
+| `restart` | 无条件 stop + start | 只改了配置 / 要强制重来 |
+| `all` | 走 `stop` + `start`，还会做配置生成、SQL 迁移 | 完整部署（`build-local.ps1 -Deploy` 用的就是它） |
+
+> 历史坑：`start` 以前用 `systemctl enable --now`，对 active 的服务是**空操作**。
+> 上传新 jar 后跑 `start` 会「以为部署了但实际跑旧代码」，日志里毫无异常。
+> 现在 `start` 会比较 jar 的 mtime 和 `/proc/<pid>` 的 mtime（即进程启动时刻），
+> 只有 jar 更新才重启。
+
+**判断服务跑的是不是最新 jar：**
+
+```bash
+for s in gateway user-service agent-core image-engine storage-service; do
+  jar=$(ls -1 --time-style=+%H:%M:%S -l /opt/ai-agent/apps/${s}-*.jar | awk '{print $6}')
+  pid=$(systemctl show ai-agent@$s -p MainPID --value)
+  started=$(stat -c %y /proc/$pid | cut -d' ' -f2 | cut -d. -f1)
+  printf '%-16s jar=%s  进程启动=%s\n' "$s" "$jar" "$started"
+done
+```
+
+`jar` 时间晚于 `进程启动` = 跑的是旧代码。
 
 ---
 
@@ -256,6 +282,35 @@ journalctl -u ai-agent@agent-core -n 100 --no-pager
 | 提交任务报 `AUDIT_UNAVAILABLE` | security-service 关了但降级开关没开 | 重跑 `./deploy.sh config`（会按档位自动推导 `PROMPT_AUDIT_DEGRADE_ALLOWED=true`） |
 | 容器全在但服务连不上数据库 | MySQL 端口不对 | `services.env` 里 `MYSQL_PORT` 必须是 3306（jar 内默认值是开发用的 3307） |
 | 中文显示成 `é»˜è®¤` 这类乱码 | 数据写入时字符集不对（双重编码） | 见下方「中文乱码」一节 |
+| 配了 API Key，但图片/视频报 `No available generation model` | 引擎进程的配置缓存未刷新 | 见下方「API Key 改了不生效」一节 |
+
+### API Key 改了不生效（图片/视频能提交但立刻失败）
+
+**症状**：管理后台里 provider 已启用且有 Key，对话能用，但提交图片/视频任务立刻
+`FAILED`，`errorMsg` = `No available generation model`。
+
+**原因**：`ModelConfigService` 的缓存在**每个 JVM 进程内各存一份**。管理后台保存
+Key 时调的是 agent-core 里的 `saveConfig()`，只刷新了 agent-core 自己的缓存；
+image-engine / video-engine 是独立进程，仍拿着启动时的旧配置，`healthCheck()`
+因此返回 false，注册中心里"没有一个可用模型"。
+
+**现状**：已加 60 秒 TTL 懒刷新（`model-config.cache-ttl-ms`），下一个请求进来时
+会自动重载，**不再需要重启**。首次生效最多等 60 秒。
+
+**如果是老版本（没有 TTL 的 jar）**：
+
+```bash
+systemctl restart ai-agent@image-engine
+systemctl restart ai-agent@video-engine   # 若该档位启用了视频引擎
+```
+
+**验证缓存是否已加载到 Key**：
+
+```bash
+grep 'ModelConfig cache loaded' /opt/ai-agent/logs/image-engine.log | tail -3
+# 期望看到 "cache loaded: N providers" 且 N ≥ 已启用的 provider 数
+# 若为 0，说明 image-engine 启动时 model_config 表还是空的
+```
 
 ### 中文乱码
 
