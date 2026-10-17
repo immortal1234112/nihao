@@ -9,4 +9,55 @@
 .memoryTable :global(.ant-table-thead > tr > th) { background: #f7faf9; color: #52656d; font-size: 12px; font-weight: 700; }
 .memoryTable :global(.ant-table-tbody > tr > td) { color: #40565d; font-size: 13px; }
 .memoryTable :global(.ant-table-tbody > tr:hover > td) { background: #f2f9f8 !important; }
-@media (max-width: 720px) { .pageHeader { align-items: flex-start; flex-direction: column; } .pageTitle { font-size: 20px !important; } }
+
+/* ===== 记忆空间切换条 ===== */
+.spaceCard {
+  margin-bottom: 8px;
+  border: 1px solid #dfe9eb;
+  border-radius: 10px;
+  background: #fbfdfd;
+  box-shadow: 0 6px 18px rgba(23, 50, 58, 0.04);
+}
+.spaceBar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+.spaceLabel { flex: 0 0 auto; color: #52656d; font-size: 13px; }
+.spaceLabel :global(.anticon) { color: #0f766e; }
+.spaceHelp { font-size: 12px; border-bottom: 1px dashed #b6c7cb; cursor: help; }
+.spaceChips { flex: 1 1 auto; min-width: 0; }
+.spaceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 12px;
+  border: 1px solid #dfe9eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #52656d;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  user-select: none;
+}
+.spaceChip:hover { border-color: #7ec8c0; color: #0f766e; }
+.spaceChipActive {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.24);
+}
+.spaceChipActive:hover { border-color: #0f766e; color: #fff; }
+.spaceChipIcon { font-size: 11px; opacity: 0.75; }
+.spaceAddBtn { color: #0f766e !important; font-size: 13px; border-radius: 999px !important; }
+.spaceAddBtn:hover { background: #eaf6f5 !important; }
+.spaceActions { flex: 0 0 auto; }
+.spaceActions :global(.ant-btn) { font-size: 12px; color: #6b8189; }
+.spaceDesc { margin-top: 6px; padding-left: 2px; font-size: 12px; line-height: 1.6; }
+.modalSpaceName { display: inline-block; padding: 1px 10px; border-radius: 999px; background: #eaf6f5; color: #0f766e; font-size: 13px; font-weight: 600; }
+
+@media (max-width: 720px) {
+  .pageHeader { align-items: flex-start; flex-direction: column; }
+  .pageTitle { font-size: 20px !important; }
+  .spaceBar { align-items: flex-start; flex-direction: column; }
+  .spaceChips { width: 100%; }
+}

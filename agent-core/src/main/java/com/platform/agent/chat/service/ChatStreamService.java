@@ -127,6 +127,8 @@ public class ChatStreamService {
             meta.put("title", conversation.getTitle());
             meta.put("provider", ctx.adapter().provider());
             meta.put("model", ctx.adapter().modelName());
+            // 本次生效的记忆空间：前端据此在对话头部展示「当前空间」，并知道后续提取写回哪里
+            meta.put("spaceId", ctx.spaceId());
             emit(emitter, session, "meta", meta);
 
             // 3. 检索结果一次性下发，前端在首个 delta 前即可渲染参考资料
@@ -174,12 +176,14 @@ public class ChatStreamService {
             // 权威全文：前端用它覆盖本地累积串，天然免疫漏帧/渲染漂移
             done.put("content", answer);
             done.put("references", ctx.references());
+            done.put("spaceId", ctx.spaceId());
             emit(emitter, session, "done", done);
             safeComplete(emitter);
 
             // 6. 会话计数 + 异步记忆提取（在流关闭后做，不占用用户等待时间）
+            //    spaceId 透传：提取结果写回本对话绑定的空间
             chatService.afterTurn(conversation, ctx.adapter().provider(), userId, tenantId,
-                    ctx.userMessage(), answer, ctx.history());
+                    ctx.spaceId(), ctx.userMessage(), answer, ctx.history());
 
         } catch (StreamAbortedException e) {
             // 客户端断开或生成超时：用户消息已落库，留一条悬空 user 比留「部分回答」更糟

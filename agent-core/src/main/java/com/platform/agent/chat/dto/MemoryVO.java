@@ -14,6 +14,8 @@ public class MemoryVO {
     private String content;
     private String memoryType;
     private String category;
+    /** 所属记忆空间 */
+    private String spaceId;
     private String sourceConversationId;
     private LocalDateTime createdAt;
 }

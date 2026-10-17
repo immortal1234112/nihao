@@ -31,6 +31,10 @@ public class UserMemory extends BaseEntity {
     @TableField("tenant_id")
     private String tenantId;
 
+    /** 所属记忆空间（{@link MemorySpace}）；存量数据由迁移脚本回填为默认空间 */
+    @TableField("space_id")
+    private String spaceId;
+
     @TableField("content")
     private String content;
 

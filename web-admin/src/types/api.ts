@@ -266,6 +266,8 @@ export interface ChatRequest {
   topK?: number;
   /** 会话 ID（续聊）；缺省自动创建新会话 */
   conversationId?: string;
+  /** 记忆空间 ID（可选）；缺省落到用户默认空间。会话已绑定时必须与绑定值一致 */
+  spaceId?: string;
 }
 
 export interface ChatResult {
@@ -280,6 +282,8 @@ export interface ChatResult {
   title?: string;
   /** assistant 消息 ID */
   messageId?: string;
+  /** 本次生效的记忆空间 */
+  spaceId?: string;
 }
 
 // ========== 对话会话 ==========
@@ -288,6 +292,8 @@ export interface Conversation {
   title: string;
   provider: string;
   datasetId: string | null;
+  /** 绑定的记忆空间（创建后不可变更） */
+  spaceId: string | null;
   systemPrompt: string | null;
   messageCount: number;
   createdAt: string;
@@ -302,12 +308,29 @@ export interface ChatMessageItem {
   createdAt: string;
 }
 
+// ========== 记忆空间 ==========
+/**
+ * 记忆空间：一套独立的「长期 + 短期」记忆。
+ * 对话创建时绑定一个空间，该对话的注入与提取都限定在内，从而可同时开多个对话各自参考不同记忆。
+ */
+export interface MemorySpace {
+  id: string;
+  name: string;
+  description: string;
+  /** 默认空间：每用户唯一，不可删、不可改名 */
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
 // ========== 长期记忆 ==========
 export interface MemoryItem {
   id: string;
   content: string;
   memoryType: 'FACT' | 'PREFERENCE';
   category: 'LONG_TERM' | 'SHORT_TERM';
+  /** 所属记忆空间 */
+  spaceId?: string;
   sourceConversationId: string;
   createdAt: string;
 }
@@ -375,6 +398,8 @@ export interface ChatStreamMeta {
   title: string;
   provider: string;
   model: string;
+  /** 本次生效的记忆空间 */
+  spaceId?: string;
 }
 
 /** 流水线阶段变化：目前只有 generate = 模型开始生成 */
@@ -399,6 +424,8 @@ export interface ChatStreamDone {
   durationMs: number;
   content: string;
   references: RagReference[];
+  /** 本次生效的记忆空间 */
+  spaceId?: string;
 }
 
 export interface ChatStreamError {

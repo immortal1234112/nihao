@@ -59,14 +59,14 @@ public class MemoryExtractProcessor {
     private static final int CONTEXT_MSG_MAX_CHARS = 300;
 
     @Async("memoryExecutor")
-    public void extractAsync(String userId, String tenantId, String provider,
+    public void extractAsync(String userId, String tenantId, String spaceId, String provider,
                              String userMessage, String assistantReply, String conversationId,
                              List<ChatMessage> recentHistory) {
         try {
             // 0. 显式记忆指令（"记住 X"/"记得 X"）：不依赖模型判断，直接强制落库（用户指令优先级最高）
             String instructed = extractInstruction(userMessage);
             if (instructed != null) {
-                memoryService.saveForced(userId, tenantId, conversationId, instructed, "FACT");
+                memoryService.saveForced(userId, tenantId, spaceId, conversationId, instructed, "FACT");
             }
 
             String effectiveProvider = extractProvider != null && !extractProvider.isBlank()
@@ -102,7 +102,7 @@ public class MemoryExtractProcessor {
                     + "对话：\n" + dialogue;
 
             String raw = adapter.chat("", prompt, Map.of("maxTokens", extractMaxTokens));
-            saveParsed(userId, tenantId, conversationId, raw);
+            saveParsed(userId, tenantId, spaceId, conversationId, raw);
         } catch (Exception e) {
             log.warn("Memory extract failed (ignored): {}", e.getMessage());
         }
@@ -145,7 +145,7 @@ public class MemoryExtractProcessor {
 
     // ==================== 解析（三级降级，兼容不同模型输出风格） ====================
 
-    private void saveParsed(String userId, String tenantId, String conversationId, String raw) {
+    private void saveParsed(String userId, String tenantId, String spaceId, String conversationId, String raw) {
         if (raw == null || raw.isBlank()) return;
 
         // 1. 剥 markdown 代码块围栏（```json ... ```），取第一个围栏内容
@@ -161,7 +161,7 @@ public class MemoryExtractProcessor {
                 Object content = item.get("content");
                 Object type = item.get("type");
                 if (content != null && !String.valueOf(content).isBlank()) {
-                    memoryService.saveExtracted(userId, tenantId, conversationId,
+                    memoryService.saveExtracted(userId, tenantId, spaceId, conversationId,
                             String.valueOf(content).trim(),
                             type != null ? String.valueOf(type) : "FACT");
                 }
@@ -199,7 +199,7 @@ public class MemoryExtractProcessor {
             }
         }
         for (String[] item : found) {
-            memoryService.saveExtracted(userId, tenantId, conversationId, item[0], item[1]);
+            memoryService.saveExtracted(userId, tenantId, spaceId, conversationId, item[0], item[1]);
         }
     }
 }

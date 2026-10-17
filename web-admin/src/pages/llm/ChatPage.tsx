@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  Card, Input, Button, Select, Space, Empty, Collapse, List, Modal, App,
+  Card, Input, Button, Select, Space, Empty, Collapse, List, Modal, App, Tag, Tooltip,
 } from 'antd';
 import {
   SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, MessageOutlined,
-  StopOutlined,
+  StopOutlined, FolderOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { llmApi } from '@/api/llm';
 import { SseAbortedError, SseRequestError } from '@/api/sse';
 import DatasetSelect from '@/components/rag/DatasetSelect';
-import { LlmModel, RagReference, Conversation, ChatMessageItem } from '@/types/api';
+import { LlmModel, RagReference, Conversation, ChatMessageItem, MemorySpace } from '@/types/api';
 import './ChatPage.css';
 
 const { TextArea } = Input;
@@ -51,13 +51,35 @@ const ChatPage: React.FC = () => {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<Conversation | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  /** 记忆空间：新对话时可切换；已有对话跟随其绑定值（不可变更） */
+  const [spaces, setSpaces] = useState<MemorySpace[]>([]);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | undefined>(undefined);
   const chatEndRef = useRef<HTMLDivElement>(null);
   /** 「停止」按钮用：中断 fetch 流 */
   const abortRef = useRef<AbortController | null>(null);
 
+  /** 当前对话已绑定的空间（从会话列表里取）；新建对话时为 null */
+  const boundSpaceId = currentId
+    ? conversations.find((c) => c.id === currentId)?.spaceId ?? undefined
+    : undefined;
+  /** 生效空间：已有对话用绑定值，新对话用用户当前选择 */
+  const effectiveSpaceId = boundSpaceId ?? selectedSpaceId;
+  const effectiveSpaceName = spaces.find((s) => s.id === effectiveSpaceId)?.name;
+
   const loadConversations = useCallback(() => {
     llmApi.listConversations().then((res) => {
       setConversations(res.data.data.records);
+    }).catch(() => {});
+  }, []);
+
+  const loadSpaces = useCallback(() => {
+    llmApi.listSpaces().then((res) => {
+      const list = res.data.data;
+      setSpaces(list);
+      setSelectedSpaceId((prev) => {
+        if (prev && list.some((s) => s.id === prev)) return prev;
+        return list.find((s) => s.isDefault)?.id ?? list[0]?.id;
+      });
     }).catch(() => {});
   }, []);
 
@@ -68,7 +90,8 @@ const ChatPage: React.FC = () => {
       if (available.length > 0) setSelectedProvider(available[0].provider);
     }).catch(() => {});
     loadConversations();
-  }, [loadConversations]);
+    loadSpaces();
+  }, [loadConversations, loadSpaces]);
 
   // 流式期间每帧都会更新 messages：此时用瞬时滚动跟随，平滑滚动在高频调用下会互相打断
   useEffect(() => {
@@ -173,6 +196,8 @@ const ChatPage: React.FC = () => {
           datasetId: selectedDataset,
           topK: 3,
           conversationId: currentId ?? undefined,
+          // 新对话带选择的空间；续聊时后端会校验与会话绑定值一致（这里传生效值即可）
+          spaceId: effectiveSpaceId,
         },
         {
           onMeta: (meta) => {
@@ -265,9 +290,31 @@ const ChatPage: React.FC = () => {
                 alignItems: 'center',
               }}
             >
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
                 <MessageOutlined style={{ marginRight: 6, color: '#999' }} />
                 {conv.title}
+                {/* 空间标记：多开对话时一眼区分各自参考哪套记忆 */}
+                {(() => {
+                  const sp = spaces.find((s) => s.id === conv.spaceId);
+                  if (!sp || sp.isDefault) return null;
+                  return (
+                    <span
+                      style={{
+                        marginLeft: 6,
+                        padding: '0 6px',
+                        borderRadius: 999,
+                        background: '#eaf6f5',
+                        color: '#0f766e',
+                        fontSize: 11,
+                        lineHeight: '16px',
+                        display: 'inline-block',
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      {sp.name}
+                    </span>
+                  );
+                })()}
               </span>
               <Space size={2} onClick={(e) => e.stopPropagation()}>
                 <Button type="text" size="small" icon={<EditOutlined />}
@@ -299,6 +346,31 @@ const ChatPage: React.FC = () => {
               style={{ width: 180 }}
               placeholder="知识库（可选，RAG 增强）"
             />
+            {/* 记忆空间：新对话可选；已绑定的对话只展示不可改（换空间需新建对话） */}
+            {boundSpaceId ? (
+              <Tooltip title="本对话已绑定该记忆空间，如需切换请新建对话">
+                <Tag
+                  icon={<FolderOutlined />}
+                  color="cyan"
+                  style={{ marginInlineEnd: 0, padding: '4px 10px', borderRadius: 6, cursor: 'help' }}
+                >
+                  {effectiveSpaceName || '记忆空间'}
+                </Tag>
+              </Tooltip>
+            ) : (
+              <Select
+                value={effectiveSpaceId}
+                onChange={setSelectedSpaceId}
+                style={{ width: 170 }}
+                placeholder="记忆空间"
+                suffixIcon={<FolderOutlined />}
+                options={spaces.map((s) => ({
+                  value: s.id,
+                  // 默认空间本身就叫「默认」，无需再拼后缀（避免「默认（默认）」）
+                  label: s.isDefault && s.name !== '默认' ? `${s.name}（默认）` : s.name,
+                }))}
+              />
+            )}
           </Space>
         </div>
 

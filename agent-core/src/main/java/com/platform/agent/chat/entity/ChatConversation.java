@@ -31,6 +31,15 @@ public class ChatConversation extends BaseEntity {
     @TableField("dataset_id")
     private String datasetId;
 
+    /**
+     * 绑定的记忆空间（{@link MemorySpace}）。
+     * <p>
+     * 创建对话时确定，<b>创建后不可变更</b>——中途换空间会导致上下文撕裂（前半段用工作记忆、
+     * 后半段用个人记忆），要换空间就新建对话。存量会话为 NULL，运行时按默认空间解析。
+     */
+    @TableField("space_id")
+    private String spaceId;
+
     @TableField("system_prompt")
     private String systemPrompt;
 

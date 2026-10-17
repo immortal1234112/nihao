@@ -45,6 +45,7 @@ public class ChatService {
     private final RagService ragService;
     private final MemoryService memoryService;
     private final MemoryExtractProcessor extractProcessor;
+    private final MemorySpaceService memorySpaceService;
 
     @Value("${chat.max-history-tokens:4096}")
     private int maxHistoryTokens;
@@ -80,7 +81,9 @@ public class ChatService {
             List<ChatMessage> history,
             String userMessage,
             Map<String, Object> options,
-            List<RagReference> references) {
+            List<RagReference> references,
+            /** 本次对话生效的记忆空间（注入与提取都用它，保证同一轮读写一致） */
+            String spaceId) {
     }
 
     // ==================== 同步对话 ====================
@@ -95,7 +98,7 @@ public class ChatService {
         com.platform.agent.chat.entity.ChatMessage assistantMsg =
                 persistAssistant(ctx.conversation(), userId, tenantId, response, ctx.references());
         afterTurn(ctx.conversation(), ctx.adapter().provider(), userId, tenantId,
-                ctx.userMessage(), response, ctx.history());
+                ctx.spaceId(), ctx.userMessage(), response, ctx.history());
 
         Map<String, Object> result = new HashMap<>();
         result.put("conversationId", ctx.conversation().getId());
@@ -106,6 +109,7 @@ public class ChatService {
         result.put("content", response);
         result.put("durationMs", duration);
         result.put("references", ctx.references());
+        result.put("spaceId", ctx.spaceId());
         return result;
     }
 
@@ -122,6 +126,7 @@ public class ChatService {
         String message = (String) request.get("message");
         String datasetId = (String) request.get("datasetId");
         String conversationId = (String) request.get("conversationId");
+        String requestSpaceId = (String) request.get("spaceId");
         Number topKNum = (Number) request.get("topK");
         if (message == null || message.isEmpty()) {
             throw new BizException(ErrorCode.PARAM_INVALID, "message 不能为空");
@@ -130,7 +135,18 @@ public class ChatService {
 
         // 1. 会话解析/新建（缺省自动创建，title = 首条消息前 30 字）
         ChatConversation conversation = resolveConversation(conversationId, userId, tenantId,
-                provider, datasetId, systemPrompt, message);
+                provider, datasetId, systemPrompt, requestSpaceId, message);
+
+        // 1.5 解析本次生效的记忆空间：显式指定 > 会话已绑定 > 用户默认空间。
+        //     新会话已在 resolveConversation 里绑定；老会话（space_id 为 NULL）回落到默认空间，
+        //     行为与改造前一致（改造前记忆是全局一套，等价于"默认空间"）。
+        String spaceId = memorySpaceService.resolveSpaceId(userId, tenantId,
+                requestSpaceId, conversation.getSpaceId());
+        if (conversation.getSpaceId() == null || conversation.getSpaceId().isBlank()) {
+            // 老会话首次在新版本里使用时补绑，后续就固定了
+            conversation.setSpaceId(spaceId);
+            conversationMapper.updateById(conversation);
+        }
 
         // 2. 持久化 user 消息
         com.platform.agent.chat.entity.ChatMessage userMsg = new com.platform.agent.chat.entity.ChatMessage();
@@ -153,8 +169,8 @@ public class ChatService {
             history.add(new ChatMessage(m.getRole(), m.getContent()));
         }
 
-        // 4. 记忆注入（失败降级不影响对话）
-        String effectiveSystemPrompt = memoryService.enhanceSystemPrompt(userId, tenantId, message, systemPrompt);
+        // 4. 记忆注入（失败降级不影响对话）—— 限定在本次生效的记忆空间内
+        String effectiveSystemPrompt = memoryService.enhanceSystemPrompt(userId, tenantId, spaceId, message, systemPrompt);
 
         // 引用列表：落库到同一条 references_json
         List<RagReference> references = new ArrayList<>();
@@ -183,7 +199,7 @@ public class ChatService {
         Map<String, Object> options = (Map<String, Object>) request.get("options");
 
         return new PreparedContext(conversation, adapter, effectiveSystemPrompt, history,
-                message, options, references);
+                message, options, references, spaceId);
     }
 
     // ==================== 流水线收尾（同步/流式共用） ====================
@@ -206,15 +222,16 @@ public class ChatService {
 
     /** 更新会话计数 + 异步记忆提取 */
     void afterTurn(ChatConversation conversation, String provider, String userId, String tenantId,
-                   String userMessage, String answer, List<ChatMessage> history) {
+                   String spaceId, String userMessage, String answer, List<ChatMessage> history) {
         // updatedAt 显式刷新：strictUpdateFill 不覆盖非 null 字段
         conversation.setMessageCount((conversation.getMessageCount() == null ? 0 : conversation.getMessageCount()) + 2);
         conversation.setUpdatedAt(java.time.LocalDateTime.now());
         conversationMapper.updateById(conversation);
 
         // 异步记忆提取（显式传参，@Async 线程无 ThreadLocal；history 已截断，取尾部多轮作提取上下文）
+        // spaceId 必须透传：提取结果写回本次对话绑定的空间，不能落到默认空间
         try {
-            extractProcessor.extractAsync(userId, tenantId, provider, userMessage, answer,
+            extractProcessor.extractAsync(userId, tenantId, spaceId, provider, userMessage, answer,
                     conversation.getId(), history);
         } catch (Exception e) {
             log.warn("Memory extract trigger failed (ignored): {}", e.getMessage());
@@ -232,7 +249,7 @@ public class ChatService {
 
     private ChatConversation resolveConversation(String conversationId, String userId, String tenantId,
                                                  String provider, String datasetId, String systemPrompt,
-                                                 String firstMessage) {
+                                                 String requestSpaceId, String firstMessage) {
         if (conversationId != null && !conversationId.isBlank()) {
             ChatConversation conversation = conversationMapper.selectById(conversationId);
             if (conversation == null) {
@@ -241,14 +258,24 @@ public class ChatService {
             if (!conversation.getUserId().equals(userId) || !conversation.getTenantId().equals(tenantId)) {
                 throw new BizException(ErrorCode.NO_PERMISSION);
             }
+            // 空间在创建时绑定、之后不可变更：显式传了不同 spaceId 直接拒绝，避免上下文撕裂
+            if (requestSpaceId != null && !requestSpaceId.isBlank()
+                    && conversation.getSpaceId() != null && !conversation.getSpaceId().isBlank()
+                    && !requestSpaceId.equals(conversation.getSpaceId())) {
+                throw new BizException(ErrorCode.PARAM_INVALID,
+                        "会话已绑定其他记忆空间，如需切换请新建对话");
+            }
             return conversation;
         }
+        // 新建会话：此时绑定空间（显式指定则校验归属，否则用默认空间）
+        String spaceId = memorySpaceService.resolveSpaceId(userId, tenantId, requestSpaceId, null);
         ChatConversation conversation = new ChatConversation();
         conversation.setUserId(userId);
         conversation.setTenantId(tenantId);
         conversation.setTitle(firstMessage.length() > 30 ? firstMessage.substring(0, 30) : firstMessage);
         conversation.setProvider(provider);
         conversation.setDatasetId(datasetId);
+        conversation.setSpaceId(spaceId);
         conversation.setSystemPrompt(systemPrompt);
         conversation.setMessageCount(0);
         conversationMapper.insert(conversation);

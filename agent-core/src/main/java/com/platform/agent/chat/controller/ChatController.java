@@ -8,6 +8,7 @@ import com.platform.agent.chat.mapper.ChatConversationMapper;
 import com.platform.agent.chat.mapper.ChatMessageMapper;
 import com.platform.agent.chat.mapper.UserMemoryMapper;
 import com.platform.agent.chat.service.MemoryService;
+import com.platform.agent.chat.service.MemorySpaceService;
 import com.platform.agent.rag.dto.RagReference;
 import com.platform.core.base.PageResult;
 import com.platform.core.base.Result;
@@ -41,6 +42,7 @@ public class ChatController {
     private final ChatMessageMapper messageMapper;
     private final UserMemoryMapper memoryMapper;
     private final MemoryService memoryService;
+    private final MemorySpaceService memorySpaceService;
 
     // ==================== 会话 ====================
 
@@ -60,6 +62,7 @@ public class ChatController {
             vo.setTitle(c.getTitle());
             vo.setProvider(c.getProvider());
             vo.setDatasetId(c.getDatasetId());
+            vo.setSpaceId(c.getSpaceId());
             vo.setSystemPrompt(c.getSystemPrompt());
             vo.setMessageCount(c.getMessageCount());
             vo.setCreatedAt(c.getCreatedAt());
@@ -71,12 +74,19 @@ public class ChatController {
 
     @PostMapping("/conversations")
     public Result<ConversationVO> createConversation(@RequestBody Map<String, Object> request) {
+        String userId = UserContext.getUserId();
+        String tenantId = TenantContext.get();
+        // 显式指定则校验归属，否则落到用户默认空间（与 chat 提交时的解析规则一致）
+        String requestSpaceId = request.get("spaceId") == null ? null : String.valueOf(request.get("spaceId"));
+        String spaceId = memorySpaceService.resolveSpaceId(userId, tenantId, requestSpaceId, null);
+
         ChatConversation conversation = new ChatConversation();
-        conversation.setUserId(UserContext.getUserId());
-        conversation.setTenantId(TenantContext.get());
+        conversation.setUserId(userId);
+        conversation.setTenantId(tenantId);
         conversation.setTitle((String) request.getOrDefault("title", "新对话"));
         conversation.setProvider((String) request.getOrDefault("provider", "deepseek"));
         conversation.setDatasetId((String) request.get("datasetId"));
+        conversation.setSpaceId(spaceId);
         conversation.setSystemPrompt((String) request.get("systemPrompt"));
         conversation.setMessageCount(0);
         conversationMapper.insert(conversation);
@@ -137,10 +147,17 @@ public class ChatController {
     public Result<PageResult<MemoryVO>> listMemories(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String category) {
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String spaceId) {
+        String userId = UserContext.getUserId();
+        String tenantId = TenantContext.get();
+        // 不传 spaceId 时回落到默认空间（存量前端/老调用方行为不变）
+        String effectiveSpaceId = memorySpaceService.resolveSpaceId(userId, tenantId, spaceId, null);
+
         LambdaQueryWrapper<UserMemory> wrapper = new LambdaQueryWrapper<UserMemory>()
-                .eq(UserMemory::getUserId, UserContext.getUserId())
-                .eq(UserMemory::getTenantId, TenantContext.get())
+                .eq(UserMemory::getUserId, userId)
+                .eq(UserMemory::getTenantId, tenantId)
+                .eq(UserMemory::getSpaceId, effectiveSpaceId)
                 .eq(UserMemory::getDeleted, 0)   // 软删记忆不出现在管理列表
                 .orderByDesc(UserMemory::getCreatedAt);
         if (category != null && !category.isBlank()) {
@@ -157,6 +174,7 @@ public class ChatController {
             vo.setContent(m.getContent());
             vo.setMemoryType(m.getMemoryType());
             vo.setCategory(m.getCategory());
+            vo.setSpaceId(m.getSpaceId());
             vo.setSourceConversationId(m.getSourceConversationId());
             vo.setCreatedAt(m.getCreatedAt());
             return vo;
@@ -194,10 +212,15 @@ public class ChatController {
             throw new BizException(ErrorCode.PARAM_INVALID, "记忆内容不能为空");
         }
         String type = request.get("memoryType") == null ? "FACT" : String.valueOf(request.get("memoryType"));
-        String result = memoryService.saveManual(UserContext.getUserId(), TenantContext.get(),
-                content, type, UserMemory.CATEGORY_LONG_TERM);
+        String userId = UserContext.getUserId();
+        String tenantId = TenantContext.get();
+        // 归属空间：显式指定则校验归属，否则落到默认空间
+        String spaceId = memorySpaceService.resolveSpaceId(userId, tenantId,
+                request.get("spaceId") == null ? null : String.valueOf(request.get("spaceId")), null);
+        String result = memoryService.saveManual(userId, tenantId, spaceId, content, type,
+                UserMemory.CATEGORY_LONG_TERM);
         if ("DUPLICATE".equals(result)) {
-            throw new BizException(ErrorCode.PARAM_INVALID, "已存在相同内容的记忆");
+            throw new BizException(ErrorCode.PARAM_INVALID, "该空间内已存在相同内容的记忆");
         }
         return Result.ok(null);
     }
@@ -234,6 +257,7 @@ public class ChatController {
         vo.setTitle(c.getTitle());
         vo.setProvider(c.getProvider());
         vo.setDatasetId(c.getDatasetId());
+        vo.setSpaceId(c.getSpaceId());
         vo.setSystemPrompt(c.getSystemPrompt());
         vo.setMessageCount(c.getMessageCount());
         vo.setCreatedAt(c.getCreatedAt());
