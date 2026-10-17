@@ -166,9 +166,33 @@ foreach ($d in @('apps', 'web', 'sql', 'bin', 'systemd', 'nginx')) {
     New-Item -ItemType Directory -Path (Join-Path $StagingDir $d) -Force | Out-Null
 }
 
-# 服务名 → jar 文件名前缀，两者一致（见各模块 pom 的 artifactId）
-$Services = @('gateway', 'user-service', 'agent-core', 'security-service',
-              'image-engine', 'video-engine', 'storage-service')
+# 要上传哪些服务的 jar —— 与 deploy.sh 的 enabled_services() 保持一致。
+#
+# 为什么不解析 deploy.conf 里的 ENABLE_* 开关：那些开关写在 case 分支里，
+# 本脚本的简易解析器（只认 KEY=value）抓不到，而且同名键在三个分支里各出现
+# 一次，会拿到最后一支（full）的值。所以只按 PROFILE 推导。
+#
+# 少传的 jar 不会导致问题：deploy.sh 的 preflight 会提示"缺少 X 的 jar"，
+# 升档时重跑一次本脚本即可。
+$Profile = if ($Conf.ContainsKey('PROFILE') -and $Conf['PROFILE']) { $Conf['PROFILE'] } else { 'lite' }
+switch ($Profile) {
+    'lite' {
+        $Services = @('gateway', 'user-service', 'agent-core', 'image-engine', 'storage-service')
+    }
+    'medium' {
+        $Services = @('gateway', 'user-service', 'agent-core', 'security-service',
+                      'image-engine', 'video-engine', 'storage-service')
+    }
+    'full' {
+        $Services = @('gateway', 'user-service', 'agent-core', 'security-service',
+                      'image-engine', 'video-engine', 'storage-service')
+    }
+    default {
+        Die "deploy.conf 的 PROFILE 非法: '$Profile'（只能是 lite / medium / full）"
+    }
+}
+Say "档位 $Profile → 上传 $($Services.Count) 个服务的 jar"
+
 foreach ($svc in $Services) {
     $jar = Get-ChildItem -Path (Join-Path $RepoRoot "$svc\target") -Filter "$svc-*.jar" -ErrorAction SilentlyContinue |
            Where-Object { $_.Name -notmatch '\.original$' } |

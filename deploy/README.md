@@ -130,7 +130,16 @@ PROFILE="lite"               # 2C2G 保持 lite
 powershell -ExecutionPolicy Bypass -File deploy\build-local.ps1
 ```
 
-做四件事：Maven 打包 → Vite 构建前端 → 打成一个 tar.gz（约 300MB）→ 上传并解包到 `/opt/ai-agent`。
+做四件事：Maven 打包 → Vite 构建前端 → 打成一个 tar.gz → 上传并解包到 `/opt/ai-agent`。
+
+上传体积按档位裁剪（只打包该档位会跑的服务）：
+
+| 档位 | jar 数 | jar 体积 | + 前端 | 上传合计 |
+|---|---|---|---|---|
+| `lite` | 5 | 333 MB | 34 MB | **~367 MB** |
+| `medium` / `full` | 7 | 466 MB | 34 MB | **~500 MB** |
+
+jar 本身已是压缩包（含全部依赖的 fat jar），所以 tar.gz 再压也压不下去多少。
 
 首次会问 SSH 密码或使用密钥。上传慢是正常的，取决于上行带宽。
 
