@@ -3,6 +3,7 @@
 -- 执行顺序: init.sql → model_config.sql → rag.sql → chat.sql
 -- 已有数据库升级：手动执行本文件
 -- ============================================================
+SET NAMES utf8mb4;
 USE agent_platform;
 
 -- ========== 会话 ==========

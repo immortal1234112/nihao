@@ -3,6 +3,7 @@
 -- 执行顺序: init.sql → model_config.sql → rag.sql
 -- 向量存 rag_chunk.embedding JSON 列, 应用层余弦相似度检索
 -- ============================================================
+SET NAMES utf8mb4;
 USE agent_platform;
 
 -- ========== RAG 知识库 ==========

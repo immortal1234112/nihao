@@ -11,6 +11,9 @@
 -- AI Agent 企业级创作平台 — 数据库初始化脚本
 -- ============================================
 
+-- 字符集：本文件含中文，导入时须 utf8mb4，否则中文会被双重编码
+SET NAMES utf8mb4;
+
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS agent_platform DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS user_service DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;

@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 USE agent_platform;
 
 CREATE TABLE IF NOT EXISTS model_config (

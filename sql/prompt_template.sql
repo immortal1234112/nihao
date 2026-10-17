@@ -2,6 +2,7 @@
 -- 提示词模板库 — 独立脚本（在 agent_platform 库执行）
 -- 用法：mysql -u root -p < sql/prompt_template.sql
 -- ============================================
+SET NAMES utf8mb4;
 USE agent_platform;
 
 CREATE TABLE IF NOT EXISTS prompt_template (
