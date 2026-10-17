@@ -32,6 +32,11 @@
         <java.version>17</java.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
+        <!-- release 而非仅 source/target：保证编译期就只链接 Java 17 的 API。
+             只设 source/target 时，用 JDK 21 编译仍能调用 18~21 的新 API，
+             产物拿到生产环境（JDK 17）一跑就 NoSuchMethodError。
+             生产服务器装的是 JDK 17（见 deploy/remote-install.sh）。 -->
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.2.5</spring-boot.version>
         <spring-cloud.version>2023.0.1</spring-cloud.version>

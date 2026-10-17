@@ -115,19 +115,37 @@ if (-not $SkipBuild) {
     if (-not $SkipWeb) {
         $WebDir = Join-Path $RepoRoot 'web-admin'
         Say "前端构建…"
+
+        # ★ 显式用 npm.cmd，不用 `npm`
+        #   Windows 上 npm 有三种形态：npm（→npm.ps1）、npm.cmd、npm.exe。
+        #   PowerShell 默认执行策略是 Restricted 时，调用 `& npm` 会解析到
+        #   npm.ps1 并报「在此系统上禁止运行脚本」——构建直接失败，而且这个
+        #   报错看起来像是"npm 没装"，很容易误判。
+        #   用 .cmd 绕过 PS 脚本策略，不要求用户改机器级设置。
+        $NpmExe = (Get-Command npm.cmd -ErrorAction SilentlyContinue)
+        if (-not $NpmExe) {
+            # 少数环境只有 npm.exe / 或 npm 在 PATH 别处
+            $NpmExe = (Get-Command npm -CommandType Application -ErrorAction SilentlyContinue)
+        }
+        if (-not $NpmExe) {
+            Die "找不到 npm。先装 Node.js 18+ 并确认 'npm.cmd --version' 可用。"
+        }
+        $Npm = $NpmExe.Source
+        Say "npm: $Npm"
+
         Push-Location $WebDir
         try {
             if (-not (Test-Path 'node_modules')) {
                 Say "首次构建，安装依赖（npm ci）…"
-                & npm ci
+                & $Npm ci
             } else {
-                & npm install --no-audit --no-fund
+                & $Npm install --no-audit --no-fund
             }
-            if ($LASTEXITCODE -ne 0) { Die "npm install 失败" }
+            if ($LASTEXITCODE -ne 0) { Die "npm install 失败（退出码 $LASTEXITCODE）" }
 
             # build 脚本是 `tsc && vite build`：类型错误会在这里挡下来，
             # 这正是我们想要的 —— 别把带类型错误的前端发到线上。
-            & npm run build
+            & $Npm run build
             if ($LASTEXITCODE -ne 0) { Die "前端构建失败（类型错误或 Vite 报错）" }
         } finally { Pop-Location }
         Ok "前端构建完成"
