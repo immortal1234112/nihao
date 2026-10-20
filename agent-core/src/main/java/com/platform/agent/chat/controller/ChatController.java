@@ -269,9 +269,8 @@ public class ChatController {
     private List<RagReference> parseReferences(String json) {
         if (json == null || json.isBlank()) return List.of();
         try {
-            return JsonUtils.fromJson(json, RagReference[].class) == null
-                    ? List.of()
-                    : List.of(JsonUtils.fromJson(json, RagReference[].class));
+            RagReference[] parsed = JsonUtils.fromJson(json, RagReference[].class);
+            return parsed == null ? List.of() : List.of(parsed);
         } catch (Exception e) {
             log.debug("Message references parse failed: {}", e.getMessage());
             return List.of();

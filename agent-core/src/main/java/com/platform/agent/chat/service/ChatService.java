@@ -9,6 +9,8 @@ import com.platform.agent.rag.dto.RagReference;
 import com.platform.agent.rag.dto.RagSearchRequest;
 import com.platform.agent.rag.dto.RagSearchResult;
 import com.platform.agent.rag.service.RagService;
+import com.platform.agent.search.service.WebSearchOutcome;
+import com.platform.agent.search.service.WebSearchService;
 import com.platform.core.exception.BizException;
 import com.platform.core.exception.ErrorCode;
 import com.platform.core.util.JsonUtils;
@@ -43,6 +45,7 @@ public class ChatService {
     private final ChatConversationMapper conversationMapper;
     private final ChatMessageMapper messageMapper;
     private final RagService ragService;
+    private final WebSearchService webSearchService;
     private final MemoryService memoryService;
     private final MemoryExtractProcessor extractProcessor;
     private final MemorySpaceService memorySpaceService;
@@ -83,7 +86,13 @@ public class ChatService {
             Map<String, Object> options,
             List<RagReference> references,
             /** 本次对话生效的记忆空间（注入与提取都用它，保证同一轮读写一致） */
-            String spaceId) {
+            String spaceId,
+            /**
+             * 联网搜索失败原因；null = 没开搜索或搜索成功。
+             * 需要单独带出来，否则「搜索失败」在界面上会表现成「0 条结果」，
+             * 用户无法区分「真的没搜到」和「Key 配错了」。
+             */
+            String searchError) {
     }
 
     // ==================== 同步对话 ====================
@@ -110,6 +119,10 @@ public class ChatService {
         result.put("durationMs", duration);
         result.put("references", ctx.references());
         result.put("spaceId", ctx.spaceId());
+        // 联网搜索失败时一并返回原因，前端与流式路径展示一致
+        if (ctx.searchError() != null) {
+            result.put("searchError", ctx.searchError());
+        }
         return result;
     }
 
@@ -192,14 +205,36 @@ public class ChatService {
             }
         }
 
-        // 6. 历史截断（预算含当前 user 消息）
+        // 6. 联网搜索增强（可选；失败降级不阻塞回答，与 RAG 同一降级范式）
+        //    开关来自请求体 webSearch=true，缺省关闭——搜索按次计费，不能默认替用户花钱
+        String searchError = null;
+        if (Boolean.TRUE.equals(request.get("webSearch"))) {
+            try {
+                WebSearchOutcome outcome = webSearchService.searchWithOutcome(
+                        message, message, topKNum != null ? topKNum.intValue() : null);
+                if (outcome.hasError()) {
+                    // 失败原因一路带到 SSE，前端据此提示；对话本身照常继续
+                    searchError = outcome.getError();
+                } else if (!outcome.getReferences().isEmpty()) {
+                    List<RagReference> webRefs = outcome.getReferences();
+                    references.addAll(webRefs);
+                    effectiveSystemPrompt = (effectiveSystemPrompt == null ? "" : effectiveSystemPrompt)
+                            + webSearchService.buildReferencePrompt(webRefs);
+                }
+            } catch (Exception e) {
+                log.warn("联网搜索降级 for chat: {}", e.getMessage());
+                searchError = "联网搜索异常: " + e.getMessage();
+            }
+        }
+
+        // 7. 历史截断（预算含当前 user 消息）
         history = truncateHistory(history, message);
 
         @SuppressWarnings("unchecked")
         Map<String, Object> options = (Map<String, Object>) request.get("options");
 
         return new PreparedContext(conversation, adapter, effectiveSystemPrompt, history,
-                message, options, references, spaceId);
+                message, options, references, spaceId, searchError);
     }
 
     // ==================== 流水线收尾（同步/流式共用） ====================

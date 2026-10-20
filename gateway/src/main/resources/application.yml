@@ -89,6 +89,12 @@ spring:
           uri: lb://agent-core
           predicates:
             - Path=/api/v1/rag/**
+        # 联网搜索：对话页「联网搜索」开关靠 /search/status 判断可用性，
+        # 缺这条路由会 404 → 前端把搜索判为不可用 → 按钮永久置灰。
+        - id: search
+          uri: lb://agent-core
+          predicates:
+            - Path=/api/v1/search/**
         - id: audit
           uri: lb://security-service
           predicates:

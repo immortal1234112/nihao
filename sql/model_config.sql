@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS model_config (
 INSERT IGNORE INTO model_config (id, provider, api_key, api_secret, base_url, model, enabled) VALUES
 ('1', 'openai', '', '', 'https://api.openai.com', 'gpt-4o', 0),
 ('2', 'anthropic', '', '', 'https://api.anthropic.com', 'claude-sonnet-4-20250514', 0),
-('3', 'deepseek', '', '', 'https://api.deepseek.com', 'deepseek-chat', 0),
+('3', 'deepseek', '', '', 'https://api.deepseek.com', 'deepseek-flash', 0),
 ('4', 'qwen', '', '', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'qwen-turbo', 0),
 ('5', 'baidu', '', '', '', 'ernie-4.0-8k', 0),
 ('6', 'spark', '', '', 'https://spark-api-open.xf-yun.com/v1', '4.0Ultra', 0),
@@ -51,4 +51,6 @@ INSERT IGNORE INTO model_config (id, provider, api_key, api_secret, base_url, mo
 ('26', 'siliconflow-embedding', '', '', 'https://api.siliconflow.cn/v1', 'BAAI/bge-m3', 0),
 -- 视频生成（CogVideoX-Flash 免费 / 通义万相 Wan2.1）
 ('27', 'cogvideo', '', '', 'https://open.bigmodel.cn', 'cogvideox-flash', 0),
-('28', 'wan21', '', '', 'https://dashscope.aliyuncs.com', 'wan2.1', 0);
+('28', 'wan21', '', '', 'https://dashscope.aliyuncs.com', 'wan2.1', 0),
+-- 联网搜索（DeepSeek 官方 Search/Fetch；与上面的 deepseek LLM 是独立 Key 用量与计费）
+('29', 'deepseek-search', '', '', 'https://api.deepseek.com', '', 0);

@@ -7,12 +7,13 @@ import lombok.NoArgsConstructor;
  * 检索引用（单条命中）：这一轮回答依据了哪些外部资料，存入
  * {@code chat_message.references_json}，前端以「参考资料」UI 渲染。
  * <p>
- * 历史包袱：联网搜索已整体下线，但存量消息的 references_json 里仍有
- * {@code sourceType="WEB"} 的条目（网页标题/摘要/url/site），故 WEB 相关的
- * 字段与 {@link #isWeb()} 保留，仅用于旧数据渲染。
- * <p>
- * 兼容性：{@code sourceType} 为后加的可空字段，更早的存量 JSON 反序列化后为
- * null，消费方按「非 WEB 即 RAG」渲染即可。
+ * 来源有两种：
+ * <ul>
+ *   <li>{@link #SOURCE_RAG} 知识库分块（相似度 = 余弦相似度）</li>
+ *   <li>{@link #SOURCE_WEB} 联网搜索网页（相似度 = 上游排序分归一化）</li>
+ * </ul>
+ * {@code sourceType} 是后加的可空字段：更早的存量 JSON 反序列化后为 null，
+ * 消费方按「非 WEB 即 RAG」处理即可。
  */
 @Data
 @NoArgsConstructor
@@ -27,10 +28,10 @@ public class RagReference {
     /** RAG：分块 id；WEB：合成 id（web-N） */
     private String chunkId;
 
-    /** RAG：分块正文；WEB：网页摘要 */
+    /** RAG：分块正文；WEB：网页正文/摘要 */
     private String content;
 
-    /** 相关度 0~1（RAG=余弦相似度，WEB=搜索服务打分或按排名折算） */
+    /** 相关度 0~1（RAG=余弦相似度，WEB=搜索排序分按 0~3 归一化） */
     private double similarity;
 
     /** 仅 RAG：所属文档 id */
@@ -45,12 +46,10 @@ public class RagReference {
     /** 仅 WEB：网页地址 */
     private String url;
 
-    /** 仅 WEB：站点域名，如 zhihu.com */
+    /** 仅 WEB：站点域名，如 github.com */
     private String site;
 
-    /**
-     * [RagService.search] 的唯一构造点——新建引用恒为知识库来源。
-     */
+    /** 知识库引用的构造点（新建引用恒为 RAG 来源） */
     public RagReference(String chunkId, String content, double similarity,
                         String documentId, String documentName) {
         this.chunkId = chunkId;

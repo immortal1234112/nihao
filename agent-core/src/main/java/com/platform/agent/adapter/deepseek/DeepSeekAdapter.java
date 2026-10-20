@@ -13,9 +13,13 @@ import org.springframework.stereotype.Component;
  *   deepseek:
  *     api-key: sk-xxxxxxxxxxxxxxxx
  *     base-url: https://api.deepseek.com
- *     model: deepseek-chat
+ *     model: deepseek-flash
  *     max-tokens: 4096
  *     temperature: 0.7
+ *
+ * 模型名说明（2026-10 官方文档）：主推 deepseek-flash（由 V4.1-Flash 提供）
+ * 与 deepseek-v4-pro；deepseek-chat 是遗留名，仍被接受但已不在文档主推列表。
+ * 实际生效值优先取 model_config 表，这里的默认值只作为兜底。
  */
 @Component
 public class DeepSeekAdapter extends AbstractOpenAiCompatAdapter {
@@ -26,7 +30,7 @@ public class DeepSeekAdapter extends AbstractOpenAiCompatAdapter {
     @Value("${deepseek.base-url:https://api.deepseek.com}")
     private String baseUrl;
 
-    @Value("${deepseek.model:deepseek-chat}")
+    @Value("${deepseek.model:deepseek-flash}")
     private String model;
 
     @Value("${deepseek.max-tokens:4096}")

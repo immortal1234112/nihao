@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   meta       {conversationId,title,provider,model}
  *   phase      {phase:"generate", status:"start"|"done"|"failed", count, message}
  *   references {references:[RagReference], webCount, ragCount}
+ *   searchError {message}   // 仅联网搜索失败时出现，缺省不发
  *   delta      {content:"增量文本"}
  *   done       {messageId,conversationId,durationMs,content,references}
  *   error      {code,message}
@@ -132,13 +133,21 @@ public class ChatStreamService {
             emit(emitter, session, "meta", meta);
 
             // 3. 检索结果一次性下发，前端在首个 delta 前即可渲染参考资料
-            //    webCount 保留：存量消息的 references_json 里可能有历史 WEB 引用
-            int webCount = (int) ctx.references().stream().filter(r -> r.isWeb()).count();
+            //    webCount 让前端知道要不要按「网页」样式渲染（外链可点、显示站点名）
+            int webCount = (int) ctx.references().stream().filter(RagReference::isWeb).count();
             Map<String, Object> refsPayload = new LinkedHashMap<>();
             refsPayload.put("references", ctx.references());
             refsPayload.put("webCount", webCount);
             refsPayload.put("ragCount", ctx.references().size() - webCount);
             emit(emitter, session, "references", refsPayload);
+
+            // 3.5 联网搜索失败提示：单独一帧，不污染 references 的语义。
+            //     放在 references 之后、delta 之前，前端可以在参考资料区就地展示提示。
+            if (ctx.searchError() != null) {
+                Map<String, Object> errPayload = new LinkedHashMap<>();
+                errPayload.put("message", ctx.searchError());
+                emit(emitter, session, "searchError", errPayload);
+            }
 
             // 4. 逐增量生成
             emit(emitter, session, "phase", ChatService.ChatPhaseEvent.start("generate"));

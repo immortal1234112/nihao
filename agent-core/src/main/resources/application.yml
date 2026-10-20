@@ -70,6 +70,22 @@ rag:
   search-topk-limit: 10
   upload-max-size-bytes: 2097152
 
+# 联网搜索（DeepSeek 官方 Search/Fetch，按成功请求计费：各 5 元/千次）
+#   API Key 优先取 model_config 表（provider = deepseek-search），留空回退下面的默认值。
+#   与上一版自建 SearXNG 的区别：无常驻容器、不占内存，挂掉只影响「本轮回答没有网页引用」。
+search:
+  provider: deepseek-search
+  count: 5                 # 默认返回条数（1~50）；按请求计费，不按条数，够用即可
+  need-content: false      # 是否取网页正文：开了更准但明显更慢，正文长还会挤占上下文
+  deepseek:
+    base-url: ${DEEPSEEK_SEARCH_BASE_URL:https://api.deepseek.com}
+    api-key: ${DEEPSEEK_SEARCH_API_KEY:}
+    max-attempts: 3        # 含首次；仅 408/429/5xx 会重试
+    retry-backoff-ms: 400  # 退避基数，按 2^n 递增
+  # 注入提示词时的体积上限，防单条长文或大量结果把上下文挤爆
+  prompt-max-chars-per-item: 1200
+  prompt-max-chars-total: 4000
+
 # 多轮对话 + 长期记忆（Nacos 同名配置可覆盖）
 chat:
   max-history-tokens: 4096   # 历史截断预算（小窗口模型需下调）
@@ -82,10 +98,6 @@ chat:
     # 单次生成的墙钟上限：防跑飞的模型长期占住 chat-stream 线程
     max-duration-ms: 180000
 
-# 联网搜索（Web Search）已整体下线（2026-09-17）：
-#   原自建 SearXNG 常驻 1GB（uwsgi 多 worker）性价比极低，且 cn.bing.com 后端对
-#   中文长句只匹配开头几个字，检索质量不可用。search 模块（provider 目录、
-#   adapter、SearchController）与 model_config 种子数据已一并删除。
 memory:
   enabled: true
   extract-provider: ''       # 空=复用会话 provider
