@@ -264,6 +264,8 @@ export interface ChatRequest {
   datasetId?: string;
   /** RAG 检索条数（可选） */
   topK?: number;
+  /** 联网搜索增强：true 时检索网页并把结果作为引用（按次计费，默认关闭） */
+  webSearch?: boolean;
   /** 会话 ID（续聊）；缺省自动创建新会话 */
   conversationId?: string;
   /** 记忆空间 ID（可选）；缺省落到用户默认空间。会话已绑定时必须与绑定值一致 */
@@ -284,6 +286,8 @@ export interface ChatResult {
   messageId?: string;
   /** 本次生效的记忆空间 */
   spaceId?: string;
+  /** 联网搜索失败原因（仅开启搜索且失败时出现） */
+  searchError?: string;
 }
 
 // ========== 对话会话 ==========
@@ -381,8 +385,7 @@ export interface RagReference {
   similarity: number;
   documentId: string;
   documentName: string;
-  /** 引用来源：'WEB' + url/site 仅为渲染**存量**历史消息保留（联网搜索已下线）；
-   *  'RAG' 或 undefined = 知识库（更早的存量数据无此字段） */
+  /** 引用来源：'RAG' 或 undefined = 知识库（更早的存量数据无此字段）；'WEB' = 联网搜索 */
   sourceType?: 'RAG' | 'WEB';
   /** 网页地址，仅 sourceType='WEB' */
   url?: string;
@@ -412,9 +415,18 @@ export interface ChatStreamPhase {
 
 export interface ChatStreamReferences {
   references: RagReference[];
-  /** 存量历史消息的引用里可能含 WEB 来源，故计数保留 */
+  /** WEB 来源条数（前端据此展示「含 N 条网页」并区分渲染样式） */
   webCount: number;
   ragCount: number;
+}
+
+/**
+ * 联网搜索失败帧（仅失败时下发，成功后不发）。
+ * 与 references 分开是因为「搜索失败」和「搜索到 0 条」语义不同，
+ * 混在一起会让配置错误表现成「没搜到」。
+ */
+export interface ChatStreamSearchError {
+  message: string;
 }
 
 /** 收尾帧：content 是服务端权威全文，用它覆盖本地累积串可免疫漏帧/渲染漂移 */

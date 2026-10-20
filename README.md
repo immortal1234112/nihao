@@ -293,6 +293,17 @@ mvn spring-boot:run -pl video-engine &
 | baidu | `ErnieAdapter` | ernie-4.0-8k |
 | agnes | `AgnesAdapter` | agnes-2.5-flash |
 
+### 联网搜索（agent-core，1 个）
+
+| Provider 键 | 适配器 | 上游接口 | 说明 |
+|---|---|---|---|
+| `deepseek-search` | `DeepSeekSearchAdapter` | `POST /v1/tools/search`、`POST /v1/tools/fetch` | 官方自研搜索引擎；按成功请求计次（各 5 元/千次），无结果/失败不计费 |
+
+**接入方式**：对话页「联网搜索」按钮按会话开关，命中结果以 `sourceType=WEB` 的引用返回并注入上下文。
+API Key 配在 `model_config`（provider = `deepseek-search`），与 LLM 的 `deepseek` 行**分开**——两者是独立的用量与计费口径。
+搜索是「增强」不是「阻塞」：上游失败只降级为无网页引用，对话照常进行。
+调试接口：`GET /api/v1/search/status`、`POST /api/v1/search`、`POST /api/v1/search/fetch`。
+
 ### 图片生成（image-engine，7 个：6 完整 + 1 骨架）
 
 | Provider 键 | 适配器 | 第三方 API | 状态 |
@@ -386,7 +397,9 @@ mvn spring-boot:run -pl video-engine &
   → ChatService.prepare()
       会话解析 → 存 user 消息 → 加载历史
       → 记忆注入（长期板块全量注入 + 短期板块向量检索 topK）
-      → RAG 增强（可选）→ 按 token 预算截断历史
+      → RAG 增强（可选）
+      → 联网搜索增强（可选，webSearch=true；失败降级为无网页引用）
+      → 按 token 预算截断历史
   → 流式调模型（10 家 LLM 适配器）
   → SSE 6 种事件：meta → phase* → references → delta+ → done | error
   → 持久化 assistant 消息 → 异步提取本轮事实 / 偏好写入记忆

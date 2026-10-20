@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import {
   SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, MessageOutlined,
-  StopOutlined, FolderOutlined,
+  StopOutlined, FolderOutlined, GlobalOutlined,
 } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { llmApi } from '@/api/llm';
@@ -28,6 +28,8 @@ interface Message {
   phase?: string;
   /** 失败提示；内容可能已部分生成，故与正文并存而非替换 */
   error?: string;
+  /** 联网搜索失败提示（与 error 区分：对话本身是成功的） */
+  searchError?: string;
 }
 
 const PROVIDER_NAMES: Record<string, string> = {
@@ -47,6 +49,10 @@ const ChatPage: React.FC = () => {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [selectedDataset, setSelectedDataset] = useState<string | undefined>(undefined);
+  /** 联网搜索开关：默认关闭——按次计费，不能默认替用户花钱 */
+  const [webSearch, setWebSearch] = useState(false);
+  /** 后端是否已配置搜索 Key：未配置时按钮禁用并提示，避免点了必然失败 */
+  const [searchAvailable, setSearchAvailable] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<Conversation | null>(null);
@@ -91,6 +97,12 @@ const ChatPage: React.FC = () => {
     }).catch(() => {});
     loadConversations();
     loadSpaces();
+    llmApi.searchStatus().then((res) => {
+      const ok = res.data.data.available;
+      setSearchAvailable(ok);
+      // 可用性拿到前开关是关的；若不可用则强制保持关闭，防止带着必然失败的开关发请求
+      if (!ok) setWebSearch(false);
+    }).catch(() => setSearchAvailable(false));
   }, [loadConversations, loadSpaces]);
 
   // 流式期间每帧都会更新 messages：此时用瞬时滚动跟随，平滑滚动在高频调用下会互相打断
@@ -195,6 +207,8 @@ const ChatPage: React.FC = () => {
           message: text,
           datasetId: selectedDataset,
           topK: 3,
+          // 仅在开关打开且后端可用时传，避免无谓的计费调用
+          webSearch: webSearch && searchAvailable,
           conversationId: currentId ?? undefined,
           // 新对话带选择的空间；续聊时后端会校验与会话绑定值一致（这里传生效值即可）
           spaceId: effectiveSpaceId,
@@ -214,6 +228,10 @@ const ChatPage: React.FC = () => {
           },
           onReferences: (refs) => {
             patch((m) => ({ ...m, references: refs.references }));
+          },
+          onSearchError: (e) => {
+            // 搜索失败不影响本轮回答，只在参考资料区留一行提示
+            patch((m) => ({ ...m, searchError: e.message }));
           },
           onDelta: (chunk) => {
             buffered += chunk;
@@ -346,6 +364,22 @@ const ChatPage: React.FC = () => {
               style={{ width: 180 }}
               placeholder="知识库（可选，RAG 增强）"
             />
+            {/* 联网搜索：一键开关，打开后本轮会检索网页并作为引用注入上下文 */}
+            <Tooltip
+              title={searchAvailable
+                ? (webSearch ? '已开启：发送后会联网检索网页（按次计费）' : '点击开启联网搜索')
+                : '未配置搜索服务：请在「模型配置」里填写 deepseek-search 的 API Key'}
+            >
+              <Button
+                type={webSearch ? 'primary' : 'default'}
+                icon={<GlobalOutlined />}
+                disabled={!searchAvailable}
+                onClick={() => setWebSearch((v) => !v)}
+                style={{ display: 'inline-flex', alignItems: 'center' }}
+              >
+                {webSearch ? '联网搜索：开' : '联网搜索'}
+              </Button>
+            </Tooltip>
             {/* 记忆空间：新对话可选；已绑定的对话只展示不可改（换空间需新建对话） */}
             {boundSpaceId ? (
               <Tooltip title="本对话已绑定该记忆空间，如需切换请新建对话">
@@ -461,6 +495,12 @@ const ChatPage: React.FC = () => {
                       )),
                     }]}
                   />
+                )}
+                {msg.searchError && (
+                  <div className="chat-search-error">
+                    <GlobalOutlined />
+                    <span>联网搜索未生效：{msg.searchError}</span>
+                  </div>
                 )}
                 {msg.time && <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{msg.time}</div>}
               </div>

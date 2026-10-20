@@ -10,6 +10,7 @@ import {
   ChatStreamMeta,
   ChatStreamPhase,
   ChatStreamReferences,
+  ChatStreamSearchError,
   Conversation,
   ChatMessageItem,
   MemoryItem,
@@ -31,6 +32,8 @@ export interface ChatStreamHandlers {
   onMeta?: (data: ChatStreamMeta) => void;
   onPhase?: (data: ChatStreamPhase) => void;
   onReferences?: (data: ChatStreamReferences) => void;
+  /** 联网搜索失败（仅开启搜索且失败时触发）；缺省不影响对话继续进行 */
+  onSearchError?: (data: ChatStreamSearchError) => void;
   onDelta?: (content: string) => void;
   /** 权威收尾帧：content 为服务端全文，落定后应覆盖本地累积串 */
   onDone?: (data: ChatStreamDone) => void;
@@ -63,6 +66,9 @@ export const llmApi = {
           case 'references':
             handlers.onReferences?.(payload as ChatStreamReferences);
             break;
+          case 'searchError':
+            handlers.onSearchError?.(payload as ChatStreamSearchError);
+            break;
           case 'delta':
             handlers.onDelta?.((payload as { content: string }).content);
             break;
@@ -78,6 +84,10 @@ export const llmApi = {
         }
       },
     }),
+
+  // ===== 联网搜索 =====
+  /** 是否已配置搜索能力（未配置时前端禁用「联网搜索」开关，避免点了必然失败） */
+  searchStatus: () => http.get<ApiResult<{ available: boolean }>>('/search/status'),
 
   // ===== 会话 =====
   listConversations: (page = 1, size = 20) =>
