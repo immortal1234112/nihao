@@ -282,9 +282,17 @@ PROMPT_AUDIT_DEGRADE_ALLOWED=$([ "${ENABLE_SECURITY_SERVICE}" = "true" ] && echo
 QUOTA_DEGRADE_ALLOWED=false
 
 # ---------------------------------------------------------------------
-# 联网搜索已整体下线（含自建 SearXNG 容器、search 模块与 model_config 种子行）,
-# 这里不再需要任何开关。重启该功能要同时恢复代码、种子数据与部署编排。
+# 联网搜索（DeepSeek 官方 Search/Fetch）
+#
+# API Key 走 model_config 表（provider = deepseek-search），不在 services.env 里，
+# 与 LLM 的 deepseek Key 分开管理 —— 两者是独立的用量与计费口径。
+# 这里只放非敏感调参；留空即用 application.yml 的默认值。
+#
+# 计费：按成功请求计次（各 5 元/千次），无结果/失败不计费。
+# 开关在前端对话页，按会话决定是否启用，所以后端不需要全局开关。
 # ---------------------------------------------------------------------
+SEARCH_COUNT=5
+SEARCH_NEED_CONTENT=false
 
 # video-engine 下载目录。默认值写死的是 Windows 路径（C:\\Users\\...\\Ai视频）,
 # Linux 上必须覆盖, 否则该功能会往一个不存在的目录写。
