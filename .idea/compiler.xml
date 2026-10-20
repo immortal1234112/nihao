@@ -13,6 +13,7 @@
         <module name="common-mq" />
         <module name="storage-service" />
         <module name="user-service" />
+        <module name="common-engine" />
         <module name="image-engine" />
         <module name="security-service" />
         <module name="common-web" />
@@ -26,6 +27,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="agent-core" options="-parameters" />
       <module name="common-core" options="-parameters" />
+      <module name="common-engine" options="-parameters" />
       <module name="common-feign" options="-parameters" />
       <module name="common-mq" options="-parameters" />
       <module name="common-security" options="-parameters" />
